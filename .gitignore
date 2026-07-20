@@ -1,0 +1,11 @@
+# Laufzeitdaten der API (SQLite-Datenbank der Nutzer) – niemals committen!
+api/data/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+
+# Betriebssystem-Müll
+Thumbs.db
+Desktop.ini
+.DS_Store

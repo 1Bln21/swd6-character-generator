@@ -1,0 +1,150 @@
+=====================================================================
+ STAR WARS D6 – CHARAKTERGENERATOR (2nd Edition)
+ HTML-Version des Excel-Generators "Character Generator v2-5.xlsx"
+=====================================================================
+
+STARTEN
+-------
+Einfach die Datei  index.html  doppelklicken – sie öffnet sich im
+Browser (Edge, Chrome, Firefox). Keine Installation nötig, es wird
+keine Internetverbindung gebraucht.
+
+Wichtig: Die Dateien index.html, app.js, data.js und style.css
+müssen zusammen in diesem Ordner bleiben.
+
+SPRACHE / LANGUAGE
+------------------
+Über das Zahnrad-Menü (⚙, oben rechts) lässt sich die Oberfläche
+zwischen Deutsch und Englisch umschalten – inklusive Charakterbogen.
+Die Auswahl wird gespeichert und beim nächsten Start wiederhergestellt.
+
+Use the gear menu (⚙, top right) to switch the interface between
+German and English – including the printed character sheet. The
+choice is remembered for the next start.
+
+HOSTING (Impressum & Datenschutz)
+---------------------------------
+Wer den Generator öffentlich ins Netz stellt, braucht in der Regel
+Impressum und Datenschutzerklärung. Dafür gibt es zwei Wege:
+
+1. config.js (empfohlen fürs Hosting): Dort impressumUrl und
+   datenschutzUrl eintragen – die Links erscheinen dann für ALLE
+   Besucher unten im Footer.
+2. ⚙-Menü → „Rechtliches (fürs Hosting)“: Links direkt eintragen.
+   Achtung: Das gilt nur für den eigenen Browser (localStorage) und
+   eignet sich zum Ausprobieren, nicht für die Besucher.
+
+Leere Felder = Links werden ausgeblendet (z. B. bei lokaler Nutzung).
+
+If you host the generator publicly, set impressumUrl and
+datenschutzUrl in config.js – the links then appear in the footer
+for ALL visitors. The fields in the ⚙ menu only affect your own
+browser (useful for testing). Empty = links hidden.
+
+ONLINE-KONTEN (User + Passwort + MFA, Cloud-Speicherung, Freigaben)
+-------------------------------------------------------------------
+Der Ordner  api/  enthält einen kleinen Server (eine einzige PHP-
+Datei mit SQLite-Datenbank). Er läuft auf praktisch jedem Webspace
+mit PHP 7.4+ (IONOS, Strato, All-Inkl, Netcup …) – einfach den
+kompletten Generator-Ordner hochladen, fertig. Die App erkennt den
+Server automatisch und zeigt dann den Knopf  ☁ Online.
+
+Damit können Nutzer:
+* Konten anlegen (Benutzername + Passwort, mind. 8 Zeichen)
+* MFA aktivieren: QR-Code mit Google/Microsoft Authenticator,
+  Aegis, Authy usw. scannen (TOTP nach RFC 6238). Bei der
+  Einrichtung gibt es 8 einmalige Backup-Codes für den Notfall.
+* Charaktere online speichern und auf jedem Gerät laden
+* Charaktere für einen oder mehrere andere User freigeben
+  (die Empfänger laden sie als Kopie, nur der Besitzer kann ändern)
+
+Einstellungen am Anfang von  api/index.php :
+* allow_register : Registrierung erlauben (true/false)
+* register_code  : Einladungscode – wenn gesetzt, können sich nur
+                   Leute mit diesem Code registrieren (praktisch,
+                   um die Seite auf die eigene Runde zu beschränken)
+* issuer         : Name, der in der Authenticator-App angezeigt wird
+
+Sicherheit: Passwörter werden gehasht (bcrypt), Login-Tokens nur
+als Hash gespeichert, Codes sind einmalig verwendbar (Replay-
+Schutz), nach 8 Fehlversuchen wird 15 Minuten gesperrt. Die
+Datenbank liegt in  api/data/  und ist per .htaccess gegen
+Direktzugriff geschützt (bei nginx: den Pfad  /api/data  in der
+Server-Konfiguration sperren!).
+
+Ohne PHP-Server funktioniert alles wie bisher rein lokal – die
+Online-Funktionen blenden sich dann einfach aus.
+
+The api/ folder contains a small server (a single PHP file with an
+SQLite database) that runs on almost any web space with PHP 7.4+.
+Upload the whole generator folder and the app detects the server
+automatically (☁ Online button). Users can register (username +
+password), enable MFA by scanning a QR code with any common
+authenticator app (TOTP, incl. 8 one-time backup codes), store
+characters online and share them with other users. Settings at the
+top of api/index.php (allow_register, register_code, issuer).
+Without a PHP server everything keeps working locally as before.
+
+CHARAKTERE SPEICHERN & LADEN
+----------------------------
+* 💾 Speichern  – legt den Charakter unter seinem Namen im Browser ab
+                  (localStorage). Beim nächsten Öffnen ist er wieder da.
+* Dropdown + Laden – gespeicherten Charakter zurückholen.
+* 🗑             – gewählten Charakter löschen.
+* Neu           – leeren Charakter beginnen.
+* Außerdem wird der aktuelle Stand automatisch gesichert und beim
+  nächsten Öffnen der Seite wiederhergestellt.
+
+* ⬇ Export – speichert den Charakter als .json-Datei (z. B. zum
+  Verschicken an Mitspieler oder als Backup).
+* ⬆ Import – lädt eine solche .json-Datei wieder ein.
+
+Hinweis: Der Browser-Speicher gehört zum jeweiligen Browser auf diesem
+PC. Für dauerhafte Sicherung / anderen PC → Export benutzen.
+
+CHARAKTERBILD
+-------------
+Auf dem Tab "Charakter" (rechte Spalte) lässt sich ein Bild
+importieren: Datei wählen, den Rahmen anklicken oder ein Bild per
+Drag & Drop hineinziehen. Das Bild wird automatisch verkleinert
+(max. 480×600 px, JPEG) und mit dem Charakter gespeichert – auch
+beim JSON-Export und in der Online-Speicherung. Es erscheint oben
+rechts auf Seite 1 des gedruckten Charakterbogens.
+
+On the "Character" tab you can import a portrait (file picker,
+click the frame, or drag & drop). It is resized automatically and
+stored with the character (incl. JSON export and online storage),
+and appears on page 1 of the printed sheet.
+
+DRUCKEN / PDF
+-------------
+Knopf  🖨 Drucken / PDF  (oben rechts oder auf dem Tab
+"Charakterbogen"). Im Druckdialog des Browsers als Drucker
+"Microsoft Print to PDF" bzw. "Als PDF speichern" wählen → fertiges
+PDF des Charakterbogens (2–4 Seiten, je nach Macht-Sensitivität).
+
+ERSCHAFFUNGSREGELN (wie in der Excel-Vorlage)
+---------------------------------------------
+* Attribute: 18D (54 Pips, je nach Spezies +/- Offset) auf die sechs
+  Attribute verteilen. 3 Pips = 1D. Jede Spezies hat Min/Max-Grenzen.
+* Machtfertigkeiten (Control/Sense/Alter) werden bei der Erschaffung
+  aus dem Attributs-Pool bezahlt.
+* Fertigkeiten: 7D (21 Pips), maximal +2D pro Fertigkeit.
+* Anzahl lernbarer Machtkräfte = Summe der Pips in Control, Sense
+  und Alter (+ Override), wie im Excel-Original.
+* Steigerung nach der Erschaffung über Charakterpunkte (CP):
+  Fertigkeit +1 Pip = aktuelle Würfelzahl in CP,
+  Advanced Skills doppelt, Attribute 10 × Würfelzahl.
+* Overrides (Startwürfel, Kräfteanzahl) stehen wie im Excel zur
+  Verfügung, falls der Spielleiter andere Werte erlaubt.
+
+INHALT
+------
+60 Spezies + 9 Near-Human-Varianten (inkl. Trianii m/w und eigener
+Spezies-Baukasten), alle Fertigkeiten der 6 Attribute, Advanced
+Skills, 82 Machtkräfte mit Voraussetzungen und Seitenangaben,
+Ausrüstungs-, Rüstungs-, Waffen- und Sprengstoff-Kataloge sowie die
+komplette Lichtschwert-Werkstatt (Kristalle, Farben, Modifikationen).
+
+Quelle der Daten: "Character Generator v2-5.xlsx" –
+Star Wars: The Roleplaying Game, 2nd Edition (West End Games).
