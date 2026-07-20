@@ -71,6 +71,7 @@ label { color: var(--muted); font-size: 12px; display: block; margin-bottom: 3px
   background: var(--card2); border: 1px solid var(--accent-dim);
   border-radius: 8px; padding: 10px 14px; min-width: 270px; max-width: 320px;
   box-shadow: 0 8px 24px rgba(0,0,0,.6);
+  max-height: calc(100vh - 80px); overflow-y: auto;
 }
 #optionsMenu input[type=url] {
   width: 100%; margin: 2px 0 6px; font-size: 12.5px; padding: 5px 7px;
@@ -269,6 +270,57 @@ table.list td.num, table.list th.num { text-align: right; white-space: nowrap; }
 .share-row .badge a { color: var(--red); text-decoration: none; margin-left: 3px; }
 .nowrap { white-space: nowrap; }
 #btnOnline { display: none; }
+
+/* ---------- Über / About + Star-Wars-Crawl ---------- */
+#optionsMenu .opt-btn { width: 100%; margin-top: 6px; text-align: left; }
+.about-box { max-width: 640px; }
+.sw-crawl {
+  position: relative;
+  height: 400px;
+  margin: 8px 0 12px;
+  overflow: hidden;
+  background: #000;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  perspective: 250px;
+}
+.sw-crawl::before {
+  content: "";
+  position: absolute; left: 0; right: 0; top: 0; height: 46%;
+  background: linear-gradient(#000 4%, transparent);
+  z-index: 3; pointer-events: none;
+}
+.sw-crawl-content {
+  position: absolute;
+  top: 100%;
+  left: 6%; right: 6%;
+  transform-origin: 50% 100%;
+  color: #ffe81f;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  font-weight: bold;
+  line-height: 1.5;
+  text-align: justify;
+  animation: sw-crawl 55s linear infinite;
+}
+.sw-crawl-content .sw-title {
+  text-align: center;
+  font-size: 24px;
+  letter-spacing: 2px;
+  margin-bottom: 22px;
+  text-shadow: 0 0 12px rgba(255, 232, 31, .45);
+}
+.sw-crawl-content p { margin: 0 0 18px; }
+@keyframes sw-crawl {
+  0%   { top: 100%; transform: rotateX(32deg) translateZ(0); opacity: 1; }
+  92%  { opacity: 1; }
+  100% { top: -360%; transform: rotateX(38deg) translateZ(-780px); opacity: 0; }
+}
+.about-info p { margin: 5px 0; font-size: 13.5px; }
+.about-info a { color: var(--accent); }
+@media (prefers-reduced-motion: reduce) {
+  .sw-crawl-content { animation-duration: 100s; }
+}
 
 /* ---------- Footer ---------- */
 footer { padding: 14px 20px 26px; color: #565d85; font-size: 11.5px; text-align: center; }

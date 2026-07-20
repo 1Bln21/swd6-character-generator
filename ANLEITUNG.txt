@@ -22,6 +22,18 @@ Use the gear menu (⚙, top right) to switch the interface between
 German and English – including the printed character sheet. The
 choice is remembered for the next start.
 
+ÜBER & CREDITS
+--------------
+Im Zahnrad-Menü (⚙) findet sich unter "Info" der Eintrag
+"ℹ Über & Credits". Er öffnet einen Star-Wars-Vorspann (Crawl) mit
+Dank an alle Beteiligten (Autor der Original-Excel, West End Games,
+verwendete Werkzeuge) sowie Angaben zu Autor (1Bln21) und der
+MIT-Lizenz.
+
+The gear menu (⚙) contains "ℹ About & Credits" under "Info": a
+Star Wars-style opening crawl thanking everyone involved, plus the
+author (1Bln21) and the MIT license.
+
 HOSTING (Impressum & Datenschutz)
 ---------------------------------
 Wer den Generator öffentlich ins Netz stellt, braucht in der Regel
