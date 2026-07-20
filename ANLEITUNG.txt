@@ -87,6 +87,47 @@ Server-Konfiguration sperren!).
 Ohne PHP-Server funktioniert alles wie bisher rein lokal – die
 Online-Funktionen blenden sich dann einfach aus.
 
+HTTPS / VERSCHLÜSSELUNG (Let's Encrypt)
+---------------------------------------
+Sobald Online-Konten genutzt werden, MUSS die Seite über HTTPS
+laufen (Login-Daten dürfen nie unverschlüsselt übertragen werden).
+
+A) Shared Hosting / Webspace (IONOS, Strato, All-Inkl, Netcup ...):
+   Fast alle Anbieter bieten Let's Encrypt als Ein-Klick-Option.
+   1. Im Kunden-/Hosting-Panel den Bereich "SSL" / "Sicherheit" /
+      "Zertifikate" öffnen.
+   2. Fuer die Domain ein kostenloses Let's-Encrypt-Zertifikat
+      aktivieren ("SSL aktivieren").
+   3. Falls vorhanden: "HTTP auf HTTPS umleiten" / "HTTPS erzwingen"
+      einschalten.
+   Nach wenigen Minuten laeuft die Seite unter https:// und das
+   Zertifikat verlaengert sich automatisch. certbot muss man hier
+   NICHT selbst installieren.
+
+B) Eigener Server (VPS / Root, Apache oder nginx) mit certbot:
+   # Debian/Ubuntu, Apache:
+   sudo apt update
+   sudo apt install certbot python3-certbot-apache
+   sudo certbot --apache -d deine-domain.de -d www.deine-domain.de
+
+   # ... oder nginx:
+   sudo apt install certbot python3-certbot-nginx
+   sudo certbot --nginx -d deine-domain.de -d www.deine-domain.de
+
+   certbot fragt nach einer E-Mail, richtet HTTPS automatisch ein
+   und bietet die Umleitung HTTP -> HTTPS an ("Redirect" waehlen).
+   Verlaengerung testen:  sudo certbot renew --dry-run
+   Voraussetzung: Domain zeigt per DNS auf den Server, Port 80/443
+   sind offen.
+
+EN: Once online accounts are used, the site MUST run over HTTPS.
+On shared hosting, enable the free Let's Encrypt certificate in the
+panel (SSL / Security) and turn on "force HTTPS" - one click, no
+setup. On your own VPS use certbot:
+  sudo apt install certbot python3-certbot-apache   (or -nginx)
+  sudo certbot --apache -d your-domain.com -d www.your-domain.com
+Choose "redirect" so HTTP forwards to HTTPS; renewal is automatic.
+
 The api/ folder contains a small server (a single PHP file with an
 SQLite database) that runs on almost any web space with PHP 7.4+.
 Upload the whole generator folder and the app detects the server

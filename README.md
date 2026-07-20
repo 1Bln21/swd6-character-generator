@@ -32,6 +32,8 @@ Alles läuft im Browser; Charaktere werden lokal gespeichert (localStorage) und 
 
 ### Hosting
 
+> **Fertiges Paket:** Auf der [Releases-Seite](https://github.com/1Bln21/swd6-character-generator/releases) gibt es das komplette Projekt als ZIP zum Download. Einfach entpacken und per FTP/SFTP hochladen – die Laufzeit-Datenbank (`api/data/`) ist bewusst nicht enthalten und wird beim ersten Aufruf automatisch angelegt.
+
 #### Variante A: Nur statisch (ohne Online-Konten)
 
 Alle Dateien **außer dem Ordner `api/`** auf beliebigen Webspace oder GitHub Pages laden. Fertig.
@@ -72,6 +74,39 @@ location ^~ /api/data/ { deny all; }
 ```
 
 **Rechtlicher Hinweis fürs Hosting:** Mit Benutzerkonten werden personenbezogene Daten verarbeitet (Benutzernamen, Passwort-Hashes). In Deutschland braucht eine öffentliche Seite dann Impressum und Datenschutzerklärung – die Links dafür sind in `config.js` vorgesehen.
+
+### HTTPS aktivieren (Let's Encrypt) – Pflicht bei Online-Konten
+
+Sobald Nutzerkonten im Spiel sind, dürfen Login-Daten **niemals unverschlüsselt** übertragen werden. HTTPS ist Pflicht. Je nach Hosting-Typ gibt es zwei Wege:
+
+**A) Shared Hosting / Webspace** (IONOS, Strato, All-Inkl, Netcup, Hetzner Webhosting …) – der einfachste Fall:
+
+1. Im Hosting-/Kunden-Panel den Bereich **„SSL“**, „Sicherheit“ oder „Zertifikate“ öffnen.
+2. Für die Domain ein kostenloses **Let's-Encrypt-Zertifikat** aktivieren (oft ein einziger Klick, „SSL aktivieren“).
+3. Falls vorhanden: **„HTTP auf HTTPS umleiten“ / „HTTPS erzwingen“** einschalten.
+
+Nach wenigen Minuten ist die Seite unter `https://` erreichbar; die Verlängerung übernimmt der Anbieter automatisch. Bei diesen Tarifen musst du certbot **nicht** selbst installieren.
+
+**B) Eigener Server** (VPS / Root-Server mit Apache oder nginx) – mit **certbot**:
+
+```bash
+# Debian/Ubuntu, Apache:
+sudo apt update
+sudo apt install certbot python3-certbot-apache
+sudo certbot --apache -d deine-domain.de -d www.deine-domain.de
+
+# … oder nginx:
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d deine-domain.de -d www.deine-domain.de
+```
+
+certbot fragt nach einer E-Mail-Adresse, richtet HTTPS automatisch ein und bietet an, HTTP nach HTTPS umzuleiten – hier **„Redirect“** wählen. Die automatische Verlängerung läuft über einen systemd-Timer/Cronjob; Test:
+
+```bash
+sudo certbot renew --dry-run
+```
+
+Voraussetzung: Die Domain zeigt bereits per DNS auf den Server, und Port 80/443 sind erreichbar. Danach die Seite ausschließlich über `https://` aufrufen.
 
 ### Sicherheit (Online-Konten)
 
