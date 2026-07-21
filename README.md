@@ -237,7 +237,7 @@ This project is an HTML port of the Excel workbook **"Character Generator v2-5"*
 
 ## Danksagung / Credits
 
-- **Original-Excel „Character Generator v2-5“**: Dieses Projekt wäre ohne die großartige Vorarbeit des ursprünglichen Autors nicht denkbar. Sämtliche Spieldaten (Spezies, Fertigkeiten, Machtkräfte, Kataloge, Lichtschwert-Werkstatt) und die Erschaffungslogik stammen aus seiner Tabelle. Der Autor nennt in der Tabelle als Kontakt: **gigobyte@hotmail.com**. / This project builds on the excellent work of the original author of the "Character Generator v2-5" Excel workbook, who lists **gigobyte@hotmail.com** as contact in the workbook. All game data and the creation logic originate from that spreadsheet.
+- **Chance Gibboney** – Autor der Original-Excel „Character Generator v2-5“. Dieses Projekt wäre ohne seine großartige Vorarbeit nicht denkbar: Sämtliche Spieldaten (Spezies, Fertigkeiten, Machtkräfte, Kataloge, Lichtschwert-Werkstatt) und die Erschaffungslogik stammen aus seiner Tabelle, an der er über Jahre gearbeitet hat. Er hat der Verwendung für diese Web-App ausdrücklich zugestimmt. **Vielen Dank!** / **Chance Gibboney** – author of the original "Character Generator v2-5" Excel workbook. This project would not exist without his work: all game data and the character creation logic originate from his spreadsheet, and he kindly gave his permission for this web app. **Thank you!**
 - **QR-Code-Bibliothek**: [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator) von Kazuhiko Arase, MIT-Lizenz.
 - **Star Wars: The Roleplaying Game** (D6) von **West End Games**.
 

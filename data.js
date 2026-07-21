@@ -1,4 +1,7 @@
-// Auto-extracted from "Character Generator v2-5.xlsx" (Star Wars D6 2nd Edition)
+// Automatisch erzeugt aus "Character Generator v2-5.xlsx"
+// Quelle: Excel-Charaktergenerator von Chance Gibboney
+// (Star Wars D6, 2nd Edition - West End Games)
+// Nicht von Hand bearbeiten - stattdessen tools/extract-from-excel.py laufen lassen.
 const DATA = {
  "species": [
   {

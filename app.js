@@ -12,7 +12,7 @@ let LANG = localStorage.getItem(LS_LANG) || 'de';
 
 /* Wird im ⚙-Menü unter „Über & Credits“ angezeigt.
    Bei jedem Release mit der Versionsnummer des Git-Tags abgleichen! */
-const APP_VERSION = '1.3.6';
+const APP_VERSION = '1.4.0';
 
 const T = {
 de: {
@@ -29,7 +29,7 @@ de: {
   about_crawl: [
     'SWD6 CHARAKTER-GENERATOR',
     'Vor langer Zeit, in einer Tabellenkalkulation weit, weit entfernt, entstand ein Werkzeug, das Helden erschuf.',
-    'Der größte Dank gebührt dem Schöpfer der originalen Excel-Tabelle „Character Generator v2-5“. Seine akribische Arbeit bildet das Fundament dieses Generators – ohne ihn gäbe es diese Anwendung nicht.',
+    'Der größte Dank gebührt CHANCE GIBBONEY, dem Schöpfer der originalen Excel-Tabelle „Character Generator v2-5“. Seine akribische Arbeit bildet das Fundament dieses Generators – ohne ihn gäbe es diese Anwendung nicht. Er hat der Nutzung freundlicherweise zugestimmt.',
     'Dank gebührt WEST END GAMES für das D6-System und das Star-Wars-Rollenspiel der Zweiten Edition, das Generationen von Spielern zusammenbrachte.',
     'Dank an Kazuhiko Arase für die QR-Code-Bibliothek und an die Schöpfer von PHP, SQLite und Python, deren freie Werkzeuge diese Reise möglich machten.',
     'Dank auch an die KI-Assistenz, die beim Portieren des Codes zur Seite stand.',
@@ -192,7 +192,7 @@ en: {
   about_crawl: [
     'SWD6 CHARACTER GENERATOR',
     'A long time ago, in a spreadsheet far, far away, a tool was born that forged heroes.',
-    'Our greatest thanks go to the creator of the original Excel workbook “Character Generator v2-5”. Their meticulous work is the foundation of this generator — without them, this app would not exist.',
+    'Our greatest thanks go to CHANCE GIBBONEY, creator of the original Excel workbook “Character Generator v2-5”. His meticulous work is the foundation of this generator — without him, this app would not exist. He kindly gave his permission for it to be used.',
     'Thanks to WEST END GAMES for the D6 system and the Second Edition of the Star Wars Roleplaying Game that brought generations of players together.',
     'Thanks to Kazuhiko Arase for the QR code library, and to the makers of PHP, SQLite and Python, whose free tools made this journey possible.',
     'Thanks also to the AI assistance that helped port the code.',
