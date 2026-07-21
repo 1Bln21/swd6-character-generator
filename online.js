@@ -30,9 +30,9 @@ Object.assign(T.de, {
   online_mfa_backup_hint: 'Jetzt sicher aufbewahren (z. B. ausdrucken)! Mit einem Backup-Code kannst du dich anmelden, wenn das Handy verloren geht. Sie werden nur EINMAL angezeigt.',
   online_mfa_backup_left: 'Backup-Codes übrig',
   online_mfa_done: 'Fertig',
-  online_my_chars: 'Meine Online-Charaktere',
+  online_my_chars: 'Meine Online-{docs}',
   online_shared_chars: 'Für mich freigegeben',
-  online_upload: '⬆ Aktuellen Charakter hochladen',
+  online_upload: '⬆ {doc} hochladen',
   online_load: 'Laden', online_delete: 'Löschen', online_share: 'Freigeben',
   online_from: 'von', online_none: '– keine –',
   online_share_title: 'Freigeben an Benutzer:',
@@ -43,7 +43,7 @@ Object.assign(T.de, {
   online_loaded: 'Charakter geladen.',
   online_saved: 'Hochgeladen ✔',
   online_readonly_hint: 'Freigegebene Charaktere werden als Kopie geladen – Speichern legt sie unter deinem Konto ab.',
-  online_no_name: 'Bitte dem Charakter zuerst einen Namen geben (Tab „Charakter“).',
+  online_no_name: 'Bitte zuerst einen Namen vergeben.',
   online_error: 'Fehler: ',
   online_offline: 'Server nicht erreichbar.',
   online_close: 'Schließen',
@@ -108,9 +108,9 @@ Object.assign(T.en, {
   online_mfa_backup_hint: 'Store these safely now (e.g. print them)! A backup code lets you sign in if you lose your phone. They are shown only ONCE.',
   online_mfa_backup_left: 'backup codes left',
   online_mfa_done: 'Done',
-  online_my_chars: 'My online characters',
+  online_my_chars: 'My online {docs}',
   online_shared_chars: 'Shared with me',
-  online_upload: '⬆ Upload current character',
+  online_upload: '⬆ Upload current {doc}',
   online_load: 'Load', online_delete: 'Delete', online_share: 'Share',
   online_from: 'by', online_none: '– none –',
   online_share_title: 'Share with user:',
@@ -121,7 +121,7 @@ Object.assign(T.en, {
   online_loaded: 'Character loaded.',
   online_saved: 'Uploaded ✔',
   online_readonly_hint: 'Shared characters are loaded as a copy – saving stores them under your own account.',
-  online_no_name: 'Please give the character a name first ("Character" tab).',
+  online_no_name: 'Please enter a name first.',
   online_error: 'Error: ',
   online_offline: 'Server not reachable.',
   online_close: 'Close',
@@ -165,6 +165,13 @@ Object.assign(T.en, {
 
 /* ---------------- Zustand & API ---------------- */
 const LS_ONLINE = 'swd6_online';
+/* Dokumenttyp dieser Seite: 'char' (index), 'droid' oder 'ship'.
+   Konto und Anmeldung sind für alle Seiten dieselben – nur die
+   Cloud-Listen werden nach Typ getrennt. */
+const DOC_KIND = (typeof PAGE_DOC_KIND !== 'undefined') ? PAGE_DOC_KIND : 'char';
+function tDoc(key) {
+  return t(key).replace('{docs}', t('doc_plural')).replace('{doc}', t('doc_one'));
+}
 let ONLINE = { token: '', username: '', mfaEnabled: false };
 try { Object.assign(ONLINE, JSON.parse(localStorage.getItem(LS_ONLINE)) || {}); } catch (e) {}
 let onlineAvailable = false;
@@ -224,6 +231,8 @@ function setOnlineAuth(o) {
   ONLINE = o;
   localStorage.setItem(LS_ONLINE, JSON.stringify(ONLINE));
   updateOnlineButton();
+  /* Cache der Gruppen-Spezies neu laden (nur auf der Charakter-Seite vorhanden) */
+  try { if (typeof cloudSpecies !== 'undefined') cloudSpecies = null; } catch (e) {}
 }
 function updateOnlineButton() {
   const b = document.getElementById('btnOnline');
@@ -261,7 +270,7 @@ async function refreshCloud() {
     ONLINE.backupCodesLeft = me.backupCodesLeft;
     ONLINE.isAdmin = !!me.isAdmin;
     setOnlineAuth(ONLINE);
-    onlineData = await api('chars');
+    onlineData = await api('chars', undefined, { kind: DOC_KIND });
     adminData = ONLINE.isAdmin ? await api('admin_users') : null;
   } catch (e) { onlineMsg = e.message; }
   renderOnline();
@@ -399,8 +408,8 @@ function renderOnline() {
     html += `
     <p>${t('online_logged_in_as')}: <b>${esc(ONLINE.username)}</b>
       <button class="mini" style="float:right" data-oact="logout">${t('online_logout')}</button></p>
-    <h3>${t('online_my_chars')}</h3>
-    <p><button class="accent" data-oact="upload">${t('online_upload')}</button></p>
+    <h3>${tDoc('online_my_chars')}</h3>
+    <p><button class="accent" data-oact="upload">${tDoc('online_upload')}</button></p>
     <table class="list">${mine || `<tr><td class="hint">${t('online_none')}</td></tr>`}</table>
     <h3>${t('online_shared_chars')}</h3>
     <table class="list">${shared || `<tr><td class="hint">${t('online_none')}</td></tr>`}</table>
@@ -518,17 +527,17 @@ async function onlineAction(el) {
         delete payload._cloudId;
         let id = C._cloudId || 0;
         try {
-          const res = await api('char_save', { id, name, data: payload });
+          const res = await api('char_save', { id, name, kind: DOC_KIND, data: payload });
           C._cloudId = res.id;
         } catch (e) {
           if (e.status === 403 || e.status === 404) {
-            const res = await api('char_save', { name, data: payload });
+            const res = await api('char_save', { name, kind: DOC_KIND, data: payload });
             C._cloudId = res.id;
           } else throw e;
         }
         autosave();
         onlineMsg = t('online_saved');
-        onlineData = await api('chars');
+        onlineData = await api('chars', undefined, { kind: DOC_KIND });
         break;
       }
       case 'load': {
@@ -546,7 +555,7 @@ async function onlineAction(el) {
         if (!confirm(t('online_confirm_delete_cloud').replace('{name}', el.dataset.name))) return;
         await api('char_delete', { id: +el.dataset.id });
         if (C._cloudId === +el.dataset.id) { C._cloudId = null; autosave(); }
-        onlineData = await api('chars');
+        onlineData = await api('chars', undefined, { kind: DOC_KIND });
         break;
       }
       case 'shareOpen': {

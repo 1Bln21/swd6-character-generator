@@ -205,6 +205,7 @@ $db->exec("CREATE TABLE IF NOT EXISTS chars (
   id $PK,
   user_id INT NOT NULL,
   name $STR NOT NULL,
+  kind VARCHAR(16) DEFAULT 'char',
   data $TXT NOT NULL,
   updated BIGINT
 )$SUF");
@@ -247,6 +248,19 @@ foreach ($addCols as $col => $colDef) {
   if (in_array($col, $userCols, true)) continue;
   try { $db->exec("ALTER TABLE users ADD COLUMN $colDef"); }
   catch (Exception $e) { $alterError = $e->getMessage(); }
+}
+/* chars: Dokumenttyp kam mit den Droiden-/Schiffs-Generatoren dazu */
+if (!in_array('kind', table_columns('chars'), true)) {
+  try { $db->exec("ALTER TABLE chars ADD COLUMN kind VARCHAR(16) DEFAULT 'char'"); }
+  catch (Exception $e) { $alterError = $e->getMessage(); }
+}
+
+/* Erlaubte Dokumenttypen: Charaktere, Droiden, Schiffe, eigene Spezies */
+$KINDS = ['char', 'droid', 'ship', 'species'];
+function req_kind() {
+  global $KINDS;
+  $k = (string)inp('kind', 'char');
+  return in_array($k, $KINDS, true) ? $k : 'char';
 }
 
 /* Selbstprüfung: fehlt etwas, klar sagen statt später mittendrin abstürzen */
@@ -634,13 +648,14 @@ case 'mfa_disable': {
 
 case 'chars': {
   $user = auth();
-  $st = $db->prepare('SELECT id, name, updated FROM chars WHERE user_id = ? ORDER BY ' . ci('name'));
-  $st->execute([$user['id']]);
+  $kind = req_kind();
+  $st = $db->prepare("SELECT id, name, updated FROM chars WHERE user_id = ? AND COALESCE(kind,'char') = ? ORDER BY " . ci('name'));
+  $st->execute([$user['id'], $kind]);
   $mine = $st->fetchAll(PDO::FETCH_ASSOC);
-  $st = $db->prepare('SELECT c.id, c.name, c.updated, u.username AS owner
+  $st = $db->prepare("SELECT c.id, c.name, c.updated, u.username AS owner
                       FROM shares s JOIN chars c ON c.id = s.char_id JOIN users u ON u.id = s.owner_id
-                      WHERE s.to_user_id = ? ORDER BY ' . ci('c.name'));
-  $st->execute([$user['id']]);
+                      WHERE s.to_user_id = ? AND COALESCE(c.kind,'char') = ? ORDER BY " . ci('c.name'));
+  $st->execute([$user['id'], $kind]);
   json_out(['mine' => $mine, 'shared' => $st->fetchAll(PDO::FETCH_ASSOC)]);
 }
 
@@ -658,6 +673,7 @@ case 'char_get': {
     if (!$st->fetch()) fail('No access to this character', 403);
   }
   json_out(['id' => (int)$char['id'], 'name' => $char['name'], 'owner' => $char['owner'],
+            'kind' => $char['kind'] ? $char['kind'] : 'char',
             'readonly' => !$isOwner, 'updated' => (int)$char['updated'],
             'data' => json_decode($char['data'], true)]);
 }
@@ -684,9 +700,40 @@ case 'char_save': {
   $st = $db->prepare('SELECT COUNT(*) FROM chars WHERE user_id = ?');
   $st->execute([$user['id']]);
   if ((int)$st->fetchColumn() >= $CONFIG['max_chars_per_user']) fail('Character limit reached');
-  $db->prepare('INSERT INTO chars (user_id, name, data, updated) VALUES (?,?,?,?)')
-     ->execute([$user['id'], $name, $json, time()]);
+  $db->prepare('INSERT INTO chars (user_id, name, kind, data, updated) VALUES (?,?,?,?,?)')
+     ->execute([$user['id'], $name, req_kind(), $json, time()]);
   json_out(['id' => (int)$db->lastInsertId()]);
+}
+
+/* ---- Eigene Spezies: für alle angemeldeten Gruppenmitglieder sichtbar ---- */
+case 'species_list': {
+  $user = auth();
+  $st = $db->prepare("SELECT c.id, c.name, c.updated, c.data, u.username AS owner, c.user_id
+                      FROM chars c JOIN users u ON u.id = c.user_id
+                      WHERE COALESCE(c.kind,'char') = 'species' ORDER BY " . ci('c.name'));
+  $st->execute();
+  $out = [];
+  foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+    $out[] = ['id' => (int)$r['id'], 'name' => $r['name'], 'owner' => $r['owner'],
+              'updated' => (int)$r['updated'],
+              'mine' => (int)$r['user_id'] === (int)$user['id'],
+              'data' => json_decode($r['data'], true)];
+  }
+  json_out(['species' => $out]);
+}
+
+case 'species_delete': {
+  $user = auth();
+  $id = (int)inp('id', 0);
+  $st = $db->prepare("SELECT user_id FROM chars WHERE id = ? AND COALESCE(kind,'char') = 'species'");
+  $st->execute([$id]);
+  $row = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$row) fail('Species not found', 404);
+  if ((int)$row['user_id'] !== (int)$user['id'] && !is_admin($user))
+    fail('Only the owner or an administrator can delete this species', 403);
+  $db->prepare('DELETE FROM chars WHERE id = ?')->execute([$id]);
+  $db->prepare('DELETE FROM shares WHERE char_id = ?')->execute([$id]);
+  json_out(['ok' => true]);
 }
 
 case 'char_delete': {

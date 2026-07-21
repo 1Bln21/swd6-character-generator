@@ -1,7 +1,31 @@
 =====================================================================
- STAR WARS D6 – CHARAKTERGENERATOR (2nd Edition)
+ STAR WARS D6 – CHARAKTER-, DROIDEN- UND SCHIFFS-GENERATOR
  HTML-Version des Excel-Generators "Character Generator v2-5.xlsx"
 =====================================================================
+
+DREI GENERATOREN
+----------------
+  index.html  – Charaktere
+  droid.html  – Droiden
+  ship.html   – Raumschiffe und Fahrzeuge
+
+Oben links wechselt man zwischen ihnen. Anmeldung, Sprache und die
+Rechtsangaben gelten für alle drei Seiten gemeinsam.
+
+NEU: Vorlagen aus den Regelwerken
+  * Schiffe: 863 fertige Raumschiffe und Fahrzeuge – auswählen, und
+    alle Grundwerte samt Bewaffnung sind gefüllt.
+  * Droiden: 295 fertige Droidenmodelle.
+  * Waffen und Ausrüstung: durchsuchbarer Zusatzkatalog mit 451
+    Waffen und 550 Ausrüstungsgegenständen (Tab "Waffen" bzw.
+    "Ausrüstung", Suchbegriff eingeben und übernehmen).
+
+EIGENE SPEZIES SPEICHERN
+  Auf dem Charakter-Tab die Spezies "Custom" wählen, ausfüllen und
+  (angemeldet) auf "☁ Spezies online speichern" klicken. Danach
+  steht sie allen angemeldeten Mitspielern im Spezies-Dropdown
+  unter "Gespeicherte Spezies (Gruppe)" zur Verfügung. Ändern und
+  löschen darf sie nur der Ersteller – oder ein Administrator.
 
 STARTEN
 -------
@@ -9,8 +33,7 @@ Einfach die Datei  index.html  doppelklicken – sie öffnet sich im
 Browser (Edge, Chrome, Firefox). Keine Installation nötig, es wird
 keine Internetverbindung gebraucht.
 
-Wichtig: Die Dateien index.html, app.js, data.js und style.css
-müssen zusammen in diesem Ordner bleiben.
+Wichtig: Alle Dateien müssen zusammen in diesem Ordner bleiben.
 
 SPRACHE / LANGUAGE
 ------------------

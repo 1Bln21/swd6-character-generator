@@ -3,19 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Star Wars D6 – Charaktergenerator (2nd Edition)</title>
+<title>Star Wars D6 – Droiden-Generator</title>
 <link rel="stylesheet" href="style.css">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⭐</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
 </head>
 <body>
 
 <header id="topbar" class="no-print">
   <div class="title-block">
     <h1>STAR WARS <span>D6</span></h1>
-    <div class="subtitle" data-i18n="subtitle">Charaktergenerator &middot; 2nd Edition (Revised &amp; Expanded)</div>
+    <div class="subtitle" data-i18n="subtitle">Droiden-Generator</div>
     <nav class="page-nav">
-      <a href="index.html" class="active" data-i18n="nav_char">Charaktere</a>
-      <a href="droid.html" data-i18n="nav_droid">Droiden</a>
+      <a href="index.html" data-i18n="nav_char">Charaktere</a>
+      <a href="droid.html" class="active" data-i18n="nav_droid">Droiden</a>
       <a href="ship.html" data-i18n="nav_ship">Schiffe</a>
     </nav>
   </div>
@@ -42,47 +42,42 @@
         <label class="opt-row"><input type="radio" name="langOpt" value="de"> 🇩🇪 Deutsch</label>
         <label class="opt-row"><input type="radio" name="langOpt" value="en"> 🇬🇧 English</label>
         <div id="legalConfig"></div>
-        <div class="opt-section" data-i18n="opt_about">Info</div>
-        <button id="btnAbout" class="opt-btn" data-i18n="about_open">ℹ Über &amp; Credits</button>
       </div>
     </div>
   </div>
 </header>
 
 <nav id="tabs" class="no-print">
-  <button data-tab="info" class="active" data-i18n="tab_info">Charakter</button>
+  <button data-tab="model" class="active" data-i18n="tab_model">Modell</button>
   <button data-tab="attrs" data-i18n="tab_attrs">Attribute</button>
   <button data-tab="skills" data-i18n="tab_skills">Fertigkeiten</button>
-  <button data-tab="force" data-i18n="tab_force">Die Macht</button>
-  <button data-tab="equip" data-i18n="tab_equip">Ausrüstung</button>
-  <button data-tab="weapons" data-i18n="tab_weapons">Waffen</button>
-  <button data-tab="armor" data-i18n="tab_armor">Rüstung</button>
-  <button data-tab="credits" data-i18n="tab_credits">Credits</button>
-  <button data-tab="sheet" data-i18n="tab_sheet">Charakterbogen</button>
+  <button data-tab="mods" data-i18n="tab_mods">Modifikationen</button>
+  <button data-tab="gear" data-i18n="tab_gear">Ausrüstung</button>
+  <button data-tab="sheet" data-i18n="tab_sheet">Droidenbogen</button>
 </nav>
 
 <main id="content" class="no-print">
-  <section id="tab-info" class="tab active"></section>
+  <section id="tab-model" class="tab active"></section>
   <section id="tab-attrs" class="tab"></section>
   <section id="tab-skills" class="tab"></section>
-  <section id="tab-force" class="tab"></section>
-  <section id="tab-equip" class="tab"></section>
-  <section id="tab-weapons" class="tab"></section>
-  <section id="tab-armor" class="tab"></section>
-  <section id="tab-credits" class="tab"></section>
+  <section id="tab-mods" class="tab"></section>
+  <section id="tab-gear" class="tab"></section>
   <section id="tab-sheet" class="tab"></section>
 </main>
 
 <div id="sheet-print"></div>
 
 <footer class="no-print">
-  <span data-i18n="footer">Basiert auf „Character Generator v2-5“ (Excel) &middot; Star Wars: The Roleplaying Game, 2nd Edition – West End Games D6-System</span><span id="legalLinks"></span>
+  <span data-i18n="footer">Basiert auf „Droid Generator v1-3“ von Chance Gibboney &middot; Star Wars: The Roleplaying Game, 2nd Edition – West End Games D6-System</span><span id="legalLinks"></span>
 </footer>
 
-<script src="data.js"></script>
-<script src="pdfdata-gear.js"></script>
 <script src="config.js"></script>
-<script src="app.js"></script>
+<script src="genshared.js"></script>
+<script src="data.js"></script>
+<script src="gendata.js"></script>
+<script src="pdfdata-gear.js"></script>
+<script src="pdfdata-droids.js"></script>
+<script src="droid.js"></script>
 <script src="qrcode.js"></script>
 <script src="online.js"></script>
 <script src="legal.js"></script>

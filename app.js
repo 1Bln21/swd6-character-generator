@@ -12,7 +12,7 @@ let LANG = localStorage.getItem(LS_LANG) || 'de';
 
 /* Wird im ⚙-Menü unter „Über & Credits“ angezeigt.
    Bei jedem Release mit der Versionsnummer des Git-Tags abgleichen! */
-const APP_VERSION = '1.4.0';
+const APP_VERSION = '2.0.0';
 
 const T = {
 de: {
@@ -20,6 +20,22 @@ de: {
   subtitle: 'Charaktergenerator · 2nd Edition (Revised & Expanded)',
   footer: 'Basiert auf „Character Generator v2-5“ (Excel) · Star Wars: The Roleplaying Game, 2nd Edition – West End Games D6-System',
   options: 'Optionen', opt_language: 'Sprache / Language',
+  nav_char: 'Charaktere', nav_droid: 'Droiden', nav_ship: 'Schiffe',
+  doc_one: 'Charakter', doc_plural: 'Charaktere',
+  pdf_catalog: 'Erweiterter Katalog aus den Regelwerken',
+  pdf_search: 'Suchen', pdf_add: '+ Übernehmen',
+  pdf_hint: 'Zusätzliche Einträge aus den Fan-Sammelbänden. Suchbegriff eingeben, dann übernehmen – der Eintrag landet mit allen Werten in deiner Liste.',
+  pdf_results: 'Treffer', pdf_none: 'Keine Treffer – Suchbegriff anpassen.',
+  pdf_type_all: 'Alle', pdf_min_chars: 'Mindestens 2 Zeichen eingeben.',
+  cloud_species_group: '☁ Gespeicherte Spezies (Gruppe)',
+  species_save_cloud: '☁ Spezies online speichern',
+  species_save_cloud_hint: 'Speichert die eigene Spezies auf dem Server – danach steht sie allen angemeldeten Gruppenmitgliedern im Spezies-Dropdown zur Verfügung.',
+  species_saved: 'Spezies gespeichert ✔',
+  species_need_login: 'Zum Online-Speichern zuerst über ☁ Online anmelden.',
+  species_need_name: 'Bitte der Spezies zuerst einen Namen geben.',
+  species_cloud_list: 'Online gespeicherte Spezies',
+  species_by: 'von', species_use: 'Übernehmen',
+  species_confirm_delete: 'Gespeicherte Spezies „{name}“ wirklich löschen?',
   opt_about: 'Info', about_open: 'ℹ Über & Credits',
   about_title: 'Über & Credits',
   app_name: 'SWD6 Charaktergenerator',
@@ -183,6 +199,22 @@ en: {
   subtitle: 'Character Generator · 2nd Edition (Revised & Expanded)',
   footer: 'Based on "Character Generator v2-5" (Excel) · Star Wars: The Roleplaying Game, 2nd Edition – West End Games D6 System',
   options: 'Options', opt_language: 'Sprache / Language',
+  nav_char: 'Characters', nav_droid: 'Droids', nav_ship: 'Ships',
+  doc_one: 'character', doc_plural: 'characters',
+  pdf_catalog: 'Extended catalog from the sourcebooks',
+  pdf_search: 'Search', pdf_add: '+ Add',
+  pdf_hint: 'Additional entries from the fan compilations. Type a search term, then add – the entry lands in your list with all its stats.',
+  pdf_results: 'Matches', pdf_none: 'No matches – try a different term.',
+  pdf_type_all: 'All', pdf_min_chars: 'Enter at least 2 characters.',
+  cloud_species_group: '☁ Saved species (group)',
+  species_save_cloud: '☁ Save species online',
+  species_save_cloud_hint: 'Stores your custom species on the server – it then appears in the species dropdown for all signed-in group members.',
+  species_saved: 'Species saved ✔',
+  species_need_login: 'Sign in via ☁ Online first to save online.',
+  species_need_name: 'Please give the species a name first.',
+  species_cloud_list: 'Species stored online',
+  species_by: 'by', species_use: 'Use',
+  species_confirm_delete: 'Really delete stored species "{name}"?',
   opt_about: 'Info', about_open: 'ℹ About & Credits',
   about_title: 'About & Credits',
   app_name: 'SWD6 Character Generator',
@@ -722,8 +754,14 @@ function importPortrait(file) {
 /* ---------------- Tab: Charakter ---------------- */
 function viewInfo() {
   const sp = speciesData();
+  ensureCloudSpecies();
   const speciesOpts = DATA.species.map(s =>
-    `<option ${C.info.species === s.name ? 'selected' : ''}>${esc(s.name)}</option>`).join('');
+    `<option ${C.info.species === s.name ? 'selected' : ''}>${esc(s.name)}</option>`).join('')
+    + ((cloudSpecies || []).length
+      ? `<optgroup label="${esc(t('cloud_species_group'))}">`
+        + cloudSpecies.map(cs => `<option value="cloud:${cs.id}">${esc(cs.name)} (${esc(cs.owner)})</option>`).join('')
+        + '</optgroup>'
+      : '');
   const nhOpts = [`<option value="">${t('nh_choose')}</option>`]
     .concat(DATA.nearHumans.map(s => `<option ${C.info.nearHuman === s.name ? 'selected' : ''}>${esc(s.name)}</option>`)).join('');
   const genderOpts = DATA.genders.map(g => `<option ${C.info.gender === g ? 'selected' : ''}>${esc(g)}</option>`).join('');
@@ -780,7 +818,24 @@ function viewInfo() {
       ${cs.abilities.map((a, i) => `<p>${inputT('customSpecies.abilities.' + i, a, 'style="width:100%"')}</p>`).join('')}
       <h3>${t('story_factors')}</h3>
       ${cs.story.map((a, i) => `<p>${inputT('customSpecies.story.' + i, a, 'style="width:100%"')}</p>`).join('')}
+      ${(typeof ONLINE !== 'undefined' && ONLINE.token) ? `
+        <p style="margin-top:12px"><button class="accent" data-act="speciesSaveCloud">${t('species_save_cloud')}</button>
+        ${speciesMsg ? `<span class="ok" style="margin-left:8px">${esc(speciesMsg)}</span>` : ''}</p>
+        <p class="hint">${t('species_save_cloud_hint')}</p>` : ''}
     </div>`;
+  }
+
+  /* Online gespeicherte Spezies der Gruppe */
+  let cloudBox = '';
+  if ((cloudSpecies || []).length && typeof ONLINE !== 'undefined' && ONLINE.token) {
+    const rows = cloudSpecies.map(cs2 => `<tr>
+      <td>${esc(cs2.name)} <span class="hint">(${t('species_by')} ${esc(cs2.owner)})</span></td>
+      <td class="nowrap">
+        <button class="mini" data-act="speciesUse" data-id="${cs2.id}">${t('species_use')}</button>
+        ${(cs2.mine || ONLINE.isAdmin) ? `<button class="mini danger" data-act="speciesDelete" data-id="${cs2.id}" data-name="${esc(cs2.name)}">×</button>` : ''}
+      </td></tr>`).join('');
+    cloudBox = `<div class="card"><h2>${t('species_cloud_list')}</h2>
+      <div class="table-scroll"><table class="list">${rows}</table></div></div>`;
   }
 
   return `
@@ -823,8 +878,120 @@ function viewInfo() {
       ${portraitCard}
       ${speciesBox}
       ${customBox}
+      ${cloudBox}
     </div>
   </div>`;
+}
+
+/* ---------------- Erweiterte Kataloge aus den Regelwerks-PDFs ----------------
+   Die Listen sind sehr groß (bis 550 Einträge), deshalb wird nur nach einer
+   Suche gefiltert angezeigt. Übernommene Einträge landen als "eigene" Waffe
+   bzw. Ausrüstung in der Charakterliste – damit funktionieren Bogen und
+   Kostenrechnung unverändert weiter. */
+const pdfFilter = { melee: '', ranged: '', equip: '' };
+function pdfSource(kind) {
+  if (kind === 'melee') return (typeof PDF_WEAPONS_MELEE !== 'undefined') ? PDF_WEAPONS_MELEE : [];
+  if (kind === 'ranged') return (typeof PDF_WEAPONS_RANGED !== 'undefined') ? PDF_WEAPONS_RANGED : [];
+  return (typeof PDF_EQUIPMENT !== 'undefined') ? PDF_EQUIPMENT : [];
+}
+function pdfCatalogBlock(kind) {
+  const src = pdfSource(kind);
+  if (!src.length) return '';
+  const f = (pdfFilter[kind] || '').toLowerCase().trim();
+  let rows = '', info = '';
+  if (f.length < 2) {
+    info = `<p class="hint">${t('pdf_min_chars')}</p>`;
+  } else {
+    const hits = src.filter(x =>
+      x.name.toLowerCase().includes(f) || (x.type || '').toLowerCase().includes(f) ||
+      (x.model || '').toLowerCase().includes(f)).slice(0, 60);
+    if (!hits.length) info = `<p class="hint">${t('pdf_none')}</p>`;
+    else {
+      const cols = kind === 'equip'
+        ? h => `<td>${esc(h.type)}</td><td class="num">${fmtCr(h.cost)}</td><td>${esc(h.avail)}</td>`
+        : h => `<td>${esc(h.damage)}</td><td>${esc(h.range || h.diff)}</td><td class="num">${fmtCr(h.cost)}</td>`;
+      rows = hits.map(h => {
+        const idx = src.indexOf(h);
+        return `<tr><td>${esc(h.name)}${h.notes ? `<br><span class="hint">${esc(h.notes.slice(0, 160))}${h.notes.length > 160 ? '…' : ''}</span>` : ''}</td>
+          ${cols(h)}
+          <td><button class="mini" data-act="pdfAdd" data-kind="${kind}" data-i="${idx}">${t('pdf_add')}</button></td></tr>`;
+      }).join('');
+      info = `<p class="hint">${t('pdf_results')}: ${hits.length}${hits.length === 60 ? '+' : ''}</p>`;
+    }
+  }
+  const head = kind === 'equip'
+    ? `<th>${t('item')}</th><th>${t('pdf_type_all')}</th><th class="num">${t('cost')}</th><th>${t('avail')}</th><th></th>`
+    : `<th>${t('weapon')}</th><th>${t('damage')}</th><th>${kind === 'ranged' ? t('range_pkml') : t('difficulty')}</th><th class="num">${t('cost')}</th><th></th>`;
+  return `<div class="card"><h2>${t('pdf_catalog')}</h2>
+    <p class="hint">${t('pdf_hint')}</p>
+    <p><input type="text" data-pdfsearch="${kind}" value="${esc(pdfFilter[kind])}"
+       placeholder="${esc(t('pdf_search'))}…" style="width:260px"></p>
+    ${info}
+    ${rows ? `<div class="table-scroll"><table class="list"><tr>${head}</tr>${rows}</table></div>` : ''}
+  </div>`;
+}
+function pdfAdd(kind, idx) {
+  const src = pdfSource(kind);
+  const h = src[idx];
+  if (!h) return;
+  if (kind === 'melee') {
+    C.customMelee.push({ name: h.name, dmg: h.damage, diff: h.diff, cost: h.cost,
+                         note: [h.type, h.notes].filter(Boolean).join(' – ').slice(0, 300) });
+  } else if (kind === 'ranged') {
+    C.customRanged.push({ name: h.name, skill: (h.skill || '').split(':')[0], dmg: h.damage,
+                          ranges: h.range, ammo: h.ammo, cost: h.cost });
+  } else {
+    C.customEquipment.push({ name: h.name, cost: h.cost, qty: 1,
+                             note: [h.type, h.notes].filter(Boolean).join(' – ').slice(0, 300) });
+  }
+  update();
+}
+
+/* ---------------- Online gespeicherte Spezies ---------------- */
+let cloudSpecies = null;   // null = noch nicht geladen
+let speciesMsg = '';
+function ensureCloudSpecies() {
+  if (cloudSpecies !== null) return;
+  if (typeof ONLINE === 'undefined' || !ONLINE.token || typeof api !== 'function') return;
+  cloudSpecies = [];       // verhindert paralleles Mehrfachladen
+  api('species_list').then(r => {
+    cloudSpecies = r.species || [];
+    if (activeTab === 'info') renderTab('info');
+  }).catch(() => { cloudSpecies = []; });
+}
+function applyCloudSpecies(id) {
+  const cs = (cloudSpecies || []).find(x => x.id === id);
+  if (!cs) return;
+  C.info.species = 'Custom';
+  C.customSpecies = Object.assign(emptyChar().customSpecies, JSON.parse(JSON.stringify(cs.data || {})));
+  if (!C.customSpecies.name) C.customSpecies.name = cs.name;
+  onSpeciesChanged();
+  update('info');
+}
+async function saveSpeciesCloud() {
+  speciesMsg = '';
+  if (typeof ONLINE === 'undefined' || !ONLINE.token) { alert(t('species_need_login')); return; }
+  const name = (C.customSpecies.name || '').trim();
+  if (!name) { alert(t('species_need_name')); return; }
+  try {
+    const existing = (cloudSpecies || []).find(x => x.mine && x.name === name);
+    const body = { name, kind: 'species', data: C.customSpecies };
+    if (existing) body.id = existing.id;
+    await api('char_save', body);
+    const r = await api('species_list');
+    cloudSpecies = r.species || [];
+    speciesMsg = t('species_saved');
+  } catch (e) { speciesMsg = (t('online_error') || 'Fehler: ') + e.message; }
+  renderTab('info');
+}
+async function deleteSpeciesCloud(id, name) {
+  if (!confirm(t('species_confirm_delete').replace('{name}', name))) return;
+  try {
+    await api('species_delete', { id });
+    const r = await api('species_list');
+    cloudSpecies = r.species || [];
+  } catch (e) { speciesMsg = (t('online_error') || 'Fehler: ') + e.message; }
+  renderTab('info');
 }
 
 /* ---------------- Tab: Attribute ---------------- */
@@ -1059,7 +1226,8 @@ function viewEquip() {
   <div class="card"><h2>${t('other_equip')}</h2>
     <div class="table-scroll"><table class="list"><tr><th>${t('item')}</th><th class="num">${t('cost')}</th><th class="num">${t('qty')}</th><th>${t('note')}</th><th></th></tr>${customRows}</table></div>
     <p><button class="mini" data-act="addCustom" data-list="customEquipment">${t('add_entry')}</button></p>
-  </div>`;
+  </div>
+  ${pdfCatalogBlock('equip')}`;
 }
 
 /* ---------------- Tab: Waffen ---------------- */
@@ -1096,7 +1264,8 @@ function viewWeapons() {
         <table class="list"><tr><th>${t('name')}</th><th>${t('damage')}</th><th>${t('difficulty')}</th><th class="num">${t('cost')}</th><th>${t('note')}</th><th></th></tr>${customRows}</table></div>
         <p><button class="mini" data-act="addCustom" data-list="customMelee">${t('add_entry')}</button></p></div>
       <div class="card"><h2>${t('cat_melee')}</h2><div class="table-scroll">
-        <table class="list"><tr><th>${t('weapon')}</th><th>${t('damage')}</th><th>${t('max_short')}</th><th>${t('difficulty')}</th><th class="num">${t('cost')}</th><th>${t('avail')}</th><th>${t('special')}</th><th></th></tr>${cat}</table></div></div>`;
+        <table class="list"><tr><th>${t('weapon')}</th><th>${t('damage')}</th><th>${t('max_short')}</th><th>${t('difficulty')}</th><th class="num">${t('cost')}</th><th>${t('avail')}</th><th>${t('special')}</th><th></th></tr>${cat}</table></div></div>
+      ${pdfCatalogBlock('melee')}`;
   }
 
   if (sub === 'ranged') {
@@ -1128,7 +1297,8 @@ function viewWeapons() {
         <table class="list"><tr><th>${t('name')}</th><th>${t('skill')}</th><th>${t('damage')}</th><th>${t('range_pkml')}</th><th>${t('ammo_short')}</th><th class="num">${t('cost')}</th><th></th></tr>${customRows}</table></div>
         <p><button class="mini" data-act="addCustom" data-list="customRanged">${t('add_entry')}</button></p></div>
       <div class="card"><h2>${t('cat_ranged')}</h2><div class="table-scroll">
-        <table class="list"><tr><th>${t('weapon')}</th><th>${t('skill')}</th><th>${t('damage')}</th><th>${t('range_pkml')}</th><th>${t('rof')}</th><th>${t('ammo_short')}</th><th class="num">${t('cost')}</th><th>${t('avail')}</th><th></th></tr>${cat}</table></div></div>`;
+        <table class="list"><tr><th>${t('weapon')}</th><th>${t('skill')}</th><th>${t('damage')}</th><th>${t('range_pkml')}</th><th>${t('rof')}</th><th>${t('ammo_short')}</th><th class="num">${t('cost')}</th><th>${t('avail')}</th><th></th></tr>${cat}</table></div></div>
+      ${pdfCatalogBlock('ranged')}`;
   }
 
   if (sub === 'explosives') {
@@ -1722,6 +1892,10 @@ content.addEventListener('click', e => {
       C.info.portrait = '';
       update('info'); break;
     }
+    case 'pdfAdd': pdfAdd(el.dataset.kind, +el.dataset.i); break;
+    case 'speciesSaveCloud': saveSpeciesCloud(); break;
+    case 'speciesUse': applyCloudSpecies(+el.dataset.id); break;
+    case 'speciesDelete': deleteSpeciesCloud(+el.dataset.id, el.dataset.name || ''); break;
     case 'print': {
       renderSheet();
       window.print(); break;
@@ -1752,6 +1926,13 @@ content.addEventListener('change', e => {
     el.value = '';
     return;
   }
+  if (el.dataset.pdfsearch != null) {
+    pdfFilter[el.dataset.pdfsearch] = el.value;
+    update();
+    const again = document.querySelector(`[data-pdfsearch="${el.dataset.pdfsearch}"]`);
+    if (again) { again.focus(); again.setSelectionRange(again.value.length, again.value.length); }
+    return;
+  }
   if (el.dataset.eq != null) {
     const q = Math.max(0, +el.value || 0);
     if (q) C.equipment[el.dataset.eq] = q; else delete C.equipment[el.dataset.eq];
@@ -1769,6 +1950,11 @@ content.addEventListener('change', e => {
     update(); return;
   }
   if (el.dataset.bind) {
+    /* Cloud-Spezies im Dropdown gewählt: Werte kopieren statt Pfad setzen */
+    if (el.dataset.bind === 'info.species' && el.value.startsWith('cloud:')) {
+      applyCloudSpecies(+el.value.slice(6));
+      return;
+    }
     let val = el.value;
     if (el.dataset.type === 'num') val = el.value === '' ? null : +el.value;
     if (el.dataset.type === 'bool') val = el.value === 'true';
@@ -1781,6 +1967,14 @@ content.addEventListener('change', e => {
 
 content.addEventListener('input', e => {
   const el = e.target;
+  if (el.dataset.pdfsearch != null) {
+    pdfFilter[el.dataset.pdfsearch] = el.value;
+    const pos = el.selectionStart;
+    update();
+    const again = document.querySelector(`[data-pdfsearch="${el.dataset.pdfsearch}"]`);
+    if (again) { again.focus(); again.setSelectionRange(pos, pos); }
+    return;
+  }
   if (!el.dataset.bind) return;
   if (el.dataset.rerender || el.dataset.type === 'num' || el.tagName === 'SELECT') return;
   setPath(C, el.dataset.bind, el.value);
