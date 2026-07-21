@@ -58,9 +58,47 @@ $CONFIG = [
   'max_char_bytes' => 512 * 1024,
 ];
 
+/* Konfiguration auch für api/check.php lesbar machen (dort wird diese
+   Datei mit gesetzter Konstante eingebunden und bricht hier ab). */
+if (defined('SWD6_CONFIG_ONLY')) return $CONFIG;
+
 /* ------------------------------------------------------------------ */
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
+
+/* Fehler immer als JSON ausliefern – sonst bekommt die App eine
+   HTML-Fehlerseite und kann nichts Sinnvolles anzeigen. */
+function out_error($msg, $code = 500) {
+  if (!headers_sent()) {
+    http_response_code($code);
+    header('Content-Type: application/json; charset=utf-8');
+  }
+  echo json_encode(['error' => $msg], JSON_UNESCAPED_UNICODE);
+}
+set_exception_handler(function ($e) {
+  out_error('Server error: ' . $e->getMessage());
+});
+register_shutdown_function(function () {
+  $e = error_get_last();
+  if ($e && in_array($e['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
+    out_error('PHP error: ' . $e['message'] . ' (' . basename($e['file']) . ':' . $e['line'] . ')');
+  }
+});
+
+/* Mindestanforderung: PHP 7. Ältere Versionen kennen z. B. random_bytes()
+   nicht – dann bricht die Registrierung mitten drin ab. Bei den meisten
+   Hostern lässt sich die PHP-Version im Control-Panel umstellen. */
+if (version_compare(PHP_VERSION, '7.0.0', '<')) {
+  out_error('This API needs PHP 7.0 or newer – your server runs PHP ' . PHP_VERSION
+    . '. Please switch the PHP version in your hosting control panel '
+    . '(e.g. "Select PHP Version" / "PHP-Einstellungen") to 7.4 or 8.x.', 500);
+  exit;
+}
+if (!function_exists('random_bytes')) {
+  out_error('This server is missing the PHP function random_bytes(). '
+    . 'Please switch to PHP 7.4 or newer in your hosting control panel.', 500);
+  exit;
+}
 if ($CONFIG['allow_origin'] !== '') {
   header('Access-Control-Allow-Origin: ' . $CONFIG['allow_origin']);
   header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Auth-Token');
@@ -166,11 +204,45 @@ $db->exec("CREATE TABLE IF NOT EXISTS settings (
   v $TXT
 )$SUF");
 
+/* Spalten einer Tabelle ermitteln (für Migration und Selbstprüfung) */
+function table_columns($table) {
+  global $db, $useMysql;
+  $cols = [];
+  try {
+    if ($useMysql) {
+      foreach ($db->query("SHOW COLUMNS FROM `$table`")->fetchAll(PDO::FETCH_ASSOC) as $c) $cols[] = $c['Field'];
+    } else {
+      foreach ($db->query("PRAGMA table_info($table)")->fetchAll(PDO::FETCH_ASSOC) as $c) $cols[] = $c['name'];
+    }
+  } catch (Exception $e) { /* Tabelle fehlt */ }
+  return $cols;
+}
+
 /* Nachrüsten älterer Installationen (Spalten kamen später dazu) */
-foreach (['approved INT DEFAULT 1', 'is_admin INT DEFAULT 0',
-          "recovery_hash $STR DEFAULT ''", "reset_hash $STR DEFAULT ''",
-          'reset_expires BIGINT DEFAULT 0'] as $colDef) {
-  try { $db->exec("ALTER TABLE users ADD COLUMN $colDef"); } catch (Exception $e) { /* existiert bereits */ }
+$userCols = table_columns('users');
+$addCols = [
+  'approved'      => 'approved INT DEFAULT 1',
+  'is_admin'      => 'is_admin INT DEFAULT 0',
+  'recovery_hash' => "recovery_hash $STR DEFAULT ''",
+  'reset_hash'    => "reset_hash $STR DEFAULT ''",
+  'reset_expires' => 'reset_expires BIGINT DEFAULT 0',
+];
+$alterError = '';
+foreach ($addCols as $col => $colDef) {
+  if (in_array($col, $userCols, true)) continue;
+  try { $db->exec("ALTER TABLE users ADD COLUMN $colDef"); }
+  catch (Exception $e) { $alterError = $e->getMessage(); }
+}
+
+/* Selbstprüfung: fehlt etwas, klar sagen statt später mittendrin abstürzen */
+$required = ['id', 'username', 'pass_hash', 'totp_secret', 'totp_pending', 'totp_enabled',
+             'totp_last_step', 'backup_codes', 'fail_count', 'fail_time', 'approved',
+             'is_admin', 'recovery_hash', 'reset_hash', 'reset_expires', 'created'];
+$missing = array_values(array_diff($required, table_columns('users')));
+if ($missing) {
+  fail('Database schema incomplete – the table "users" is missing: ' . implode(', ', $missing)
+     . ($alterError ? ' | Could not add it automatically: ' . $alterError : '')
+     . ' | Open api/check.php in your browser for a detailed report.', 500);
 }
 
 /* ---------------- Einstellungen (in der Datenbank) ---------------- */

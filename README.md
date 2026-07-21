@@ -76,6 +76,18 @@ Viele Gratis-Tarife haben `pdo_sqlite` deaktiviert, bieten aber MySQL an. Dann e
 
 Sobald `host`, `name` und `user` gefüllt sind, wird automatisch MySQL benutzt – sonst SQLite. Die Tabellen legt die API beim ersten Aufruf selbst an; ein SQL-Import ist **nicht** nötig. Ob es geklappt hat, verrät `api/index.php?action=ping`: dort steht `"db":"mysql"` bzw. `"db":"sqlite"`.
 
+#### Probleme? → `api/check.php` aufrufen
+
+Wenn etwas nicht läuft (Registrierung bricht ab, keine Anmeldung, leere Fehlermeldung), öffne im Browser:
+
+```
+https://deine-seite.de/api/check.php
+```
+
+Die Seite prüft in Klartext: PHP-Version, benötigte PHP-Funktionen, verfügbare Datenbank-Treiber, die Verbindung mit deinen Zugangsdaten, ob alle Tabellen und Spalten vorhanden sind sowie Schreib- und `ALTER`-Rechte. Jedes Problem wird rot markiert und mit einem konkreten Lösungsvorschlag versehen. Danach kann die Datei gelöscht werden.
+
+**Häufigste Ursache:** eine **zu alte PHP-Version**. Ab PHP 7.0 aufwärts ist alles vorhanden; darunter fehlt `random_bytes()`, wodurch Benutzer zwar angelegt werden, aber weder Wiederherstellungscode noch Anmeldung funktionieren. Bei ByetHost/InfinityFree stellst du die Version im Vistapanel unter *„Select PHP Version"* / *„PHP Config"* auf 7.4 oder 8.x.
+
 **Beispiel ByetHost / InfinityFree (Vistapanel):**
 
 1. *MySQL Databases* öffnen, eine Datenbank anlegen (der fertige Name steht danach in der Liste, z. B. `b6_42459412_swd6`)

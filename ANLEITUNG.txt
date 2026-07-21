@@ -127,6 +127,24 @@ nichts importiert werden. Kontrolle: die Adresse
   deine-seite.de/api/index.php?action=ping
 im Browser aufrufen; dort steht "db":"mysql" bzw. "db":"sqlite".
 
+WENN ETWAS NICHT FUNKTIONIERT
+-----------------------------
+Rufe im Browser auf:
+  deine-seite.de/api/check.php
+
+Diese Seite prüft alles Nötige und zeigt Probleme rot markiert an:
+PHP-Version, benötigte PHP-Funktionen, Datenbank-Treiber, die
+Verbindung mit deinen Zugangsdaten, alle Tabellen und Spalten sowie
+Schreib- und Änderungsrechte. Zu jedem Problem steht dabei, was zu
+tun ist. Wenn alles läuft, kann die Datei gelöscht werden.
+
+HÄUFIGSTE URSACHE: eine zu alte PHP-Version. Unter PHP 7.0 fehlt die
+Funktion random_bytes(); dann wird ein Benutzer zwar in der Datenbank
+angelegt, aber es kommt kein Wiederherstellungscode und die Anmeldung
+schlägt fehl. Lösung: im Control-Panel die PHP-Version auf 7.4 oder
+8.x stellen (bei ByetHost/InfinityFree im Vistapanel unter
+"Select PHP Version" bzw. "PHP Config").
+
 BENUTZERVERWALTUNG (ADMIN)
 --------------------------
 Der ZUERST registrierte Benutzer ist automatisch Administrator.

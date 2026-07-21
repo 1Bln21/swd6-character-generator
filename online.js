@@ -195,8 +195,16 @@ async function api(action, body, params) {
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
-  let data = null;
-  try { data = await res.json(); } catch (e) {}
+  let data = null, raw = '';
+  try { raw = await res.text(); data = JSON.parse(raw); } catch (e) {}
+  if (data === null) {
+    /* Keine JSON-Antwort: meist eine PHP-Fehlerseite des Hosters.
+       Den Anfang mitzeigen, sonst ist der Fehler nicht auffindbar. */
+    const hint = raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
+    const err = new Error((hint || 'HTTP ' + res.status) + ' — api/check.php im Browser öffnen');
+    err.status = res.status;
+    throw err;
+  }
   if (!res.ok) {
     const msg = (data && data.error) ? data.error : ('HTTP ' + res.status);
     if (res.status === 401 && ONLINE.token && action !== 'login') {
