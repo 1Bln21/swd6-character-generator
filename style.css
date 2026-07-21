@@ -283,48 +283,61 @@ table.list td.num, table.list th.num { text-align: right; white-space: nowrap; }
 
 /* ---------- Über / About + Star-Wars-Crawl ---------- */
 #optionsMenu .opt-btn { width: 100%; margin-top: 6px; text-align: left; }
-.about-box { max-width: 640px; }
+.about-box { max-width: 760px; }
 .sw-crawl {
   position: relative;
-  height: 400px;
+  height: 460px;
   margin: 8px 0 12px;
   overflow: hidden;
   background: #000;
   border: 1px solid var(--border);
   border-radius: 8px;
-  perspective: 250px;
+  /* Schwächere Perspektive = der Text schrumpft weniger und bleibt lesbar */
+  perspective: 420px;
 }
 .sw-crawl::before {
   content: "";
-  position: absolute; left: 0; right: 0; top: 0; height: 46%;
-  background: linear-gradient(#000 4%, transparent);
+  position: absolute; left: 0; right: 0; top: 0; height: 34%;
+  background: linear-gradient(#000 2%, transparent);
   z-index: 3; pointer-events: none;
 }
 .sw-crawl-content {
   position: absolute;
   top: 100%;
-  left: 6%; right: 6%;
+  left: 5%; right: 5%;
   transform-origin: 50% 100%;
   color: #ffe81f;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 16px;
+  font-size: 20px;
   font-weight: bold;
-  line-height: 1.5;
+  line-height: 1.55;
   text-align: justify;
-  animation: sw-crawl 55s linear infinite;
+  animation: sw-crawl 52s linear infinite;
 }
 .sw-crawl-content .sw-title {
   text-align: center;
-  font-size: 24px;
+  font-size: 30px;
   letter-spacing: 2px;
-  margin-bottom: 22px;
-  text-shadow: 0 0 12px rgba(255, 232, 31, .45);
+  margin-bottom: 24px;
+  text-shadow: 0 0 14px rgba(255, 232, 31, .5);
 }
-.sw-crawl-content p { margin: 0 0 18px; }
+.sw-crawl-content p { margin: 0 0 20px; }
 @keyframes sw-crawl {
-  0%   { top: 100%; transform: rotateX(32deg) translateZ(0); opacity: 1; }
+  0%   { top: 100%; transform: rotateX(22deg) translateZ(0); opacity: 1; }
   92%  { opacity: 1; }
-  100% { top: -360%; transform: rotateX(38deg) translateZ(-780px); opacity: 0; }
+  100% { top: -330%; transform: rotateX(26deg) translateZ(-460px); opacity: 0; }
+}
+/* Schmale Bildschirme: flachere Perspektive und mehr Textbreite, sonst
+   wird die Schrift im kleinen Rahmen unleserlich und der Titel bricht um */
+@media (max-width: 620px) {
+  .sw-crawl { height: 380px; perspective: 700px; }
+  .sw-crawl-content {
+    left: 3%; right: 3%;
+    font-size: 15px; line-height: 1.5;
+    text-align: left;
+  }
+  .sw-crawl-content .sw-title { font-size: 19px; letter-spacing: .5px; margin-bottom: 16px; }
+  .sw-crawl-content p { margin: 0 0 14px; }
 }
 .about-info p { margin: 5px 0; font-size: 13.5px; }
 .about-info a { color: var(--accent); }
