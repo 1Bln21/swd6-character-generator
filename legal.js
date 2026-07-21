@@ -33,6 +33,7 @@ Object.assign(T.de, {
   legal_store_server: '✔ Angemeldet als Administrator – die Angaben werden auf dem Server gespeichert und allen Besuchern angezeigt.',
   legal_store_local: 'Kein Server erreichbar – die Angaben werden nur in diesem Browser gespeichert. Für ein öffentliches Hosting ohne PHP das config.js-Snippet unten übernehmen.',
   legal_store_nologin: 'Nicht als Administrator angemeldet – die Angaben gelten nur in diesem Browser. Melde dich über ☁ Online als Administrator an, damit sie für alle Besucher gelten.',
+  legal_locked: '🔒 Nur der Administrator kann diese Angaben ändern. Melde dich über ☁ Online an, um sie zu bearbeiten. (Ansehen ist für alle möglich.)',
   legal_snippet_btn: '</> config.js-Snippet',
   legal_snippet_hint: 'Diesen Block in config.js einfügen (ersetzt dort das legal-Objekt), damit die Angaben ohne PHP-Server für alle Besucher gelten:',
   legal_disclaimer: 'Wichtig: Diese Texte sind eine allgemeine Muster-Vorlage ohne Gewähr auf Vollständigkeit oder Richtigkeit und stellen keine Rechtsberatung dar. Prüfe sie vor der Veröffentlichung – im Zweifel anwaltlich.',
@@ -61,6 +62,7 @@ Object.assign(T.en, {
   legal_store_server: '✔ Signed in as administrator – the details are stored on the server and shown to all visitors.',
   legal_store_local: 'No server reachable – the details are stored in this browser only. For public hosting without PHP, use the config.js snippet below.',
   legal_store_nologin: 'Not signed in as administrator – these details apply to this browser only. Sign in via ☁ Online as the administrator so they apply to all visitors.',
+  legal_locked: '🔒 Only the administrator can change these details. Sign in via ☁ Online to edit them. (Viewing is possible for everyone.)',
   legal_snippet_btn: '</> config.js snippet',
   legal_snippet_hint: 'Paste this block into config.js (replacing the legal object there) so the details apply to all visitors without a PHP server:',
   legal_disclaimer: 'Important: these texts are a general template without any warranty of completeness or correctness and do not constitute legal advice. Review them before publishing – consult a lawyer if in doubt.',
@@ -286,12 +288,17 @@ function renderLegalSettings() {
   if (!box) return;
   /* Beim Bearbeiten immer die aktuell wirksame Quelle vorbelegen */
   const d = legalData();
+  /* Läuft ein Server, dürfen nur Administratoren die Angaben ändern – sie
+     gelten dann für alle Besucher. Ohne Server (rein lokale Nutzung) darf
+     jeder seine eigenen Angaben eintragen. */
+  const canEdit = !legalApiAvailable() || legalIsAdmin();
+  const ro = canEdit ? '' : 'disabled';
   const field = (key, id, type) => `
     <label class="opt-label">${t(key)}</label>
-    <input type="${type || 'text'}" id="lg_${id}" value="${esc(d[id] || '')}">`;
+    <input type="${type || 'text'}" id="lg_${id}" value="${esc(d[id] || '')}" ${ro}>`;
   let status, statusCls;
   if (legalIsAdmin()) { status = t('legal_store_server'); statusCls = 'ok'; }
-  else if (legalApiAvailable()) { status = t('legal_store_nologin'); statusCls = 'hint'; }
+  else if (legalApiAvailable()) { status = t('legal_locked'); statusCls = 'warn'; }
   else { status = t('legal_store_local'); statusCls = 'hint'; }
 
   box.innerHTML = `
@@ -303,9 +310,9 @@ function renderLegalSettings() {
     <h3>${t('legal_urls_section')}</h3>
     <p class="hint">${t('legal_urls_hint')}</p>
     <label class="opt-label">${t('link_impressum')} – URL</label>
-    <input type="url" id="lg_url_impressum" value="${esc(d.urls.impressum || '')}" placeholder="https://…">
+    <input type="url" id="lg_url_impressum" value="${esc(d.urls.impressum || '')}" placeholder="https://…" ${ro}>
     <label class="opt-label">${t('link_datenschutz')} – URL</label>
-    <input type="url" id="lg_url_datenschutz" value="${esc(d.urls.datenschutz || '')}" placeholder="https://…">
+    <input type="url" id="lg_url_datenschutz" value="${esc(d.urls.datenschutz || '')}" placeholder="https://…" ${ro}>
 
     <h3>${t('legal_data_section')}</h3>
     ${field('legal_f_name', 'name')}
@@ -324,12 +331,12 @@ function renderLegalSettings() {
     <p class="hint">${t('legal_required')}</p>
 
     <p style="margin-top:12px">
-      <button class="accent" data-legal-act="save">${t('legal_save')}</button>
+      ${canEdit ? `<button class="accent" data-legal-act="save">${t('legal_save')}</button>` : ''}
       <button data-legal-act="preview-impressum">${t('legal_preview_i')}</button>
       <button data-legal-act="preview-datenschutz">${t('legal_preview_d')}</button>
-      <button data-legal-act="snippet">${t('legal_snippet_btn')}</button>
+      ${canEdit ? `<button data-legal-act="snippet">${t('legal_snippet_btn')}</button>` : ''}
     </p>
-    ${legalSnippetOpen ? `
+    ${legalSnippetOpen && canEdit ? `
       <p class="hint">${t('legal_snippet_hint')}</p>
       <textarea readonly rows="8" style="font-family:Consolas,monospace; font-size:12px">${esc(legalSnippet())}</textarea>` : ''}
     <p class="warn" style="font-size:12px; margin-top:12px">${t('legal_disclaimer')}</p>`;
@@ -342,6 +349,14 @@ function legalSnippet() {
     `\n    urls: { impressum: ${q(d.urls.impressum)}, datenschutz: ${q(d.urls.datenschutz)} },\n  },`;
 }
 async function legalSave() {
+  /* Sicherheitsnetz: Läuft ein Server, speichert nur der Administrator.
+     Ohne diese Prüfung könnte ein Besucher sich lokale Angaben anlegen,
+     die nur ihn selbst verwirren. Serverseitig wird ohnehin abgewiesen. */
+  if (legalApiAvailable() && !legalIsAdmin()) {
+    legalMsg = t('legal_locked');
+    renderLegalSettings();
+    return;
+  }
   const d = legalFormValues();
   const urlsOnly = (d.urls.impressum || d.urls.datenschutz) && !d.name;
   if (!urlsOnly && d.name && (!d.street || !d.zip || !d.city || !d.email)) {
