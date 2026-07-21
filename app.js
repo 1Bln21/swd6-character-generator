@@ -10,7 +10,9 @@
 const LS_LANG = 'swd6_lang';
 let LANG = localStorage.getItem(LS_LANG) || 'de';
 
-const APP_VERSION = '1.0';
+/* Wird im ⚙-Menü unter „Über & Credits“ angezeigt.
+   Bei jedem Release mit der Versionsnummer des Git-Tags abgleichen! */
+const APP_VERSION = '1.3.3';
 
 const T = {
 de: {
