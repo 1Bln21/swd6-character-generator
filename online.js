@@ -67,6 +67,22 @@ Object.assign(T.de, {
   online_confirm_resetmfa: 'Zwei-Faktor-Anmeldung für „{name}“ zurücksetzen? (z. B. bei verlorenem Handy)',
   online_confirm_demote: 'Admin-Rechte von „{name}“ entziehen?',
   online_you: 'du',
+  online_forgot: 'Passwort vergessen?',
+  online_reset_title: 'Passwort zurücksetzen',
+  online_reset_hint: 'Gib deinen Wiederherstellungscode ein (bei der Registrierung angezeigt) – oder lass dir von einem Administrator einen Einmal-Code geben.',
+  online_reset_code: 'Wiederherstellungs- oder Einmal-Code',
+  online_new_password: 'Neues Passwort',
+  online_do_reset: 'Passwort neu setzen',
+  online_reset_done: 'Passwort geändert – du kannst dich jetzt anmelden.',
+  online_recovery_title: 'Wiederherstellungscode',
+  online_recovery_hint: 'Jetzt sicher aufbewahren! Mit diesem Code (und deinem Benutzernamen) kannst du dir ein neues Passwort setzen, falls du es vergisst. Er wird nur EINMAL angezeigt.',
+  online_recovery_new: '↻ Neuen Wiederherstellungscode erzeugen',
+  online_pw_change: 'Passwort ändern',
+  online_pw_old: 'Aktuelles Passwort',
+  online_pw_changed: 'Passwort geändert ✔',
+  online_act_resetpw: 'Passwort zurücksetzen',
+  online_confirm_resetpw: 'Einmal-Code für „{name}“ erzeugen? Das alte Passwort bleibt gültig, bis der Code benutzt wird.',
+  online_resetcode_for: 'Einmal-Code für „{name}“ (24 h gültig) – bitte persönlich weitergeben:',
 });
 Object.assign(T.en, {
   btn_online: '☁ Online',
@@ -129,6 +145,22 @@ Object.assign(T.en, {
   online_confirm_resetmfa: 'Reset two-factor authentication for “{name}”? (e.g. lost phone)',
   online_confirm_demote: 'Remove administrator rights from “{name}”?',
   online_you: 'you',
+  online_forgot: 'Forgot your password?',
+  online_reset_title: 'Reset password',
+  online_reset_hint: 'Enter your recovery code (shown when you registered) – or ask an administrator for a one-time code.',
+  online_reset_code: 'Recovery or one-time code',
+  online_new_password: 'New password',
+  online_do_reset: 'Set new password',
+  online_reset_done: 'Password changed – you can sign in now.',
+  online_recovery_title: 'Recovery code',
+  online_recovery_hint: 'Store this safely now! With this code (and your user name) you can set a new password if you forget it. It is shown only ONCE.',
+  online_recovery_new: '↻ Generate a new recovery code',
+  online_pw_change: 'Change password',
+  online_pw_old: 'Current password',
+  online_pw_changed: 'Password changed ✔',
+  online_act_resetpw: 'Reset password',
+  online_confirm_resetpw: 'Generate a one-time code for “{name}”? The old password stays valid until the code is used.',
+  online_resetcode_for: 'One-time code for “{name}” (valid 24 h) – hand it over personally:',
 });
 
 /* ---------------- Zustand & API ---------------- */
@@ -141,6 +173,8 @@ let onlineData = { mine: [], shared: [] };
 let onlineMsg = '';
 let mfaSetup = null;            // {secret, otpauth}
 let mfaBackupCodes = [];
+let recoveryCode = '';          // einmalig angezeigter Wiederherstellungscode
+let recoveryNext = 'account';   // wohin nach dem Wegklicken
 let shareOpenId = null;
 let shareLists = {};            // charId -> [usernames]
 let regInfo = { register: true, registerCode: false, registerMode: 'open' };
@@ -241,6 +275,7 @@ function adminSection() {
     if (u.approved && !self) acts.push(`<button class="mini" data-oact="adm" data-what="block" data-id="${u.id}">${t('online_act_block')}</button>`);
     if (!u.isAdmin) acts.push(`<button class="mini" data-oact="adm" data-what="promote" data-id="${u.id}">${t('online_act_promote')}</button>`);
     else if (!self && u.id !== 1) acts.push(`<button class="mini" data-oact="adm" data-what="demote" data-id="${u.id}" data-name="${esc(u.username)}">${t('online_act_demote')}</button>`);
+    if (!self) acts.push(`<button class="mini" data-oact="adm" data-what="reset_password" data-id="${u.id}" data-name="${esc(u.username)}">${t('online_act_resetpw')}</button>`);
     if (u.mfaEnabled) acts.push(`<button class="mini" data-oact="adm" data-what="reset_mfa" data-id="${u.id}" data-name="${esc(u.username)}">${t('online_act_resetmfa')}</button>`);
     if (!self) acts.push(`<button class="mini danger" data-oact="adm" data-what="delete" data-id="${u.id}" data-name="${esc(u.username)}">${t('online_act_delete')}</button>`);
     return `<tr>
@@ -288,7 +323,31 @@ function renderOnline() {
       <label>${t('online_totp_or_backup')}</label>
       <input type="text" id="olTotp" inputmode="numeric" autocomplete="one-time-code">
     </div>
-    <p><button class="accent" data-oact="login">${t('online_do_login')}</button></p>`;
+    <p><button class="accent" data-oact="login">${t('online_do_login')}</button>
+       <a href="#" data-oact="gotoReset" style="margin-left:10px; font-size:13px; color:var(--muted)">${t('online_forgot')}</a></p>`;
+  }
+
+  if (onlineView === 'reset') {
+    html += `
+    <h3>${t('online_reset_title')}</h3>
+    <p class="hint">${t('online_reset_hint')}</p>
+    <label>${t('online_username')}</label><input type="text" id="rsUser" autocomplete="username">
+    <label>${t('online_reset_code')}</label><input type="text" id="rsCode" placeholder="XXXX-XXXX-XXXX-XXXX">
+    <label>${t('online_new_password')}</label><input type="password" id="rsPass" autocomplete="new-password">
+    <div id="rsTotpRow" class="hidden">
+      <label>${t('online_totp_or_backup')}</label>
+      <input type="text" id="rsTotp" inputmode="numeric" autocomplete="one-time-code">
+    </div>
+    <p><button class="accent" data-oact="doReset">${t('online_do_reset')}</button>
+       <button data-oact="gotoLogin">${t('online_login')}</button></p>`;
+  }
+
+  if (onlineView === 'recovery') {
+    html += `
+    <h3>${t('online_recovery_title')}</h3>
+    <p class="warn">${t('online_recovery_hint')}</p>
+    <p class="mono-secret">${esc(recoveryCode)}</p>
+    <p><button class="accent" data-oact="recoveryDone">${t('online_mfa_done')}</button></p>`;
   }
 
   if (onlineView === 'register') {
@@ -334,6 +393,11 @@ function renderOnline() {
     <table class="list">${shared || `<tr><td class="hint">${t('online_none')}</td></tr>`}</table>
     <p class="hint">${t('online_readonly_hint')}</p>
     ${ONLINE.isAdmin ? adminSection() : ''}
+    <h3>${t('online_pw_change')}</h3>
+    <label>${t('online_pw_old')}</label><input type="password" id="pwOld" autocomplete="current-password">
+    <label>${t('online_new_password')}</label><input type="password" id="pwNew" autocomplete="new-password">
+    <p><button data-oact="pwChange">${t('online_pw_change')}</button>
+       <button data-oact="recoveryNew">${t('online_recovery_new')}</button></p>
     <h3>${t('online_mfa')}</h3>
     <p>${ONLINE.mfaEnabled
         ? `<span class="ok">✔ ${t('online_mfa_on')}</span>
@@ -416,9 +480,15 @@ async function onlineAction(el) {
         if (p1 !== p2) { onlineMsg = t('online_pw_mismatch'); break; }
         const res = await api('register', { username, password: p1,
           registerCode: codeEl ? codeEl.value.trim() : '' });
-        if (res.pendingApproval) { onlineView = 'pending'; break; }
+        recoveryCode = res.recoveryCode || '';
+        if (res.pendingApproval) {
+          recoveryNext = 'pending';
+          onlineView = recoveryCode ? 'recovery' : 'pending';
+          break;
+        }
         setOnlineAuth({ token: res.token, username: res.username, mfaEnabled: false,
                         isAdmin: !!res.isAdmin });
+        if (recoveryCode) { recoveryNext = 'account'; onlineView = 'recovery'; break; }
         onlineView = 'account';
         await refreshCloud();
         return;
@@ -495,8 +565,49 @@ async function onlineAction(el) {
         if (what === 'delete' && !confirm(t('online_confirm_delete_user').replace('{name}', name))) return;
         if (what === 'reset_mfa' && !confirm(t('online_confirm_resetmfa').replace('{name}', name))) return;
         if (what === 'demote' && !confirm(t('online_confirm_demote').replace('{name}', name))) return;
-        await api('admin_user_action', { id: +el.dataset.id, what });
+        if (what === 'reset_password' && !confirm(t('online_confirm_resetpw').replace('{name}', name))) return;
+        const res = await api('admin_user_action', { id: +el.dataset.id, what });
+        if (res.resetCode)
+          onlineMsg = t('online_resetcode_for').replace('{name}', res.username) + ' ' + res.resetCode;
         adminData = await api('admin_users');
+        break;
+      }
+      case 'gotoReset': onlineView = 'reset'; break;
+      case 'doReset': {
+        const username = document.getElementById('rsUser').value.trim();
+        const code = document.getElementById('rsCode').value.trim();
+        const pw = document.getElementById('rsPass').value;
+        const totpEl = document.getElementById('rsTotp');
+        const totp = totpEl ? totpEl.value.trim() : '';
+        if (pw.length < 8) { onlineMsg = t('online_pw_short'); break; }
+        const res = await api('password_reset', { username, code, newPassword: pw, totp });
+        if (res.mfaRequired) {
+          document.getElementById('rsTotpRow').classList.remove('hidden');
+          document.getElementById('rsTotp').focus();
+          return;
+        }
+        recoveryCode = res.recoveryCode || '';
+        recoveryNext = 'login';
+        onlineMsg = t('online_reset_done');
+        onlineView = recoveryCode ? 'recovery' : 'login';
+        break;
+      }
+      case 'recoveryDone':
+        recoveryCode = '';
+        onlineView = recoveryNext;
+        if (recoveryNext === 'account') { await refreshCloud(); return; }
+        break;
+      case 'recoveryNew':
+        recoveryCode = (await api('recovery_new', {})).recoveryCode;
+        recoveryNext = 'account';
+        onlineView = 'recovery';
+        break;
+      case 'pwChange': {
+        const oldPw = document.getElementById('pwOld').value;
+        const newPw = document.getElementById('pwNew').value;
+        if (newPw.length < 8) { onlineMsg = t('online_pw_short'); break; }
+        await api('password_change', { oldPassword: oldPw, newPassword: newPw });
+        onlineMsg = t('online_pw_changed');
         break;
       }
       case 'mfaStart':

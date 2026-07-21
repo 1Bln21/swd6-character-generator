@@ -145,6 +145,42 @@ Sicherheitsnetz: Man kann sich nicht selbst degradieren, sperren
 oder löschen; das erste Konto bleibt dauerhaft Admin; der letzte
 Admin kann nicht entfernt werden.
 
+PASSWORT VERGESSEN
+------------------
+Die App verlangt bewusst keine E-Mail-Adresse, daher gibt es keinen
+Reset-Link per Mail (viele Gratis-Hoster erlauben E-Mail-Versand
+ohnehin nicht). Stattdessen zwei Wege:
+
+1. WIEDERHERSTELLUNGSCODE (Selbsthilfe)
+   Bei der Registrierung wird einmalig ein Code angezeigt, z. B.
+     C3F6-898F-C9A9-7A72
+   Diesen gut aufbewahren! Im Anmeldefenster auf "Passwort
+   vergessen?" klicken, dann Benutzername + Code + neues Passwort
+   eingeben. Danach gibt es automatisch einen neuen Code.
+   Im Konto kann man jederzeit einen neuen Code erzeugen
+   ("↻ Neuen Wiederherstellungscode erzeugen").
+
+2. EINMAL-CODE VOM ADMIN
+   Der Admin klickt in der Benutzerliste auf "Passwort
+   zurücksetzen". Es erscheint ein Code, der 24 Stunden gültig ist.
+   Diesen dem Mitspieler persönlich weitergeben (Chat, Telefon).
+   Eingelöst wird er genauso über "Passwort vergessen?".
+
+Passwort ändern (wenn man es noch kennt): im ☁-Online-Fenster unter
+"Passwort ändern" das alte und das neue Passwort eingeben.
+
+Wichtig: Ist die Zwei-Faktor-Anmeldung (MFA) aktiv, wird sie auch
+beim Zurücksetzen abgefragt – ein Code allein genügt nicht. Ist auch
+das Handy weg, kann der Admin die MFA zurücksetzen. Jeder Code ist
+nur einmal verwendbar; nach einem Reset werden alle Sitzungen des
+Kontos beendet.
+
+EN: No e-mail is required, so there is no reset link. Instead every
+account gets a one-time recovery code at registration (use it via
+"Forgot your password?"), and an administrator can generate a
+one-time code valid for 24 hours from the user list. If MFA is
+enabled it is still required during a reset.
+
 Sicherheit: Passwörter werden gehasht (bcrypt), Login-Tokens nur
 als Hash gespeichert, Codes sind einmalig verwendbar (Replay-
 Schutz), nach 8 Fehlversuchen wird 15 Minuten gesperrt. Die

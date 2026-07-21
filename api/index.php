@@ -138,6 +138,9 @@ $db->exec("CREATE TABLE IF NOT EXISTS users (
   fail_time BIGINT DEFAULT 0,
   approved INT DEFAULT 1,
   is_admin INT DEFAULT 0,
+  recovery_hash $STR DEFAULT '',
+  reset_hash $STR DEFAULT '',
+  reset_expires BIGINT DEFAULT 0,
   created BIGINT
 )$SUF");
 $db->exec("CREATE TABLE IF NOT EXISTS tokens (
@@ -164,7 +167,9 @@ $db->exec("CREATE TABLE IF NOT EXISTS settings (
 )$SUF");
 
 /* Nachrüsten älterer Installationen (Spalten kamen später dazu) */
-foreach (['approved INT DEFAULT 1', 'is_admin INT DEFAULT 0'] as $colDef) {
+foreach (['approved INT DEFAULT 1', 'is_admin INT DEFAULT 0',
+          "recovery_hash $STR DEFAULT ''", "reset_hash $STR DEFAULT ''",
+          'reset_expires BIGINT DEFAULT 0'] as $colDef) {
   try { $db->exec("ALTER TABLE users ADD COLUMN $colDef"); } catch (Exception $e) { /* existiert bereits */ }
 }
 
@@ -254,6 +259,19 @@ function admin_count() {
   global $db;
   $st = $db->query('SELECT COUNT(*) FROM users WHERE is_admin = 1 OR id = 1');
   return (int)$st->fetchColumn();
+}
+/* Einmal-Codes (Wiederherstellung / Admin-Reset) */
+function gen_code($bytes = 8) {
+  return implode('-', str_split(strtoupper(bin2hex(random_bytes($bytes))), 4));
+}
+function code_hash($code) {
+  return hash('sha256', strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string)$code)));
+}
+function new_recovery_code($userId) {
+  global $db;
+  $code = gen_code();
+  $db->prepare('UPDATE users SET recovery_hash = ? WHERE id = ?')->execute([code_hash($code), $userId]);
+  return $code;
 }
 function rate_check($user) {
   if ((int)$user['fail_count'] >= 8 && time() - (int)$user['fail_time'] < 900)
@@ -364,9 +382,11 @@ case 'register': {
   $st = $db->prepare('INSERT INTO users (username, pass_hash, created, approved, is_admin) VALUES (?,?,?,?,?)');
   $st->execute([$username, password_hash($password, PASSWORD_DEFAULT), time(), $approved, $isFirst ? 1 : 0]);
   $id = (int)$db->lastInsertId();
-  if (!$approved) json_out(['pendingApproval' => true, 'username' => $username]);
+  $recovery = new_recovery_code($id);
+  if (!$approved)
+    json_out(['pendingApproval' => true, 'username' => $username, 'recoveryCode' => $recovery]);
   json_out(['token' => make_token($id), 'username' => $username, 'mfaEnabled' => false,
-            'isAdmin' => $isFirst]);
+            'isAdmin' => $isFirst, 'recoveryCode' => $recovery]);
 }
 
 case 'login': {
@@ -397,6 +417,61 @@ case 'login': {
   }
   json_out(['token' => make_token($user['id']), 'username' => $user['username'],
             'mfaEnabled' => (int)$user['totp_enabled'] === 1, 'isAdmin' => is_admin($user)]);
+}
+
+/* ---- Passwort ändern / vergessen (ohne E-Mail) ---- */
+case 'password_change': {
+  $user = auth();
+  rate_check($user);
+  $old = (string)inp('oldPassword', '');
+  $new = (string)inp('newPassword', '');
+  if (!password_verify($old, $user['pass_hash'])) {
+    rate_fail($user['id']); fail('Current password is wrong', 401);
+  }
+  if (strlen($new) < 8) fail('Password must be at least 8 characters');
+  rate_ok($user['id']);
+  $db->prepare('UPDATE users SET pass_hash = ? WHERE id = ?')
+     ->execute([password_hash($new, PASSWORD_DEFAULT), $user['id']]);
+  /* Andere Geräte abmelden, die aktuelle Sitzung behalten */
+  $db->prepare('DELETE FROM tokens WHERE user_id = ? AND token_hash <> ?')
+     ->execute([$user['id'], hash('sha256', bearer_token())]);
+  json_out(['ok' => true]);
+}
+
+case 'recovery_new': {
+  $user = auth();
+  json_out(['recoveryCode' => new_recovery_code($user['id'])]);
+}
+
+case 'password_reset': {
+  $username = trim((string)inp('username', ''));
+  $code     = (string)inp('code', '');
+  $new      = (string)inp('newPassword', '');
+  $st = $db->prepare('SELECT * FROM users WHERE username = ?');
+  $st->execute([$username]);
+  $user = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$user) { usleep(400000); fail('Wrong user name or code', 401); }
+  rate_check($user);
+  if (strlen($new) < 8) fail('Password must be at least 8 characters');
+  $h = code_hash($code);
+  $viaRecovery = !empty($user['recovery_hash']) && hash_equals($user['recovery_hash'], $h);
+  $viaAdmin    = !empty($user['reset_hash']) && hash_equals($user['reset_hash'], $h)
+                 && (int)$user['reset_expires'] > time();
+  if (!$viaRecovery && !$viaAdmin) { rate_fail($user['id']); fail('Wrong user name or code', 401); }
+  /* Der zweite Faktor bleibt Pflicht – ein Code allein darf MFA nicht aushebeln.
+     Ist das Gerät weg, kann ein Administrator die MFA zurücksetzen. */
+  if ((int)$user['totp_enabled'] === 1) {
+    $totp = (string)inp('totp', '');
+    if ($totp === '') json_out(['mfaRequired' => true]);
+    if (!verify_second_factor($user, $totp)) {
+      rate_fail($user['id']); fail('Invalid authenticator code', 401);
+    }
+  }
+  rate_ok($user['id']);
+  $db->prepare("UPDATE users SET pass_hash = ?, reset_hash = '', reset_expires = 0 WHERE id = ?")
+     ->execute([password_hash($new, PASSWORD_DEFAULT), $user['id']]);
+  $db->prepare('DELETE FROM tokens WHERE user_id = ?')->execute([$user['id']]);   // überall abmelden
+  json_out(['ok' => true, 'recoveryCode' => new_recovery_code($user['id'])]);
 }
 
 case 'logout': {
@@ -586,8 +661,18 @@ case 'admin_user_action': {
   $target = $st->fetch(PDO::FETCH_ASSOC);
   if (!$target) fail('User not found', 404);
   $self = (int)$target['id'] === (int)$me['id'];
+  $extra = [];
 
   switch ($what) {
+    case 'reset_password': {
+      /* Einmal-Code erzeugen, 24 Stunden gültig. Der Administrator gibt ihn
+         dem Benutzer persönlich weiter (Chat, Telefon …) – kein E-Mail-Versand. */
+      $code = gen_code();
+      $db->prepare('UPDATE users SET reset_hash = ?, reset_expires = ? WHERE id = ?')
+         ->execute([code_hash($code), time() + 86400, $id]);
+      $extra = ['resetCode' => $code, 'username' => $target['username']];
+      break;
+    }
     case 'approve':
       $db->prepare('UPDATE users SET approved = 1 WHERE id = ?')->execute([$id]);
       break;
@@ -621,7 +706,7 @@ case 'admin_user_action': {
     default:
       fail('Unknown action');
   }
-  json_out(['ok' => true]);
+  json_out(array_merge(['ok' => true], $extra));
 }
 
 case 'admin_settings': {

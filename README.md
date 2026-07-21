@@ -108,6 +108,17 @@ Der **zuerst registrierte Benutzer ist automatisch Administrator**. Er sieht im 
 
 Eingebaute Schutzmechanismen: Man kann sich nicht selbst degradieren, sperren oder löschen, das erste Konto bleibt dauerhaft Administrator, und der letzte verbliebene Administrator lässt sich nicht entfernen.
 
+### Passwort vergessen
+
+Die App verlangt bewusst **keine E-Mail-Adresse** – deshalb gibt es statt eines Reset-Links zwei Wege ohne E-Mail-Versand (praktisch, da viele Gratis-Hoster `mail()` gar nicht erlauben):
+
+1. **Wiederherstellungscode (Selbsthilfe)** – Bei der Registrierung wird einmalig ein Code wie `C3F6-898F-C9A9-7A72` angezeigt. Mit Benutzername + Code lässt sich über *„Passwort vergessen?"* im Anmeldefenster ein neues Passwort setzen. Danach gibt es automatisch einen frischen Code; im Konto kann man jederzeit einen neuen erzeugen.
+2. **Einmal-Code vom Administrator** – In der Benutzerliste auf **„Passwort zurücksetzen"** klicken. Es erscheint ein 24 Stunden gültiger Code, den du dem Mitspieler persönlich weitergibst (Chat, Telefon …). Er wird genauso eingelöst.
+
+Zusätzlich lässt sich das Passwort im Konto direkt ändern (mit Eingabe des alten Passworts).
+
+**Sicherheitsverhalten:** Ist MFA aktiv, verlangt auch der Reset den zweiten Faktor – ein Code allein hebelt die Zwei-Faktor-Anmeldung also nicht aus. Ist zusätzlich das Handy weg, setzt ein Administrator die MFA zurück. Jeder Code ist nur **einmal** verwendbar, und nach einem Reset werden alle bestehenden Sitzungen des Kontos beendet.
+
 **nginx-Hinweis:** Die Datenbank liegt in `api/data/` und ist bei Apache per `.htaccess` gegen Direktzugriff geschützt. Bei nginx den Pfad selbst sperren:
 
 ```nginx
