@@ -127,6 +127,28 @@ nichts importiert werden. Kontrolle: die Adresse
   deine-seite.de/api/index.php?action=ping
 im Browser aufrufen; dort steht "db":"mysql" bzw. "db":"sqlite".
 
+NACH EINEM UPDATE: BROWSER-CACHE
+-------------------------------
+Browser merken sich JavaScript- und CSS-Dateien. Nach dem Hochladen
+einer neuen Version kann daher noch die alte Fassung angezeigt werden
+(erkennbar z. B. an einer veralteten Versionsnummer unter
+"Über & Credits").
+
+Sofort-Abhilfe:  Strg + F5   (bzw. Cmd + Shift + R am Mac)
+
+Dauerhaft: Die mitgelieferte Datei .htaccess im Hauptordner sorgt
+dafuer, dass der Browser vor der Verwendung kurz beim Server
+nachfragt. Sie wirkt nur bei Apache und benoetigt "AllowOverride All"
+sowie das Modul mod_headers:
+  sudo a2enmod headers && sudo systemctl restart apache2
+
+Bei nginx stattdessen in den Server-Block:
+  location ~* \.(js|css|html)$ { add_header Cache-Control "no-cache"; }
+
+EN: Browsers cache JS/CSS, so an update may not show up immediately -
+press Ctrl+F5. The bundled .htaccess makes browsers revalidate
+(Apache with mod_headers); for nginx use the snippet above.
+
 WENN ETWAS NICHT FUNKTIONIERT
 -----------------------------
 Rufe im Browser auf:

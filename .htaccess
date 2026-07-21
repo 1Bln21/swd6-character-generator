@@ -1,0 +1,20 @@
+# App-Dateien beim Server rueckfragen lassen, statt sie blind aus dem
+# Browser-Cache zu nehmen. Sonst zeigt der Browser nach einem Update noch
+# die alte Fassung an (z. B. eine veraltete Versionsnummer in den Credits),
+# obwohl auf dem Server bereits die neue Datei liegt.
+#
+# "no-cache" heisst nicht "nicht speichern": Der Browser darf die Datei
+# behalten, muss aber vor der Verwendung kurz nachfragen. Hat sich nichts
+# geaendert, antwortet der Server mit 304 (nicht neu uebertragen) - das
+# kostet also kaum etwas.
+#
+# Make browsers revalidate the app files instead of serving them straight
+# from cache, so an update is picked up immediately. "no-cache" still
+# allows storing; the browser just has to check, and gets a cheap 304 if
+# nothing changed.
+
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html|js|css)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+</IfModule>
