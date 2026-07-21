@@ -45,27 +45,68 @@ Alle Dateien **außer dem Ordner `api/`** auf beliebigen Webspace oder GitHub Pa
 | Komponente | Anforderung |
 |---|---|
 | PHP | Version 7.4 oder neuer |
-| PHP-Erweiterung | `pdo_sqlite` (bei praktisch allen Hostern Standard) |
+| Datenbank | **SQLite** (`pdo_sqlite`, keine Einrichtung nötig) **oder MySQL/MariaDB** (`pdo_mysql`) |
 | Webserver | Apache (nutzt mitgelieferte `.htaccess`) oder nginx (siehe Hinweis) |
 | HTTPS | **Pflicht** – Login-Daten dürfen nie unverschlüsselt laufen (Let's Encrypt gibt es bei den üblichen Hostern per Klick) |
 
-Das deckt praktisch jeden deutschen Shared-Hosting-Tarif ab (IONOS, Strato, All-Inkl, Netcup …). Eine eigene Datenbank ist **nicht** nötig – die API nutzt SQLite (eine Datei).
+Damit läuft es sowohl auf klassischen Tarifen (IONOS, Strato, All-Inkl, Netcup …) als auch auf **kostenlosen Hostern**, die kein SQLite anbieten, wohl aber MySQL (ByetHost, InfinityFree, …).
 
 **Installation:**
 
 1. Den **kompletten Projektordner** (inkl. `api/`) per FTP/SFTP hochladen
-2. Sicherstellen, dass PHP in `api/data/` schreiben darf (Ordner wird beim ersten Aufruf automatisch angelegt; ggf. Schreibrechte für das `api/`-Verzeichnis setzen)
+2. Datenbank wählen:
+   - **SQLite** (Standard): nichts tun. PHP legt `api/data/` beim ersten Aufruf selbst an.
+   - **MySQL**: im Hosting-Panel eine Datenbank anlegen und die Zugangsdaten oben in `api/index.php` in den `'db'`-Block eintragen (siehe unten).
 3. Seite im Browser öffnen – erscheint oben der Knopf **☁ Online**, läuft alles
+
+#### MySQL statt SQLite (z. B. bei kostenlosen Hostern)
+
+Viele Gratis-Tarife haben `pdo_sqlite` deaktiviert, bieten aber MySQL an. Dann einfach den `db`-Block am Anfang von `api/index.php` ausfüllen:
+
+```php
+'db' => [
+  'driver' => 'auto',
+  'host'   => 'sql212.byethost6.com',   // "MySQL hostname" aus dem Panel
+  'name'   => 'b6_42459412_swd6',       // Name der angelegten Datenbank
+  'user'   => 'b6_42459412',            // "MySQL username"
+  'pass'   => 'DEIN-DB-PASSWORT',
+  'port'   => '',                        // meist leer lassen
+],
+```
+
+Sobald `host`, `name` und `user` gefüllt sind, wird automatisch MySQL benutzt – sonst SQLite. Die Tabellen legt die API beim ersten Aufruf selbst an; ein SQL-Import ist **nicht** nötig. Ob es geklappt hat, verrät `api/index.php?action=ping`: dort steht `"db":"mysql"` bzw. `"db":"sqlite"`.
+
+**Beispiel ByetHost / InfinityFree (Vistapanel):**
+
+1. *MySQL Databases* öffnen, eine Datenbank anlegen (der fertige Name steht danach in der Liste, z. B. `b6_42459412_swd6`)
+2. *MySQL hostname*, *username* und das gewählte Passwort in den `db`-Block eintragen
+3. Projekt nach `htdocs/` hochladen
+4. Im Panel unter *SSL/TLS* bzw. *Free SSL* ein Let's-Encrypt-Zertifikat für die Domain aktivieren
 
 **Konfiguration** – zwei Dateien:
 
 - **`config.js`** (Frontend):
   - `apiUrl` – Pfad zur API (Standard `api/index.php`, passt beim Hochladen des ganzen Ordners)
-  - `impressumUrl` / `datenschutzUrl` – Links erscheinen im Footer für alle Besucher
+  - `legal` / `impressumUrl` / `datenschutzUrl` – siehe [Impressum & Datenschutz](#impressum--datenschutzerklärung-eingebaut)
 - **`api/index.php`** (oben im `$CONFIG`-Block):
-  - `allow_register` – Registrierung erlauben (Standard: `true`)
-  - `register_code` – Einladungscode; wenn gesetzt, können sich nur Personen mit diesem Code registrieren (empfohlen für private Spielrunden!)
+  - `db` – Datenbank (leer = SQLite, ausgefüllt = MySQL)
+  - `register_mode` – Startwert für die Registrierung; im laufenden Betrieb stellt der Administrator das bequem in der App um
+  - `register_code` – Einladungscode; wenn gesetzt, können sich nur Personen mit diesem Code registrieren
   - `issuer` – Name, der in der Authenticator-App angezeigt wird
+  - `admins` – optionale zusätzliche Admin-Benutzernamen (normalerweise unnötig, siehe unten)
+
+### Benutzerverwaltung (Administrator)
+
+Der **zuerst registrierte Benutzer ist automatisch Administrator**. Er sieht im ☁-Online-Fenster einen zusätzlichen Bereich **„Verwaltung"**:
+
+- **Registrierung** umschalten:
+  - *Offen* – jeder kann sich sofort anmelden
+  - *Mit Freigabe* – neue Konten müssen erst vom Admin bestätigt werden (ideal für die Testphase mit Freunden)
+  - *Geschlossen* – keine neuen Registrierungen
+- **Benutzerübersicht** mit Name, Registrierdatum, Status, Anzahl Charaktere sowie den Kennzeichen *Admin* und *MFA*. Wartende Konten werden hervorgehoben (`3 ⏳`).
+- **Aktionen** je Benutzer: Freigeben · Sperren · Zum Admin machen · Admin-Rechte entziehen · MFA zurücksetzen (falls jemand sein Handy verliert) · Löschen
+
+Eingebaute Schutzmechanismen: Man kann sich nicht selbst degradieren, sperren oder löschen, das erste Konto bleibt dauerhaft Administrator, und der letzte verbliebene Administrator lässt sich nicht entfernen.
 
 **nginx-Hinweis:** Die Datenbank liegt in `api/data/` und ist bei Apache per `.htaccess` gegen Direktzugriff geschützt. Bei nginx den Pfad selbst sperren:
 

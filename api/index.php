@@ -4,14 +4,39 @@
    ---------------------------------------------------------------------
    Benutzerkonten (Username + Passwort + TOTP-MFA), Charakter-Speicherung
    und Freigaben. Läuft auf jedem Standard-Webspace mit PHP >= 7.4 und
-   SQLite (PDO). Keine weiteren Abhängigkeiten.
+   wahlweise SQLite ODER MySQL/MariaDB. Keine weiteren Abhängigkeiten.
 
    User accounts (username + password + TOTP MFA), character storage and
-   sharing. Runs on any standard web space with PHP >= 7.4 and SQLite.
+   sharing. Runs on any standard web space with PHP >= 7.4 and either
+   SQLite or MySQL/MariaDB.
    ===================================================================== */
 
 $CONFIG = [
-  // Registrierung erlauben? / Allow registration?
+  /* ---------------- Datenbank / database ----------------
+     Viele (besonders kostenlose) Hoster bieten kein SQLite an, dafür
+     aber MySQL. Trage die Zugangsdaten aus dem Hosting-Panel ein –
+     sobald host, name und user gefüllt sind, wird MySQL verwendet.
+     Bleiben sie leer, nutzt die API automatisch SQLite (api/data/).
+
+     Many (especially free) hosts do not offer SQLite but do offer
+     MySQL. Fill in the credentials from your hosting panel – as soon
+     as host, name and user are set, MySQL is used. If left empty the
+     API falls back to SQLite (api/data/). */
+  'db' => [
+    'driver' => 'auto',   // 'auto' | 'mysql' | 'sqlite'
+    'host'   => '',       // z. B. sql212.byethost6.com
+    'name'   => '',       // Datenbankname / database name
+    'user'   => '',       // Datenbank-Benutzer / database user
+    'pass'   => '',       // Passwort / password
+    'port'   => '',       // meist leer lassen / usually leave empty
+  ],
+
+  // Voreinstellung für die Registrierung; der Administrator kann sie
+  // später in der App umstellen (offen / mit Freigabe / geschlossen).
+  // Default registration mode; the administrator can change it in the
+  // app later ('open' | 'approval' | 'closed').
+  'register_mode' => 'open',
+  // Veraltet, wirkt nur wenn noch keine Einstellung gespeichert wurde.
   'allow_register' => true,
   // Optionaler Einladungscode: wenn gesetzt, ist er bei der Registrierung
   // Pflicht (praktisch für private Spielrunden). '' = ohne Code.
@@ -50,52 +75,124 @@ function json_out($data, $code = 200) {
 }
 function fail($msg, $code = 400) { json_out(['error' => $msg], $code); }
 
-/* ---------------- Datenbank ---------------- */
+/* ---------------- Datenbank: SQLite ODER MySQL ---------------- */
 $dataDir = __DIR__ . '/data';
-if (!is_dir($dataDir)) {
-  @mkdir($dataDir, 0770, true);
-  @file_put_contents($dataDir . '/.htaccess', "Require all denied\n");
-  @file_put_contents($dataDir . '/index.html', '');
+$dbc = $CONFIG['db'];
+$useMysql = ($dbc['driver'] === 'mysql')
+  || ($dbc['driver'] === 'auto' && $dbc['host'] !== '' && $dbc['name'] !== '' && $dbc['user'] !== '');
+$DRIVER = $useMysql ? 'mysql' : 'sqlite';
+
+if (!$useMysql) {
+  if (!is_dir($dataDir)) {
+    @mkdir($dataDir, 0770, true);
+    @file_put_contents($dataDir . '/.htaccess', "Require all denied\n");
+    @file_put_contents($dataDir . '/index.html', '');
+  }
+  if (!extension_loaded('pdo_sqlite')) {
+    fail('This server has no SQLite support (PHP extension pdo_sqlite missing). '
+       . 'Enter your MySQL credentials in the $CONFIG[\'db\'] block of api/index.php instead.', 500);
+  }
 }
+if ($useMysql && !extension_loaded('pdo_mysql')) {
+  fail('This server has no MySQL support (PHP extension pdo_mysql missing).', 500);
+}
+
 try {
-  $db = new PDO('sqlite:' . $dataDir . '/swd6.sqlite');
+  if ($useMysql) {
+    $dsn = 'mysql:host=' . $dbc['host']
+         . ($dbc['port'] !== '' ? ';port=' . $dbc['port'] : '')
+         . ';dbname=' . $dbc['name'] . ';charset=utf8mb4';
+    $db = new PDO($dsn, $dbc['user'], $dbc['pass']);
+  } else {
+    $db = new PDO('sqlite:' . $dataDir . '/swd6.sqlite');
+  }
   $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-  $db->exec('PRAGMA journal_mode = WAL');
-  $db->exec('PRAGMA foreign_keys = ON');
+  if (!$useMysql) {
+    $db->exec('PRAGMA journal_mode = WAL');
+    $db->exec('PRAGMA foreign_keys = ON');
+  }
 } catch (Exception $e) {
-  fail('Database unavailable', 500);
+  fail('Database connection failed: ' . $e->getMessage(), 500);
 }
+
+/* Dialekt-Unterschiede an einer Stelle gebündelt */
+$PK  = $useMysql ? 'INT AUTO_INCREMENT PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
+$STR = $useMysql ? 'VARCHAR(191)' : 'TEXT';
+$TXT = $useMysql ? 'LONGTEXT'     : 'TEXT';
+$UNI = $useMysql ? 'VARCHAR(64) UNIQUE NOT NULL' : 'TEXT UNIQUE NOT NULL COLLATE NOCASE';
+$SUF = $useMysql ? ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci' : '';
+/* Case-insensitive Sortierung: MySQL kann das per Collation schon selbst */
+function ci($col) { global $useMysql; return $useMysql ? $col : $col . ' COLLATE NOCASE'; }
+function insert_ignore() { global $useMysql; return $useMysql ? 'INSERT IGNORE INTO' : 'INSERT OR IGNORE INTO'; }
+
 $db->exec("CREATE TABLE IF NOT EXISTS users (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  username TEXT UNIQUE NOT NULL COLLATE NOCASE,
-  pass_hash TEXT NOT NULL,
-  totp_secret TEXT DEFAULT '',
-  totp_pending TEXT DEFAULT '',
-  totp_enabled INTEGER DEFAULT 0,
-  totp_last_step INTEGER DEFAULT 0,
-  backup_codes TEXT DEFAULT '[]',
-  fail_count INTEGER DEFAULT 0,
-  fail_time INTEGER DEFAULT 0,
-  created INTEGER
-)");
+  id $PK,
+  username $UNI,
+  pass_hash $STR NOT NULL,
+  totp_secret $STR DEFAULT '',
+  totp_pending $STR DEFAULT '',
+  totp_enabled INT DEFAULT 0,
+  totp_last_step BIGINT DEFAULT 0,
+  backup_codes $TXT,
+  fail_count INT DEFAULT 0,
+  fail_time BIGINT DEFAULT 0,
+  approved INT DEFAULT 1,
+  is_admin INT DEFAULT 0,
+  created BIGINT
+)$SUF");
 $db->exec("CREATE TABLE IF NOT EXISTS tokens (
-  token_hash TEXT PRIMARY KEY,
-  user_id INTEGER NOT NULL,
-  expires INTEGER NOT NULL
-)");
+  token_hash VARCHAR(64) PRIMARY KEY,
+  user_id INT NOT NULL,
+  expires BIGINT NOT NULL
+)$SUF");
 $db->exec("CREATE TABLE IF NOT EXISTS chars (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  user_id INTEGER NOT NULL,
-  name TEXT NOT NULL,
-  data TEXT NOT NULL,
-  updated INTEGER
-)");
+  id $PK,
+  user_id INT NOT NULL,
+  name $STR NOT NULL,
+  data $TXT NOT NULL,
+  updated BIGINT
+)$SUF");
 $db->exec("CREATE TABLE IF NOT EXISTS shares (
-  char_id INTEGER NOT NULL,
-  owner_id INTEGER NOT NULL,
-  to_user_id INTEGER NOT NULL,
+  char_id INT NOT NULL,
+  owner_id INT NOT NULL,
+  to_user_id INT NOT NULL,
   UNIQUE(char_id, to_user_id)
-)");
+)$SUF");
+$db->exec("CREATE TABLE IF NOT EXISTS settings (
+  k VARCHAR(64) PRIMARY KEY,
+  v $TXT
+)$SUF");
+
+/* Nachrüsten älterer Installationen (Spalten kamen später dazu) */
+foreach (['approved INT DEFAULT 1', 'is_admin INT DEFAULT 0'] as $colDef) {
+  try { $db->exec("ALTER TABLE users ADD COLUMN $colDef"); } catch (Exception $e) { /* existiert bereits */ }
+}
+
+/* ---------------- Einstellungen (in der Datenbank) ---------------- */
+function setting_get($key, $default = null) {
+  global $db;
+  $st = $db->prepare('SELECT v FROM settings WHERE k = ?');
+  $st->execute([$key]);
+  $row = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$row) return $default;
+  $val = json_decode($row['v'], true);
+  return $val === null ? $default : $val;
+}
+function setting_set($key, $value) {
+  global $db, $useMysql;
+  $json = json_encode($value, JSON_UNESCAPED_UNICODE);
+  $sql = $useMysql
+    ? 'INSERT INTO settings (k, v) VALUES (?, ?) ON DUPLICATE KEY UPDATE v = VALUES(v)'
+    : 'INSERT INTO settings (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v';
+  $db->prepare($sql)->execute([$key, $json]);
+}
+/* Registrierungsmodus: 'open' | 'approval' | 'closed' */
+function register_mode() {
+  global $CONFIG;
+  $m = setting_get('register_mode');
+  if ($m === null) $m = $CONFIG['allow_register'] ? $CONFIG['register_mode'] : 'closed';
+  return in_array($m, ['open', 'approval', 'closed'], true) ? $m : 'open';
+}
 
 /* ---------------- Eingabe ---------------- */
 $action = isset($_GET['action']) ? $_GET['action'] : '';
@@ -144,8 +241,19 @@ function auth() {
 }
 function is_admin($user) {
   global $CONFIG;
-  if ((int)$user['id'] === 1) return true;
+  if ((int)$user['id'] === 1) return true;                 // Ersteinrichtung
+  if (isset($user['is_admin']) && (int)$user['is_admin'] === 1) return true;
   return in_array($user['username'], $CONFIG['admins'], true);
+}
+function require_admin() {
+  $user = auth();
+  if (!is_admin($user)) fail('Administrator rights required', 403);
+  return $user;
+}
+function admin_count() {
+  global $db;
+  $st = $db->query('SELECT COUNT(*) FROM users WHERE is_admin = 1 OR id = 1');
+  return (int)$st->fetchColumn();
 }
 function rate_check($user) {
   if ((int)$user['fail_count'] >= 8 && time() - (int)$user['fail_time'] < 900)
@@ -208,7 +316,7 @@ function verify_second_factor($user, $code, $secretB32 = null) {
   }
   /* Backup-Code? (nur bei aktivierter MFA, nicht beim Einrichten) */
   if ($secretB32 === null && $code !== '') {
-    $codes = json_decode($user['backup_codes'], true);
+    $codes = json_decode((string)$user['backup_codes'], true);
     if (is_array($codes)) {
       $h = hash('sha256', strtoupper(str_replace('-', '', $code)));
       $idx = array_search($h, $codes, true);
@@ -226,13 +334,18 @@ function verify_second_factor($user, $code, $secretB32 = null) {
 /* ===================================================================== */
 switch ($action) {
 
-case 'ping':
-  json_out(['ok' => true, 'api' => 'swd6', 'version' => 1,
-            'register' => $CONFIG['allow_register'],
+case 'ping': {
+  $mode = register_mode();
+  json_out(['ok' => true, 'api' => 'swd6', 'version' => 2,
+            'db' => $DRIVER,
+            'register' => $mode !== 'closed',
+            'registerMode' => $mode,
             'registerCode' => $CONFIG['register_code'] !== '']);
+}
 
 case 'register': {
-  if (!$CONFIG['allow_register']) fail('Registration is disabled', 403);
+  $mode = register_mode();
+  if ($mode === 'closed') fail('Registration is currently disabled', 403);
   if ($CONFIG['register_code'] !== '' &&
       !hash_equals($CONFIG['register_code'], (string)inp('registerCode', '')))
     fail('Invalid registration code', 403);
@@ -244,11 +357,16 @@ case 'register': {
   $st = $db->prepare('SELECT id FROM users WHERE username = ?');
   $st->execute([$username]);
   if ($st->fetch()) fail('Username already taken', 409);
-  $st = $db->prepare('INSERT INTO users (username, pass_hash, created) VALUES (?,?,?)');
-  $st->execute([$username, password_hash($password, PASSWORD_DEFAULT), time()]);
+  /* Der allererste Benutzer ist Administrator und immer freigeschaltet. */
+  $st = $db->query('SELECT COUNT(*) FROM users');
+  $isFirst = (int)$st->fetchColumn() === 0;
+  $approved = ($isFirst || $mode !== 'approval') ? 1 : 0;
+  $st = $db->prepare('INSERT INTO users (username, pass_hash, created, approved, is_admin) VALUES (?,?,?,?,?)');
+  $st->execute([$username, password_hash($password, PASSWORD_DEFAULT), time(), $approved, $isFirst ? 1 : 0]);
   $id = (int)$db->lastInsertId();
+  if (!$approved) json_out(['pendingApproval' => true, 'username' => $username]);
   json_out(['token' => make_token($id), 'username' => $username, 'mfaEnabled' => false,
-            'isAdmin' => $id === 1]);
+            'isAdmin' => $isFirst]);
 }
 
 case 'login': {
@@ -262,6 +380,9 @@ case 'login': {
   if (!password_verify($password, $user['pass_hash'])) {
     rate_fail($user['id']); fail('Wrong username or password', 401);
   }
+  if ((int)$user['approved'] !== 1)
+    json_out(['error' => 'Your account is waiting for approval by the administrator.',
+              'pendingApproval' => true], 403);
   if ((int)$user['totp_enabled'] === 1) {
     $code = (string)inp('totp', '');
     if ($code === '') json_out(['mfaRequired' => true]);
@@ -287,7 +408,7 @@ case 'logout': {
 
 case 'me': {
   $user = auth();
-  $codes = json_decode($user['backup_codes'], true);
+  $codes = json_decode((string)$user['backup_codes'], true);
   json_out(['username' => $user['username'],
             'mfaEnabled' => (int)$user['totp_enabled'] === 1,
             'isAdmin' => is_admin($user),
@@ -338,12 +459,12 @@ case 'mfa_disable': {
 
 case 'chars': {
   $user = auth();
-  $st = $db->prepare('SELECT id, name, updated FROM chars WHERE user_id = ? ORDER BY name COLLATE NOCASE');
+  $st = $db->prepare('SELECT id, name, updated FROM chars WHERE user_id = ? ORDER BY ' . ci('name'));
   $st->execute([$user['id']]);
   $mine = $st->fetchAll(PDO::FETCH_ASSOC);
   $st = $db->prepare('SELECT c.id, c.name, c.updated, u.username AS owner
                       FROM shares s JOIN chars c ON c.id = s.char_id JOIN users u ON u.id = s.owner_id
-                      WHERE s.to_user_id = ? ORDER BY c.name COLLATE NOCASE');
+                      WHERE s.to_user_id = ? ORDER BY ' . ci('c.name'));
   $st->execute([$user['id']]);
   json_out(['mine' => $mine, 'shared' => $st->fetchAll(PDO::FETCH_ASSOC)]);
 }
@@ -421,7 +542,7 @@ case 'share_add': case 'share_remove': case 'shares': {
     $tu = $st->fetch(PDO::FETCH_ASSOC);
     if (!$tu) fail('User not found', 404);
     if ((int)$tu['id'] === (int)$user['id']) fail('You cannot share with yourself');
-    $db->prepare('INSERT OR IGNORE INTO shares (char_id, owner_id, to_user_id) VALUES (?,?,?)')
+    $db->prepare(insert_ignore() . ' shares (char_id, owner_id, to_user_id) VALUES (?,?,?)')
        ->execute([$id, $user['id'], $tu['id']]);
   }
   if ($action === 'share_remove') {
@@ -429,15 +550,97 @@ case 'share_add': case 'share_remove': case 'shares': {
     $db->prepare('DELETE FROM shares WHERE char_id = ? AND to_user_id = (SELECT id FROM users WHERE username = ?)')
        ->execute([$id, $target]);
   }
-  $st = $db->prepare('SELECT u.username FROM shares s JOIN users u ON u.id = s.to_user_id WHERE s.char_id = ? ORDER BY u.username COLLATE NOCASE');
+  $st = $db->prepare('SELECT u.username FROM shares s JOIN users u ON u.id = s.to_user_id WHERE s.char_id = ? ORDER BY ' . ci('u.username'));
   $st->execute([$id]);
   json_out(['shares' => $st->fetchAll(PDO::FETCH_COLUMN)]);
 }
 
+/* ---- Benutzerverwaltung (nur Admin) ---- */
+case 'admin_users': {
+  require_admin();
+  $st = $db->query('SELECT u.id, u.username, u.created, u.approved, u.is_admin, u.totp_enabled,
+                    (SELECT COUNT(*) FROM chars c WHERE c.user_id = u.id) AS char_count
+                    FROM users u ORDER BY ' . ci('u.username'));
+  $users = [];
+  foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+    $users[] = [
+      'id' => (int)$r['id'],
+      'username' => $r['username'],
+      'created' => (int)$r['created'],
+      'approved' => (int)$r['approved'] === 1,
+      'isAdmin' => (int)$r['id'] === 1 || (int)$r['is_admin'] === 1,
+      'mfaEnabled' => (int)$r['totp_enabled'] === 1,
+      'chars' => (int)$r['char_count'],
+    ];
+  }
+  json_out(['users' => $users, 'registerMode' => register_mode()]);
+}
+
+case 'admin_user_action': {
+  $me = require_admin();
+  $id = (int)inp('id', 0);
+  $what = (string)inp('what', '');
+  if ($id <= 0) fail('No user selected');
+  $st = $db->prepare('SELECT * FROM users WHERE id = ?');
+  $st->execute([$id]);
+  $target = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$target) fail('User not found', 404);
+  $self = (int)$target['id'] === (int)$me['id'];
+
+  switch ($what) {
+    case 'approve':
+      $db->prepare('UPDATE users SET approved = 1 WHERE id = ?')->execute([$id]);
+      break;
+    case 'block':
+      if ($self) fail('You cannot block your own account');
+      if (is_admin($target) && admin_count() <= 1) fail('The last administrator cannot be blocked');
+      $db->prepare('UPDATE users SET approved = 0 WHERE id = ?')->execute([$id]);
+      $db->prepare('DELETE FROM tokens WHERE user_id = ?')->execute([$id]);   // sofort abmelden
+      break;
+    case 'promote':
+      $db->prepare('UPDATE users SET is_admin = 1, approved = 1 WHERE id = ?')->execute([$id]);
+      break;
+    case 'demote':
+      if ($self) fail('You cannot remove your own administrator rights');
+      if ((int)$id === 1) fail('The first account is permanently an administrator');
+      if (admin_count() <= 1) fail('At least one administrator must remain');
+      $db->prepare('UPDATE users SET is_admin = 0 WHERE id = ?')->execute([$id]);
+      break;
+    case 'delete':
+      if ($self) fail('You cannot delete your own account here');
+      if (is_admin($target) && admin_count() <= 1) fail('The last administrator cannot be deleted');
+      $db->prepare('DELETE FROM shares WHERE to_user_id = ? OR owner_id = ?')->execute([$id, $id]);
+      $db->prepare('DELETE FROM chars  WHERE user_id = ?')->execute([$id]);
+      $db->prepare('DELETE FROM tokens WHERE user_id = ?')->execute([$id]);
+      $db->prepare('DELETE FROM users  WHERE id = ?')->execute([$id]);
+      break;
+    case 'reset_mfa':
+      $db->prepare("UPDATE users SET totp_secret = '', totp_pending = '', totp_enabled = 0,
+                    totp_last_step = 0, backup_codes = '[]' WHERE id = ?")->execute([$id]);
+      break;
+    default:
+      fail('Unknown action');
+  }
+  json_out(['ok' => true]);
+}
+
+case 'admin_settings': {
+  require_admin();
+  $mode = inp('registerMode');
+  if ($mode !== null) {
+    if (!in_array($mode, ['open', 'approval', 'closed'], true)) fail('Invalid registration mode');
+    setting_set('register_mode', $mode);
+  }
+  json_out(['registerMode' => register_mode()]);
+}
+
 /* ---- Impressum / Datenschutz (site-weit, nur Admin darf schreiben) ---- */
 case 'legal_get': {
-  $f = $dataDir . '/legal.json';
-  $data = is_file($f) ? json_decode(file_get_contents($f), true) : null;
+  $data = setting_get('legal');
+  if (!is_array($data)) {   // Übernahme aus der früheren Dateiablage
+    $f = $dataDir . '/legal.json';
+    $data = is_file($f) ? json_decode(file_get_contents($f), true) : null;
+  }
   json_out(['legal' => is_array($data) ? $data : null]);
 }
 
@@ -463,9 +666,7 @@ case 'legal_save': {
   }
   $out['urls'] = $urls;
   $out['updated'] = time();
-  if (file_put_contents($dataDir . '/legal.json',
-        json_encode($out, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)) === false)
-    fail('Could not write legal.json – check write permissions for api/data/', 500);
+  setting_set('legal', $out);
   json_out(['ok' => true, 'legal' => $out]);
 }
 

@@ -48,6 +48,25 @@ Object.assign(T.de, {
   online_offline: 'Server nicht erreichbar.',
   online_close: 'Schließen',
   online_updated: 'Stand',
+  online_pending_title: 'Registrierung eingegangen',
+  online_pending_text: 'Dein Konto muss noch von einem Administrator freigegeben werden. Sobald das erledigt ist, kannst du dich anmelden.',
+  online_admin: 'Verwaltung',
+  online_admin_mode: 'Registrierung',
+  online_mode_open: 'Offen – jeder kann sich sofort anmelden',
+  online_mode_approval: 'Mit Freigabe – Konten müssen bestätigt werden',
+  online_mode_closed: 'Geschlossen – keine neuen Registrierungen',
+  online_admin_users: 'Benutzer',
+  online_col_user: 'Benutzer', online_col_since: 'Registriert', online_col_status: 'Status',
+  online_col_chars: 'Chars', online_col_actions: 'Aktionen',
+  online_status_ok: 'aktiv', online_status_pending: 'wartet auf Freigabe',
+  online_badge_admin: 'Admin', online_badge_mfa: 'MFA',
+  online_act_approve: 'Freigeben', online_act_block: 'Sperren',
+  online_act_promote: 'Zum Admin', online_act_demote: 'Admin entziehen',
+  online_act_delete: 'Löschen', online_act_resetmfa: 'MFA zurücksetzen',
+  online_confirm_delete_user: 'Benutzer „{name}“ mit allen Charakteren wirklich löschen?',
+  online_confirm_resetmfa: 'Zwei-Faktor-Anmeldung für „{name}“ zurücksetzen? (z. B. bei verlorenem Handy)',
+  online_confirm_demote: 'Admin-Rechte von „{name}“ entziehen?',
+  online_you: 'du',
 });
 Object.assign(T.en, {
   btn_online: '☁ Online',
@@ -91,6 +110,25 @@ Object.assign(T.en, {
   online_offline: 'Server not reachable.',
   online_close: 'Close',
   online_updated: 'Updated',
+  online_pending_title: 'Registration received',
+  online_pending_text: 'Your account still needs to be approved by an administrator. Once that is done you can sign in.',
+  online_admin: 'Administration',
+  online_admin_mode: 'Registration',
+  online_mode_open: 'Open – anyone can sign up immediately',
+  online_mode_approval: 'Approval required – accounts must be confirmed',
+  online_mode_closed: 'Closed – no new registrations',
+  online_admin_users: 'Users',
+  online_col_user: 'User', online_col_since: 'Registered', online_col_status: 'Status',
+  online_col_chars: 'Chars', online_col_actions: 'Actions',
+  online_status_ok: 'active', online_status_pending: 'awaiting approval',
+  online_badge_admin: 'Admin', online_badge_mfa: 'MFA',
+  online_act_approve: 'Approve', online_act_block: 'Block',
+  online_act_promote: 'Make admin', online_act_demote: 'Remove admin',
+  online_act_delete: 'Delete', online_act_resetmfa: 'Reset MFA',
+  online_confirm_delete_user: 'Really delete user “{name}” and all their characters?',
+  online_confirm_resetmfa: 'Reset two-factor authentication for “{name}”? (e.g. lost phone)',
+  online_confirm_demote: 'Remove administrator rights from “{name}”?',
+  online_you: 'you',
 });
 
 /* ---------------- Zustand & API ---------------- */
@@ -105,7 +143,8 @@ let mfaSetup = null;            // {secret, otpauth}
 let mfaBackupCodes = [];
 let shareOpenId = null;
 let shareLists = {};            // charId -> [usernames]
-let regInfo = { register: true, registerCode: false };
+let regInfo = { register: true, registerCode: false, registerMode: 'open' };
+let adminData = null;           // { users: [...], registerMode }
 
 function apiUrl() {
   return (typeof SITE_CONFIG !== 'undefined' && SITE_CONFIG.apiUrl) || '';
@@ -176,6 +215,7 @@ async function refreshCloud() {
     ONLINE.isAdmin = !!me.isAdmin;
     setOnlineAuth(ONLINE);
     onlineData = await api('chars');
+    adminData = ONLINE.isAdmin ? await api('admin_users') : null;
   } catch (e) { onlineMsg = e.message; }
   renderOnline();
 }
@@ -184,6 +224,49 @@ function fmtDate(ts) {
   if (!ts) return '';
   return new Date(ts * 1000).toLocaleString(LANG === 'de' ? 'de-DE' : 'en-US',
     { dateStyle: 'short', timeStyle: 'short' });
+}
+
+/* Verwaltungsbereich (nur für Administratoren) */
+function adminSection() {
+  if (!adminData) return '';
+  const mode = adminData.registerMode || 'open';
+  const modeOpt = (v, label) =>
+    `<option value="${v}" ${mode === v ? 'selected' : ''}>${label}</option>`;
+  const rows = (adminData.users || []).map(u => {
+    const self = u.username === ONLINE.username;
+    const badges = (u.isAdmin ? `<span class="badge gold">${t('online_badge_admin')}</span>` : '')
+                 + (u.mfaEnabled ? `<span class="badge">${t('online_badge_mfa')}</span>` : '');
+    const acts = [];
+    if (!u.approved) acts.push(`<button class="mini" data-oact="adm" data-what="approve" data-id="${u.id}">${t('online_act_approve')}</button>`);
+    if (u.approved && !self) acts.push(`<button class="mini" data-oact="adm" data-what="block" data-id="${u.id}">${t('online_act_block')}</button>`);
+    if (!u.isAdmin) acts.push(`<button class="mini" data-oact="adm" data-what="promote" data-id="${u.id}">${t('online_act_promote')}</button>`);
+    else if (!self && u.id !== 1) acts.push(`<button class="mini" data-oact="adm" data-what="demote" data-id="${u.id}" data-name="${esc(u.username)}">${t('online_act_demote')}</button>`);
+    if (u.mfaEnabled) acts.push(`<button class="mini" data-oact="adm" data-what="reset_mfa" data-id="${u.id}" data-name="${esc(u.username)}">${t('online_act_resetmfa')}</button>`);
+    if (!self) acts.push(`<button class="mini danger" data-oact="adm" data-what="delete" data-id="${u.id}" data-name="${esc(u.username)}">${t('online_act_delete')}</button>`);
+    return `<tr>
+      <td>${esc(u.username)}${self ? ` <span class="hint">(${t('online_you')})</span>` : ''}<br>${badges}</td>
+      <td class="hint">${u.created ? fmtDate(u.created) : ''}</td>
+      <td>${u.approved ? `<span class="ok">${t('online_status_ok')}</span>`
+                       : `<span class="warn">${t('online_status_pending')}</span>`}</td>
+      <td class="num">${u.chars}</td>
+      <td class="nowrap">${acts.join(' ')}</td>
+    </tr>`;
+  }).join('');
+  const pending = (adminData.users || []).filter(u => !u.approved).length;
+  return `
+    <h3>${t('online_admin')}</h3>
+    <label>${t('online_admin_mode')}</label>
+    <select data-oact="mode">
+      ${modeOpt('open', t('online_mode_open'))}
+      ${modeOpt('approval', t('online_mode_approval'))}
+      ${modeOpt('closed', t('online_mode_closed'))}
+    </select>
+    <h3>${t('online_admin_users')} (${(adminData.users || []).length})${pending ? ` – <span class="warn">${pending} ⏳</span>` : ''}</h3>
+    <div class="table-scroll"><table class="list">
+      <tr><th>${t('online_col_user')}</th><th>${t('online_col_since')}</th><th>${t('online_col_status')}</th>
+          <th class="num">${t('online_col_chars')}</th><th>${t('online_col_actions')}</th></tr>
+      ${rows}
+    </table></div>`;
 }
 
 function renderOnline() {
@@ -250,6 +333,7 @@ function renderOnline() {
     <h3>${t('online_shared_chars')}</h3>
     <table class="list">${shared || `<tr><td class="hint">${t('online_none')}</td></tr>`}</table>
     <p class="hint">${t('online_readonly_hint')}</p>
+    ${ONLINE.isAdmin ? adminSection() : ''}
     <h3>${t('online_mfa')}</h3>
     <p>${ONLINE.mfaEnabled
         ? `<span class="ok">✔ ${t('online_mfa_on')}</span>
@@ -260,6 +344,13 @@ function renderOnline() {
         : `<span class="hint">${t('online_mfa_off')}</span><br>
            <button class="accent" data-oact="mfaStart">${t('online_mfa_setup')}</button>`}
     </p>`;
+  }
+
+  if (onlineView === 'pending') {
+    html += `
+    <h3>${t('online_pending_title')}</h3>
+    <p>${t('online_pending_text')}</p>
+    <p><button class="accent" data-oact="gotoLogin">${t('online_login')}</button></p>`;
   }
 
   if (onlineView === 'mfaSetup' && mfaSetup) {
@@ -325,6 +416,7 @@ async function onlineAction(el) {
         if (p1 !== p2) { onlineMsg = t('online_pw_mismatch'); break; }
         const res = await api('register', { username, password: p1,
           registerCode: codeEl ? codeEl.value.trim() : '' });
+        if (res.pendingApproval) { onlineView = 'pending'; break; }
         setOnlineAuth({ token: res.token, username: res.username, mfaEnabled: false,
                         isAdmin: !!res.isAdmin });
         onlineView = 'account';
@@ -397,6 +489,16 @@ async function onlineAction(el) {
         shareLists[id] = r.shares;
         break;
       }
+      case 'adm': {
+        const what = el.dataset.what;
+        const name = el.dataset.name || '';
+        if (what === 'delete' && !confirm(t('online_confirm_delete_user').replace('{name}', name))) return;
+        if (what === 'reset_mfa' && !confirm(t('online_confirm_resetmfa').replace('{name}', name))) return;
+        if (what === 'demote' && !confirm(t('online_confirm_demote').replace('{name}', name))) return;
+        await api('admin_user_action', { id: +el.dataset.id, what });
+        adminData = await api('admin_users');
+        break;
+      }
       case 'mfaStart':
         mfaSetup = await api('mfa_start', {});
         onlineView = 'mfaSetup';
@@ -431,7 +533,23 @@ async function onlineAction(el) {
 /* ---------------- Verkabelung ---------------- */
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-oact]');
-  if (el && el.closest('#onlineModal')) { e.preventDefault(); onlineAction(el); }
+  if (!el || !el.closest('#onlineModal')) return;
+  if (el.tagName === 'SELECT') return;          // Auswahlfelder über 'change'
+  e.preventDefault();
+  onlineAction(el);
+});
+/* Registrierungsmodus umschalten (Auswahlfeld im Verwaltungsbereich) */
+document.addEventListener('change', async e => {
+  const el = e.target;
+  if (!el.dataset || el.dataset.oact !== 'mode' || !el.closest('#onlineModal')) return;
+  onlineMsg = '';
+  try {
+    await api('admin_settings', { registerMode: el.value });
+    adminData = await api('admin_users');
+    regInfo.registerMode = el.value;
+    regInfo.register = el.value !== 'closed';
+  } catch (err) { onlineMsg = t('online_error') + err.message; }
+  renderOnline();
 });
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeOnline();
@@ -461,7 +579,8 @@ setLang = function (l) {
     const data = await res.json();
     if (!data || data.api !== 'swd6') return;
     onlineAvailable = true;
-    regInfo = { register: !!data.register, registerCode: !!data.registerCode };
+    regInfo = { register: !!data.register, registerCode: !!data.registerCode,
+                registerMode: data.registerMode || 'open' };
     if (btn) {
       btn.addEventListener('click', openOnline);
       updateOnlineButton();

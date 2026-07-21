@@ -88,11 +88,62 @@ Damit können Nutzer:
   (die Empfänger laden sie als Kopie, nur der Besitzer kann ändern)
 
 Einstellungen am Anfang von  api/index.php :
-* allow_register : Registrierung erlauben (true/false)
+* db             : Datenbank. Leer lassen = SQLite (nichts zu tun).
+                   Bietet der Hoster kein SQLite an (viele Gratis-
+                   Tarife), hier die MySQL-Zugangsdaten eintragen –
+                   siehe Abschnitt "DATENBANK" weiter unten.
+* register_mode  : Startwert der Registrierung ('open', 'approval',
+                   'closed'). Im Betrieb stellt der Admin das bequem
+                   in der App um.
 * register_code  : Einladungscode – wenn gesetzt, können sich nur
                    Leute mit diesem Code registrieren (praktisch,
                    um die Seite auf die eigene Runde zu beschränken)
 * issuer         : Name, der in der Authenticator-App angezeigt wird
+* admins         : optionale zusätzliche Admin-Benutzernamen
+
+DATENBANK: SQLITE ODER MYSQL
+----------------------------
+Standard ist SQLite – dafür muss man nichts einrichten, PHP legt die
+Datei api/data/swd6.sqlite selbst an.
+
+Bietet der Hoster kein SQLite an (z. B. ByetHost, InfinityFree und
+andere Gratis-Tarife), aber MySQL, dann:
+
+1. Im Hosting-Panel unter "MySQL Databases" eine Datenbank anlegen.
+2. Hostname, Datenbankname, Benutzer und Passwort notieren.
+3. Oben in api/index.php in den 'db'-Block eintragen:
+
+     'db' => [
+       'driver' => 'auto',
+       'host'   => 'sql212.byethost6.com',
+       'name'   => 'b6_12345678_swd6',
+       'user'   => 'b6_12345678',
+       'pass'   => 'DEIN-DB-PASSWORT',
+       'port'   => '',
+     ],
+
+Die Tabellen legt die App beim ersten Aufruf selbst an – es muss
+nichts importiert werden. Kontrolle: die Adresse
+  deine-seite.de/api/index.php?action=ping
+im Browser aufrufen; dort steht "db":"mysql" bzw. "db":"sqlite".
+
+BENUTZERVERWALTUNG (ADMIN)
+--------------------------
+Der ZUERST registrierte Benutzer ist automatisch Administrator.
+Er sieht im ☁-Online-Fenster den Bereich "Verwaltung":
+
+* Registrierung umschalten:
+  - Offen         : jeder kann sich sofort anmelden
+  - Mit Freigabe  : neue Konten muss der Admin erst bestätigen
+  - Geschlossen   : keine neuen Registrierungen
+* Benutzerübersicht: Name, Registrierdatum, Status, Anzahl Chars,
+  Kennzeichen Admin und MFA. Wartende Konten sind hervorgehoben.
+* Pro Benutzer: Freigeben, Sperren, Zum Admin machen, Admin-Rechte
+  entziehen, MFA zurücksetzen (verlorenes Handy), Löschen.
+
+Sicherheitsnetz: Man kann sich nicht selbst degradieren, sperren
+oder löschen; das erste Konto bleibt dauerhaft Admin; der letzte
+Admin kann nicht entfernt werden.
 
 Sicherheit: Passwörter werden gehasht (bcrypt), Login-Tokens nur
 als Hash gespeichert, Codes sind einmalig verwendbar (Replay-
