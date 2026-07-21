@@ -196,6 +196,47 @@ foreach ($rows as $r) { if ($r[0] === 'err') $errors++; if ($r[0] === 'warn') $w
   </div>
 <?php endforeach; ?>
 
+<div id="authbox"></div>
+<script>
+/* Prüft im Browser, ob der Server Anmelde-Header an PHP durchreicht.
+   Das ist der häufigste Grund dafür, dass die Anmeldung scheitert,
+   obwohl Registrierung und Passwort-Reset funktionieren. */
+(async function () {
+  var box = document.getElementById('authbox');
+  function item(cls, title, desc) {
+    return '<div class="item ' + cls + '"><div class="t">' + title + '</div>'
+         + (desc ? '<div class="d">' + desc + '</div>' : '') + '</div>';
+  }
+  try {
+    var r = await fetch('index.php?action=authcheck', {
+      headers: { 'Authorization': 'Bearer PROBE', 'X-Auth-Token': 'PROBE' }
+    });
+    var d = await r.json();
+    if (d.tokenSeen) {
+      box.innerHTML = item('ok', 'Anmelde-Header kommen bei PHP an',
+        'Weg: ' + (d.authorization ? 'Authorization' : (d.redirect ? 'REDIRECT_HTTP_AUTHORIZATION' : 'X-Auth-Token'))
+        + ' · PHP-Schnittstelle: ' + d.sapi);
+    } else {
+      box.innerHTML = item('err', 'Anmelde-Header erreichen PHP NICHT',
+        'Der Server entfernt sowohl <code>Authorization</code> als auch <code>X-Auth-Token</code> '
+        + '(PHP-Schnittstelle: ' + d.sapi + '). Folge: Die Anmeldung liefert zwar ein Token, jede '
+        + 'weitere Anfrage wird aber abgelehnt – es sieht so aus, als würde der Login nicht funktionieren.<br>'
+        + 'Lösung bei Apache: die mitgelieferte Datei <code>api/.htaccess</code> muss vorhanden sein und '
+        + '<code>AllowOverride All</code> für das Verzeichnis gesetzt sein. Alternativ in die vHost-Konfiguration:<br>'
+        + '<code>SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1</code>');
+    }
+    if (!d.authorization && !d.redirect && d.xAuthToken) {
+      box.innerHTML += item('warn', 'Hinweis: nur der Ersatz-Header funktioniert',
+        'Der <code>Authorization</code>-Header wird vom Server entfernt; die App nutzt deshalb '
+        + '<code>X-Auth-Token</code>. Das funktioniert, ist aber ein Zeichen dafür, dass '
+        + '<code>api/.htaccess</code> nicht greift (z. B. <code>AllowOverride None</code>).');
+    }
+  } catch (e) {
+    box.innerHTML = item('warn', 'Header-Test nicht möglich', String(e));
+  }
+})();
+</script>
+
 <p class="sub" style="margin-top:20px">
   Testen kannst du außerdem <code>api/index.php?action=ping</code> – dort steht, welche Datenbank verwendet wird.<br>
   Wenn alles läuft, kannst du diese Datei (<code>api/check.php</code>) löschen.

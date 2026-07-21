@@ -448,6 +448,19 @@ case 'ping': {
             'registerCode' => $CONFIG['register_code'] !== '']);
 }
 
+case 'authcheck': {
+  /* Zeigt, ob der Server Anmelde-Header überhaupt an PHP weiterreicht.
+     Wird von api/check.php aufgerufen. Gibt keine Geheimnisse preis –
+     nur, ob und über welchen Weg ein Token ankommt. */
+  json_out([
+    'authorization'  => isset($_SERVER['HTTP_AUTHORIZATION']) && $_SERVER['HTTP_AUTHORIZATION'] !== '',
+    'redirect'       => isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION']) && $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] !== '',
+    'xAuthToken'     => isset($_SERVER['HTTP_X_AUTH_TOKEN']) && $_SERVER['HTTP_X_AUTH_TOKEN'] !== '',
+    'tokenSeen'      => bearer_token() !== '',
+    'sapi'           => PHP_SAPI,
+  ]);
+}
+
 case 'register': {
   $mode = register_mode();
   if ($mode === 'closed') fail('Registration is currently disabled', 403);

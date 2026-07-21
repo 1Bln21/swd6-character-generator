@@ -185,7 +185,12 @@ function apiUrl() {
 }
 async function api(action, body, params) {
   const headers = { 'Content-Type': 'application/json' };
-  if (ONLINE.token) headers['Authorization'] = 'Bearer ' + ONLINE.token;
+  if (ONLINE.token) {
+    headers['Authorization'] = 'Bearer ' + ONLINE.token;
+    /* Zusätzlich als eigener Header: Apache reicht "Authorization" bei
+       PHP-FPM/FastCGI ohne passende Konfiguration nicht an PHP durch. */
+    headers['X-Auth-Token'] = ONLINE.token;
+  }
   let url = apiUrl() + '?action=' + encodeURIComponent(action);
   if (params) Object.keys(params).forEach(k => {
     url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
