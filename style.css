@@ -271,6 +271,16 @@ table.list td.num, table.list th.num { text-align: right; white-space: nowrap; }
 .nowrap { white-space: nowrap; }
 #btnOnline { display: none; }
 
+/* ---------- Impressum / Datenschutz ---------- */
+.legal-doc { max-width: 720px; }
+.legal-doc h3 { margin: 4px 0 10px; font-size: 17px; color: var(--accent);
+  letter-spacing: .5px; text-transform: none; }
+.legal-doc h4 { margin: 16px 0 4px; font-size: 13.5px; color: var(--blue);
+  letter-spacing: .3px; text-transform: none; }
+.legal-doc p { margin: 6px 0; font-size: 13.5px; line-height: 1.55; }
+#legalSetBox input { width: 100%; }
+#legalSetBox textarea { width: 100%; }
+
 /* ---------- Über / About + Star-Wars-Crawl ---------- */
 #optionsMenu .opt-btn { width: 100%; margin-top: 6px; text-align: left; }
 .about-box { max-width: 640px; }

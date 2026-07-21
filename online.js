@@ -173,6 +173,7 @@ async function refreshCloud() {
     const me = await api('me');
     ONLINE.username = me.username; ONLINE.mfaEnabled = me.mfaEnabled;
     ONLINE.backupCodesLeft = me.backupCodesLeft;
+    ONLINE.isAdmin = !!me.isAdmin;
     setOnlineAuth(ONLINE);
     onlineData = await api('chars');
   } catch (e) { onlineMsg = e.message; }
@@ -309,7 +310,8 @@ async function onlineAction(el) {
           document.getElementById('olTotp').focus();
           return;
         }
-        setOnlineAuth({ token: res.token, username: res.username, mfaEnabled: res.mfaEnabled });
+        setOnlineAuth({ token: res.token, username: res.username, mfaEnabled: res.mfaEnabled,
+                        isAdmin: !!res.isAdmin });
         onlineView = 'account';
         await refreshCloud();
         return;
@@ -323,14 +325,15 @@ async function onlineAction(el) {
         if (p1 !== p2) { onlineMsg = t('online_pw_mismatch'); break; }
         const res = await api('register', { username, password: p1,
           registerCode: codeEl ? codeEl.value.trim() : '' });
-        setOnlineAuth({ token: res.token, username: res.username, mfaEnabled: false });
+        setOnlineAuth({ token: res.token, username: res.username, mfaEnabled: false,
+                        isAdmin: !!res.isAdmin });
         onlineView = 'account';
         await refreshCloud();
         return;
       }
       case 'logout':
         try { await api('logout', {}); } catch (e) {}
-        setOnlineAuth({ token: '', username: '', mfaEnabled: false });
+        setOnlineAuth({ token: '', username: '', mfaEnabled: false, isAdmin: false });
         onlineView = 'login';
         break;
       case 'upload': {
@@ -464,8 +467,13 @@ setLang = function (l) {
       updateOnlineButton();
     }
     if (ONLINE.token) {
-      try { const me = await api('me'); ONLINE.username = me.username; ONLINE.mfaEnabled = me.mfaEnabled; setOnlineAuth(ONLINE); }
-      catch (e) {}
+      try {
+        const me = await api('me');
+        ONLINE.username = me.username; ONLINE.mfaEnabled = me.mfaEnabled;
+        ONLINE.isAdmin = !!me.isAdmin;
+        setOnlineAuth(ONLINE);
+        if (typeof renderLegal === 'function') renderLegal();
+      } catch (e) {}
     }
   } catch (e) { /* kein Server – rein lokale Nutzung */ }
 })();

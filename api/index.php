@@ -18,6 +18,11 @@ $CONFIG = [
   'register_code' => '',
   // Name, der in der Authenticator-App angezeigt wird
   'issuer' => 'SWD6 Generator',
+  // Admins dürfen Impressum/Datenschutz bearbeiten. Der zuerst registrierte
+  // Benutzer (ID 1) ist immer Admin; hier weitere Benutzernamen ergänzen.
+  // Admins may edit the legal notice / privacy policy. The first registered
+  // user (ID 1) is always an admin; add further usernames here.
+  'admins' => [],
   // Token-Lebensdauer in Tagen / token lifetime in days
   'token_days' => 60,
   // CORS: nur setzen, wenn Frontend auf anderer Domain liegt, z. B.
@@ -137,6 +142,11 @@ function auth() {
   if (!$user) fail('Not logged in', 401);
   return $user;
 }
+function is_admin($user) {
+  global $CONFIG;
+  if ((int)$user['id'] === 1) return true;
+  return in_array($user['username'], $CONFIG['admins'], true);
+}
 function rate_check($user) {
   if ((int)$user['fail_count'] >= 8 && time() - (int)$user['fail_time'] < 900)
     fail('Too many failed attempts – try again in 15 minutes', 429);
@@ -237,7 +247,8 @@ case 'register': {
   $st = $db->prepare('INSERT INTO users (username, pass_hash, created) VALUES (?,?,?)');
   $st->execute([$username, password_hash($password, PASSWORD_DEFAULT), time()]);
   $id = (int)$db->lastInsertId();
-  json_out(['token' => make_token($id), 'username' => $username, 'mfaEnabled' => false]);
+  json_out(['token' => make_token($id), 'username' => $username, 'mfaEnabled' => false,
+            'isAdmin' => $id === 1]);
 }
 
 case 'login': {
@@ -264,7 +275,7 @@ case 'login': {
        ->execute([password_hash($password, PASSWORD_DEFAULT), $user['id']]);
   }
   json_out(['token' => make_token($user['id']), 'username' => $user['username'],
-            'mfaEnabled' => (int)$user['totp_enabled'] === 1]);
+            'mfaEnabled' => (int)$user['totp_enabled'] === 1, 'isAdmin' => is_admin($user)]);
 }
 
 case 'logout': {
@@ -279,6 +290,7 @@ case 'me': {
   $codes = json_decode($user['backup_codes'], true);
   json_out(['username' => $user['username'],
             'mfaEnabled' => (int)$user['totp_enabled'] === 1,
+            'isAdmin' => is_admin($user),
             'backupCodesLeft' => is_array($codes) ? count($codes) : 0]);
 }
 
@@ -420,6 +432,41 @@ case 'share_add': case 'share_remove': case 'shares': {
   $st = $db->prepare('SELECT u.username FROM shares s JOIN users u ON u.id = s.to_user_id WHERE s.char_id = ? ORDER BY u.username COLLATE NOCASE');
   $st->execute([$id]);
   json_out(['shares' => $st->fetchAll(PDO::FETCH_COLUMN)]);
+}
+
+/* ---- Impressum / Datenschutz (site-weit, nur Admin darf schreiben) ---- */
+case 'legal_get': {
+  $f = $dataDir . '/legal.json';
+  $data = is_file($f) ? json_decode(file_get_contents($f), true) : null;
+  json_out(['legal' => is_array($data) ? $data : null]);
+}
+
+case 'legal_save': {
+  $user = auth();
+  if (!is_admin($user)) fail('Only the site administrator may edit the legal pages', 403);
+  $in = inp('legal');
+  if (!is_array($in)) fail('No data');
+  $fields = ['name', 'street', 'zip', 'city', 'country', 'email', 'phone',
+             'responsible', 'vatId', 'provider', 'providerAddress'];
+  $out = [];
+  foreach ($fields as $f2) {
+    $v = isset($in[$f2]) ? trim(strip_tags((string)$in[$f2])) : '';
+    if (strlen($v) > 300) fail('Field too long: ' . $f2);
+    $out[$f2] = $v;
+  }
+  $urls = [];
+  foreach (['impressum', 'datenschutz'] as $k) {
+    $v = isset($in['urls'][$k]) ? trim((string)$in['urls'][$k]) : '';
+    if ($v !== '' && !preg_match('#^https?://#i', $v)) $v = 'https://' . ltrim($v, '/');
+    if (strlen($v) > 300) fail('URL too long');
+    $urls[$k] = $v;
+  }
+  $out['urls'] = $urls;
+  $out['updated'] = time();
+  if (file_put_contents($dataDir . '/legal.json',
+        json_encode($out, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)) === false)
+    fail('Could not write legal.json – check write permissions for api/data/', 500);
+  json_out(['ok' => true, 'legal' => $out]);
 }
 
 default:

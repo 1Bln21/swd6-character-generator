@@ -358,38 +358,10 @@ function setLang(l) {
   renderAll();
 }
 
-/* ---------------- Impressum & Datenschutz (fürs Hosting) ---------------- */
-const LS_LEGAL = 'swd6_legal';
-function legalStored() {
-  try { return JSON.parse(localStorage.getItem(LS_LEGAL)) || {}; } catch (e) { return {}; }
-}
-function legalUrls() {
-  const cfg = (typeof SITE_CONFIG !== 'undefined' && SITE_CONFIG) || {};
-  const loc = legalStored();
-  return {
-    impressum: loc.impressum || cfg.impressumUrl || '',
-    datenschutz: loc.datenschutz || cfg.datenschutzUrl || '',
-  };
-}
-function renderLegal() {
-  const u = legalUrls();
-  const links = [];
-  if (u.impressum) links.push(`<a href="${esc(u.impressum)}" target="_blank" rel="noopener">${t('link_impressum')}</a>`);
-  if (u.datenschutz) links.push(`<a href="${esc(u.datenschutz)}" target="_blank" rel="noopener">${t('link_datenschutz')}</a>`);
-  const foot = document.getElementById('legalLinks');
-  if (foot) foot.innerHTML = links.length ? ' · ' + links.join(' · ') : '';
-  const cont = document.getElementById('legalConfig');
-  if (cont) {
-    const loc = legalStored();
-    cont.innerHTML = `
-      <div class="opt-section">${t('opt_legal')}</div>
-      <label class="opt-label">${t('legal_impressum_label')}</label>
-      <input type="url" data-legal="impressum" value="${esc(loc.impressum || '')}" placeholder="https://…">
-      <label class="opt-label">${t('legal_datenschutz_label')}</label>
-      <input type="url" data-legal="datenschutz" value="${esc(loc.datenschutz || '')}" placeholder="https://…">
-      <div class="opt-hint">${t('legal_hint')}</div>`;
-  }
-}
+/* ---------------- Impressum & Datenschutz ----------------
+   Die eigentliche Umsetzung liegt in legal.js und überschreibt diese
+   Platzhalter-Funktion, sobald die Datei geladen ist. */
+function renderLegal() { /* siehe legal.js */ }
 function applyStaticI18n() {
   document.querySelectorAll('[data-i18n]').forEach(el => {
     el.innerHTML = t(el.dataset.i18n);
@@ -1838,17 +1810,6 @@ document.addEventListener('click', () => optionsMenu.classList.add('hidden'));
 document.querySelectorAll('input[name="langOpt"]').forEach(r => {
   r.addEventListener('change', () => { setLang(r.value); });
 });
-optionsMenu.addEventListener('change', e => {
-  const el = e.target;
-  if (!el.dataset || !el.dataset.legal) return;
-  let v = el.value.trim();
-  if (v && !/^https?:\/\//i.test(v) && !/^[./]/.test(v)) v = 'https://' + v;
-  const loc = legalStored();
-  loc[el.dataset.legal] = v;
-  localStorage.setItem(LS_LEGAL, JSON.stringify(loc));
-  renderLegal();
-});
-
 /* ---------------- Über / About & Credits ---------------- */
 function aboutModal() {
   let m = document.getElementById('aboutModal');

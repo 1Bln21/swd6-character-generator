@@ -34,24 +34,41 @@ The gear menu (⚙) contains "ℹ About & Credits" under "Info": a
 Star Wars-style opening crawl thanking everyone involved, plus the
 author (1Bln21) and the MIT license.
 
-HOSTING (Impressum & Datenschutz)
----------------------------------
+IMPRESSUM & DATENSCHUTZERKLÄRUNG
+--------------------------------
 Wer den Generator öffentlich ins Netz stellt, braucht in der Regel
-Impressum und Datenschutzerklärung. Dafür gibt es zwei Wege:
+ein Impressum und eine Datenschutzerklärung. Beides ist als fertige
+Vorlage eingebaut – du musst nur deine Angaben eintragen:
 
-1. config.js (empfohlen fürs Hosting): Dort impressumUrl und
-   datenschutzUrl eintragen – die Links erscheinen dann für ALLE
-   Besucher unten im Footer.
-2. ⚙-Menü → „Rechtliches (fürs Hosting)“: Links direkt eintragen.
-   Achtung: Das gilt nur für den eigenen Browser (localStorage) und
-   eignet sich zum Ausprobieren, nicht für die Besucher.
+  ⚙-Menü  ->  "⚖ Impressum & Datenschutz…"
 
-Leere Felder = Links werden ausgeblendet (z. B. bei lokaler Nutzung).
+Dort trägst du Name, Anschrift, E-Mail und den Hosting-Anbieter ein
+und klickst auf Speichern. Die Links erscheinen dann unten im Footer;
+ein Klick öffnet die fertig formulierte Seite.
 
-If you host the generator publicly, set impressumUrl and
-datenschutzUrl in config.js – the links then appear in the footer
-for ALL visitors. The fields in the ⚙ menu only affect your own
-browser (useful for testing). Empty = links hidden.
+Wo die Angaben gespeichert werden:
+* Als ADMINISTRATOR angemeldet (PHP-Server): in api/data/legal.json
+  -> gilt für ALLE Besucher. Administrator ist der zuerst
+  registrierte Benutzer; weitere kann man in api/index.php unter
+  'admins' eintragen.
+* Ohne Server (statisches Hosting): Knopf "</> config.js-Snippet"
+  drücken und den Block in config.js einfügen -> gilt für alle.
+* Nicht angemeldet / lokale Nutzung: nur im eigenen Browser.
+
+Eigene Rechtsseiten schon vorhanden? Dann einfach die URL-Felder
+ausfüllen (optional) – der Footer verlinkt dann dorthin statt auf
+die eingebauten Seiten. Alles leer = keine Links (lokale Nutzung).
+
+WICHTIG: Die Texte sind eine allgemeine Muster-Vorlage ohne Gewähr
+und ersetzen keine Rechtsberatung. Vor der Veröffentlichung prüfen!
+
+EN: The gear menu contains "⚖ Legal notice & privacy…" with built-in
+templates for an Impressum and a GDPR privacy policy. Enter your
+details once; as the administrator they are stored server-side
+(api/data/legal.json) and shown to every visitor. Without a PHP
+server, use the "config.js snippet" button. If you already have your
+own legal pages, just fill in the optional URL fields instead. The
+texts are a template, not legal advice.
 
 ONLINE-KONTEN (User + Passwort + MFA, Cloud-Speicherung, Freigaben)
 -------------------------------------------------------------------

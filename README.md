@@ -73,7 +73,27 @@ Das deckt praktisch jeden deutschen Shared-Hosting-Tarif ab (IONOS, Strato, All-
 location ^~ /api/data/ { deny all; }
 ```
 
-**Rechtlicher Hinweis fürs Hosting:** Mit Benutzerkonten werden personenbezogene Daten verarbeitet (Benutzernamen, Passwort-Hashes). In Deutschland braucht eine öffentliche Seite dann Impressum und Datenschutzerklärung – die Links dafür sind in `config.js` vorgesehen.
+### Impressum & Datenschutzerklärung (eingebaut)
+
+Öffentliche Seiten brauchen in Deutschland ein Impressum und – erst recht mit Benutzerkonten – eine Datenschutzerklärung. Beides bringt der Generator als **fertige Vorlage** mit, die nur noch mit deinen Angaben gefüllt wird:
+
+1. ⚙-Menü → **„⚖ Impressum & Datenschutz…"** öffnen
+2. Name, Anschrift, E-Mail und den Hosting-Anbieter eintragen
+3. Speichern – die Links erscheinen im Footer
+
+**Wo landen die Angaben?**
+
+| Situation | Speicherort | Gilt für |
+|---|---|---|
+| Als **Administrator** angemeldet (PHP-Server) | `api/data/legal.json` | **alle Besucher** |
+| Kein Server (statisches Hosting) | „`</>` config.js-Snippet"-Knopf → Block in `config.js` einfügen | alle Besucher |
+| Nicht angemeldet / lokale Nutzung | Browser-Speicher | nur dieser Browser |
+
+Administrator ist der **zuerst registrierte Benutzer**; weitere lassen sich in `api/index.php` unter `'admins'` eintragen. Wer bereits eigene Rechtsseiten hat, trägt stattdessen einfach die **URLs** ein (optional) – dann verlinkt der Footer dorthin statt auf die eingebauten Seiten.
+
+Die Datenschutzerklärung beschreibt genau das, was diese Anwendung wirklich tut: keine Cookies zu Analysezwecken, keine externen Dienste oder CDNs, Speicherung im Browser, optionale Konten (Benutzername, bcrypt-Hash, TOTP-Schlüssel), Charakter-Freigaben, Server-Logfiles und die Betroffenenrechte nach DSGVO.
+
+> ⚠️ **Die Texte sind eine allgemeine Muster-Vorlage ohne Gewähr und keine Rechtsberatung.** Prüfe sie vor der Veröffentlichung – im Zweifel anwaltlich.
 
 ### HTTPS aktivieren (Let's Encrypt) – Pflicht bei Online-Konten
 

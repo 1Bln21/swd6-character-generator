@@ -21,6 +21,31 @@ const SITE_CONFIG = {
   impressumUrl: '',
   datenschutzUrl: '',
 
+  /* Angaben für die EINGEBAUTEN Impressum-/Datenschutz-Seiten.
+     Am bequemsten füllst du sie im ⚙-Menü unter „Impressum & Datenschutz“
+     aus. Mit PHP-Server werden sie dort in api/data/legal.json gespeichert
+     (gilt für alle Besucher). Ohne PHP-Server trägst du sie hier ein –
+     das Snippet dafür liefert dieselbe Eingabemaske per Knopfdruck.
+     /
+     Details for the BUILT-IN legal notice / privacy pages. Easiest via the
+     ⚙ menu; with a PHP server they are stored in api/data/legal.json for
+     all visitors. Without PHP, paste them here (the same dialog generates
+     this snippet for you). */
+  legal: {
+    name: '',
+    street: '',
+    zip: '',
+    city: '',
+    country: '',
+    email: '',
+    phone: '',
+    responsible: '',
+    vatId: '',
+    provider: '',
+    providerAddress: '',
+    urls: { impressum: '', datenschutz: '' },
+  },
+
   /* Online-Konten (User + Passwort + MFA, Cloud-Speicherung, Freigaben).
      Beim Hosting mit dem mitgelieferten api/-Ordner (PHP + SQLite) einfach
      so lassen – die App erkennt den Server automatisch. Liegt die API
