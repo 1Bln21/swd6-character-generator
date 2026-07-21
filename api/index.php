@@ -121,8 +121,9 @@ $useMysql = ($dbc['driver'] === 'mysql')
 $DRIVER = $useMysql ? 'mysql' : 'sqlite';
 
 if (!$useMysql) {
-  if (!is_dir($dataDir)) {
-    @mkdir($dataDir, 0770, true);
+  if (!is_dir($dataDir)) @mkdir($dataDir, 0770, true);
+  /* Schutzdateien auch dann anlegen, wenn der Ordner von Hand erstellt wurde */
+  if (is_dir($dataDir) && !is_file($dataDir . '/.htaccess')) {
     @file_put_contents($dataDir . '/.htaccess', "Require all denied\n");
     @file_put_contents($dataDir . '/index.html', '');
   }
@@ -150,7 +151,21 @@ try {
     $db->exec('PRAGMA foreign_keys = ON');
   }
 } catch (Exception $e) {
-  fail('Database connection failed: ' . $e->getMessage(), 500);
+  $msg = 'Database connection failed: ' . $e->getMessage();
+  if (!$useMysql) {
+    /* Häufigster Fall: der Webserver darf im Datenordner nicht schreiben.
+       SQLite braucht Schreibrechte auf dem ORDNER, nicht nur auf der Datei. */
+    $msg .= ' | SQLite needs write access to the folder "' . $dataDir . '". On Linux run: '
+          . 'sudo mkdir -p "' . $dataDir . '" && sudo chown -R www-data:www-data "' . $dataDir . '" '
+          . '&& sudo chmod 775 "' . $dataDir . '" '
+          . '(replace www-data with your web server user). '
+          . 'Alternatively use MySQL by filling in the $CONFIG[\'db\'] block in api/index.php. '
+          . 'Open api/check.php for a full report.';
+  } else {
+    $msg .= ' | Check host, database name, user and password in the $CONFIG[\'db\'] block '
+          . 'of api/index.php. Open api/check.php for a full report.';
+  }
+  fail($msg, 500);
 }
 
 /* Dialekt-Unterschiede an einer Stelle gebündelt */

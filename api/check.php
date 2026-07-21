@@ -73,8 +73,18 @@ if ($useMysql || $hasSqlite) {
     } else {
       $dir = __DIR__ . '/data';
       if (!is_dir($dir)) @mkdir($dir, 0770, true);
-      add(is_writable($dir) ? 'ok' : 'err', 'Schreibrechte für api/data/',
-          is_writable($dir) ? 'Vorhanden.' : 'FEHLEN – der Ordner api/data/ muss beschreibbar sein (chmod 755/775).');
+      $wr = is_dir($dir) && is_writable($dir);
+      add($wr ? 'ok' : 'err', 'Schreibrechte für api/data/',
+          $wr ? 'Vorhanden.'
+              : 'FEHLEN – SQLite kann die Datenbank nicht anlegen (Fehler "unable to open database file"). '
+                . 'SQLite braucht Schreibrechte auf dem ORDNER, nicht nur auf der Datei. Auf Linux:<br>'
+                . '<code>sudo mkdir -p ' . h($dir) . '</code><br>'
+                . '<code>sudo chown -R www-data:www-data ' . h($dir) . '</code><br>'
+                . '<code>sudo chmod 775 ' . h($dir) . '</code><br>'
+                . 'Bei Apache heißt der Benutzer meist <code>www-data</code>, bei nginx ebenfalls '
+                . '<code>www-data</code> (ggf. <code>nginx</code>). Aktueller PHP-Benutzer: <code>'
+                . h(function_exists('posix_getpwuid') && function_exists('posix_geteuid')
+                    ? posix_getpwuid(posix_geteuid())['name'] : get_current_user()) . '</code>');
       $db = new PDO('sqlite:' . $dir . '/swd6.sqlite');
     }
     $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
