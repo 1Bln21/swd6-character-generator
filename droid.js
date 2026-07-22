@@ -58,7 +58,7 @@ Object.assign(T.de, {
   dr_tpl_equip_note: 'Ausstattung laut Vorlage (als Notiz übernommen – passende Modifikationen bitte im Tab „Modifikationen“ auswählen):',
   pdf_catalog: 'Erweiterter Katalog aus den Regelwerken', pdf_search: 'Suchen', pdf_add: '+ Übernehmen',
   pdf_hint: 'Zusätzliche Einträge aus den Fan-Sammelbänden. Suchbegriff eingeben, dann übernehmen.',
-  pdf_results: 'Treffer', pdf_none: 'Keine Treffer.', pdf_min_chars: 'Mindestens 2 Zeichen eingeben.',
+  pdf_results: 'Treffer', pdf_none: 'Keine Treffer.', pdf_min_chars: 'Mindestens 2 Zeichen eingeben – oder eine Ära wählen.',
   dr_custom_gear: 'Eigene Einträge',
   dr_melee: 'Nahkampf', dr_ranged: 'Fernkampf',
   sheet_title_droid: 'Das Rollenspiel · D6 · Droidenbogen',
@@ -109,7 +109,7 @@ Object.assign(T.en, {
   dr_tpl_equip_note: 'Equipment per template (added as a note – pick matching modifications on the "Modifications" tab):',
   pdf_catalog: 'Extended catalog from the sourcebooks', pdf_search: 'Search', pdf_add: '+ Add',
   pdf_hint: 'Additional entries from the fan compilations. Type a search term, then add.',
-  pdf_results: 'Matches', pdf_none: 'No matches.', pdf_min_chars: 'Enter at least 2 characters.',
+  pdf_results: 'Matches', pdf_none: 'No matches.', pdf_min_chars: 'Enter at least 2 characters – or pick an era.',
   dr_custom_gear: 'Custom entries',
   dr_melee: 'Melee', dr_ranged: 'Ranged',
   sheet_title_droid: 'The Roleplaying Game · D6 · Droid Sheet',
@@ -251,6 +251,16 @@ function poolBanner() {
 /* ---------------- Vorlagen und erweiterte Kataloge (PDF) ---------------- */
 let tplFilter = '', tplMsg = '';
 const pdfFilter = { melee: '', ranged: '', equip: '' };
+const pdfEra = { melee: '', ranged: '', equip: '' };
+
+/* Ära-Auswahl. Die Schlüssel liefert die erzeugte Katalogdatei mit, damit
+   Dropdown und Daten nicht auseinanderlaufen. */
+function eraOptions(selected) {
+  const list = (typeof PDF_ERAS !== 'undefined') ? PDF_ERAS : [];
+  return [`<option value="">${t('era_all')}</option>`].concat(
+    list.map(e => `<option ${selected === e ? 'selected' : ''} value="${e}">${t('era_' + e.replace('-', '_'))}</option>`)
+  ).join('');
+}
 
 function droidTemplates() { return (typeof PDF_DROIDS !== 'undefined') ? PDF_DROIDS : []; }
 function templateCard() {
@@ -333,14 +343,18 @@ function pdfCatalogBlock(kind) {
   const src = pdfSource(kind);
   if (!src.length) return '';
   const f = (pdfFilter[kind] || '').toLowerCase().trim();
+  const era = pdfEra[kind] || '';
   let rows = '', info = '';
-  if (f.length < 2) info = `<p class="hint">${t('pdf_min_chars')}</p>`;
+  /* Ohne Suchbegriff wird nur gelistet, wenn eine Ära gewählt ist – sonst
+     wären es je nach Katalog mehrere hundert Zeilen. */
+  if (f.length < 2 && !era) info = `<p class="hint">${t('pdf_min_chars')}</p>`;
   else {
-    const hits = src.filter(x => x.name.toLowerCase().includes(f) ||
-      (x.type || '').toLowerCase().includes(f)).slice(0, 50);
+    const hits = src.filter(x => (!era || x.era === era) &&
+      (f.length < 2 || x.name.toLowerCase().includes(f) ||
+       (x.type || '').toLowerCase().includes(f))).slice(0, 50);
     if (!hits.length) info = `<p class="hint">${t('pdf_none')}</p>`;
     else {
-      rows = hits.map(h => `<tr><td>${esc(h.name)}</td>
+      rows = hits.map(h => `<tr><td>${esc(h.name)}${h.book ? `<br><span class="hint">${esc(h.book)}</span>` : ''}</td>
         <td>${esc(kind === 'equip' ? h.type : h.damage)}</td>
         <td class="num">${fmtCr(h.cost)}</td>
         <td><button class="mini" data-act="pdfAdd" data-kind="${kind}" data-i="${src.indexOf(h)}">${t('pdf_add')}</button></td></tr>`).join('');
@@ -350,7 +364,8 @@ function pdfCatalogBlock(kind) {
   const label = kind === 'equip' ? t('dr_equipment') : (kind === 'melee' ? t('dr_melee') : t('dr_ranged'));
   return `<div class="card"><h2>${t('pdf_catalog')} – ${label}</h2>
     <p class="hint">${t('pdf_hint')}</p>
-    <p><input type="text" data-pdfsearch="${kind}" value="${esc(pdfFilter[kind])}" placeholder="${esc(t('pdf_search'))}…" style="width:260px"></p>
+    <p><input type="text" data-pdfsearch="${kind}" value="${esc(pdfFilter[kind])}" placeholder="${esc(t('pdf_search'))}…" style="width:260px">
+       <select data-pdfera="${kind}" style="width:200px">${eraOptions(pdfEra[kind])}</select></p>
     ${info}${rows ? `<div class="table-scroll"><table class="list">${rows}</table></div>` : ''}</div>`;
 }
 function pdfAddDroid(kind, idx) {
@@ -748,6 +763,11 @@ function pageChange(el) {
     tplFilter = el.value; tplMsg = ''; update('model');
     const a = document.getElementById('tplSearch');
     if (a) { a.focus(); a.setSelectionRange(a.value.length, a.value.length); }
+    return true;
+  }
+  if (el.dataset.pdfera != null) {
+    pdfEra[el.dataset.pdfera] = el.value;
+    update();
     return true;
   }
   if (el.dataset.pdfsearch != null) {

@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
 =============================================================================
- Kataloge aus den Fanmade-Regelwerk-PDFs nach pdfdata.js übertragen
+ Kataloge aus den Regelwerk-PDFs nach pdfdata-*.js übertragen
 =============================================================================
 
- Liest die "rp_*"-Sammelbände (Waffen, Ausrüstung, Droiden, Raumschiffe,
- Fahrzeuge) und erzeugt daraus Auswahl-Kataloge für die Web-App:
+ Liest die Fanmade-Sammelbände ("rp_*") sowie eine Reihe weiterer Quellbücher
+ und erzeugt daraus Auswahl-Kataloge für die Web-App:
 
    PDF_WEAPONS_MELEE / PDF_WEAPONS_RANGED  – Waffen für Charaktere/Droiden
    PDF_EQUIPMENT                           – Ausrüstung
@@ -13,13 +13,19 @@
    PDF_VEHICLES                            – Fahrzeug-Vorlagen
    PDF_DROIDS                              – Droiden-Vorlagen
 
+ Jeder Eintrag trägt zusätzlich das Quellbuch ("book") und die Ära ("era"),
+ damit in der App danach gefiltert werden kann.
+
  Aufruf:
-     python tools/extract-from-pdfs.py "Pfad/zum/Ordner/mit/den/PDFs"
+     python tools/extract-from-pdfs.py ORDNER [ORDNER ...]
+
+ Die Ordner werden rekursiv nach den in SOURCES genannten Dateinamen
+ durchsucht. Fehlt eine Datei, wird sie übersprungen und am Ende gemeldet.
 
  Benötigt: pip install pypdf
 
- Die PDFs selbst gehören NICHT ins Repository – sie sind Fan-Kompilationen
- der Regelwerke von West End Games. Erzeugt wird ausschließlich die
+ Die PDFs selbst gehören NICHT ins Repository – sie sind Regelwerke bzw.
+ Fan-Kompilationen von West End Games. Erzeugt wird ausschließlich die
  Spielwerte-Datei, die die App zur Auswahl anbietet.
 =============================================================================
 """
@@ -33,44 +39,136 @@ try:
 except ImportError:
     sys.exit('Bitte zuerst installieren:  pip install pypdf')
 
-SRC_DIR = sys.argv[1] if len(sys.argv) > 1 else '.'
-OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'pdfdata.js')
+SRC_DIRS = sys.argv[1:] or ['.']
 
-FILES = {
-    'weapons':   'rp_weapons.pdf',
-    'equipment': 'rp_equipment.pdf',
-    'droids':    'rp_droids.pdf',
-    'ships':     'rp_starships.pdf',
-    'vehicles':  'rp_vehicles.pdf',
-}
+# ---------------------------------------------------------------- Quellen
+# kinds: welche Parser auf das Buch losgelassen werden
+# ocr:   Buch ist ein Scan – die Texterkennung liest "D" häufig als "0"
+# skip:  führende Seiten (Inhaltsverzeichnis) überspringen
+ERA_OLD, ERA_RISE = 'old-republic', 'rise-empire'
+ERA_REB, ERA_NEW = 'rebellion', 'new-republic'
 
-LIG = {'ﬁ': 'fi', 'ﬂ': 'fl', '’': "'", '“': '"', '”': '"',
-       '–': '-', '—': '-', ' ': ' '}
+SOURCES = [
+    # Datei                                    Kurzname               Ära       kinds                              ocr    skip
+    ('rp_weapons.pdf',                         'Weapons Compendium',  '',       ('weapons',),                      False, 6),
+    ('rp_equipment.pdf',                       'Equipment Compendium', '',      ('equipment',),                    False, 6),
+    ('rp_droids.pdf',                          'Droid Compendium',    '',       ('droids',),                       False, 6),
+    ('rp_starships.pdf',                       'Starship Compendium', '',       ('ships',),                        False, 6),
+    ('rp_vehicles.pdf',                        'Vehicle Compendium',  '',       ('vehicles',),                     False, 6),
+
+    ('GG16_The_Old_Republic.pdf',              'GG16 Old Republic',   ERA_OLD,  ('weapons', 'equipment', 'ships',
+                                                                                 'vehicles', 'droids'),            False, 0),
+    ('CECCompendium.pdf',                      'CEC Compendium',      '',       ('ships', 'vehicles'),             False, 0),
+    ('Starships_and_Speeders_D6_conversions.pdf', 'Starships & Speeders', '',   ('ships', 'vehicles'),             False, 0),
+    ('WEG40071 - Dark Empire - Sourcebook.pdf', 'Dark Empire',        ERA_NEW,  ('ships', 'vehicles', 'droids'),   False, 0),
+
+    ('RP_SagaConversion_Knights_of_the_Old_Republic_Campaign_Guide.pdf',
+                                               'KotOR Campaign Guide', ERA_OLD, ('weapons', 'equipment', 'ships',
+                                                                                 'vehicles', 'droids'),            False, 0),
+    ('RP_SagaConversion_The_Clone_Wars_Campaign_Guide.pdf',
+                                               'Clone Wars Guide',    ERA_RISE, ('weapons', 'equipment', 'ships',
+                                                                                 'vehicles', 'droids'),            False, 0),
+    ('RP_SagaConversion_Rebellion_Era_Campaign_Guide.pdf',
+                                               'Rebellion Era Guide', ERA_REB,  ('weapons', 'equipment', 'ships',
+                                                                                 'vehicles', 'droids'),            False, 0),
+    ('RP_SagaConversion_Legacy_Era_Campaign_Guide.pdf',
+                                               'Legacy Era Guide',    ERA_NEW,  ('weapons', 'equipment', 'ships',
+                                                                                 'vehicles', 'droids'),            False, 0),
+    ('RP_SagaConversion_Starships_of_the_Galaxy_Saga_Edition.pdf',
+                                               'Starships of the Galaxy', '',   ('ships', 'vehicles'),             False, 0),
+    ("RP_SagaConversion_Scavenger's_Guide_to_Droids.pdf",
+                                               "Scavenger's Guide to Droids", '', ('droids', 'equipment'),         False, 0),
+]
+
+# ---------------------------------------------------- Bewusst nicht dabei
+# Diese Bücher liegen nur als Scan vor. Ihre Textebene ist entweder gar nicht
+# vorhanden oder so fehlerhaft, dass Schiffsnamen als "R.eekeene's R.etribution"
+# oder "ITI5J;fi1:i1~~1T1" ankommen. Das ist ein Schaden der Texterkennung
+# selbst und mit Nachbearbeitung nicht zu retten – ein paar Dutzend
+# verstümmelte Einträge würden die Kataloge nur verwässern.
+#
+# Wer sie doch aufnehmen will, muss die PDFs zuerst sauber durch eine OCR
+# schicken (z. B. ocrmypdf mit tesseract) und sie dann hier eintragen:
+#
+#   ('WEG40150 - Stock Ships.pdf', 'Stock Ships', ERA_REB, ('ships',), True, 0),
+#   ('WEG40095 - Galaxy Guide 6 - Trampfreighters.pdf', ...)
+#   ('WEG40025 - Galladiniums Fantastic Technology.pdf', ...)   # gar keine Textebene
+#   ('WEG40143 - Pirates & Privateers.pdf', ...)                # gar keine Textebene
+#
+# Die Modifikationsregeln aus Galaxy Guide 6 stecken bereits von Hand
+# gepflegt in shiprules.js – dafür wird das PDF nicht gebraucht.
+
+LIG = {'ﬁ': 'fi', 'ﬂ': 'fl', 'ﬀ': 'ff', '’': "'", '‘': "'", '“': '"', '”': '"',
+       '–': '-', '—': '-', ' ': ' ', ' ': ' '}
+
+# Aufzählungszeichen, mit denen die Bücher ihre Statblöcke einleiten
+BULLETS = '■□▪▫•●◆·mi'
 
 
 def clean(s):
     for a, b in LIG.items():
         s = s.replace(a, b)
+    s = re.sub(r'\[\d+\]', '', s)                 # Fußnotenverweise
     return re.sub(r'[ \t]+', ' ', s).strip()
 
 
-def pdf_lines(path, skip_pages=0):
+def strip_bullet(name):
+    """'■ Azalus-Class Dreadnought' -> 'Azalus-Class Dreadnought'
+       Die Bücher setzen vor jeden Statblock ein Kästchen; die Texterkennung
+       macht daraus je nach Buch 'm', 'mi' oder ein Sonderzeichen."""
+    n = name.lstrip(BULLETS + ' ').strip()
+    return n or name.strip()
+
+
+# --------------------------------------------------------- OCR-Korrektur
+# Gescannte Bücher lesen das Würfelsymbol "D" regelmäßig als "0":
+#   'Hull: 40'  ->  'Hull: 4D'      'Passive: 10/00' -> 'Passive: 10/0D'
+# Deshalb nur in Feldern anwenden, die im D6-System immer Würfel führen.
+DICE_KEYS = {'Hull', 'Shields', 'Maneuverability', 'Fire Control', 'Damage',
+             'Body Strength', 'Passive', 'Scan', 'Search', 'Focus'}
+OCR_LETTER = {'l': '1', 'I': '1', 'O': '0', 'S': '5'}
+
+
+def ocr_dice(val):
+    """'40' -> '4D', '3D+l' -> '3D+1', '10/00' -> '10/0D'"""
+    def fix_token(tok):
+        # 'xD' bereits korrekt erkannt: nur Ziffern-Buchstaben-Dreher glätten
+        if re.fullmatch(r'\d+D(\+[\dlI])?', tok):
+            return ''.join(OCR_LETTER.get(c, c) if c not in 'D+' else c for c in tok)
+        # reine Zahl mit angehängter 0 -> Würfel, auch mit Pip-Zusatz ('30+' -> '3D+')
+        m = re.fullmatch(r'([1-9]\d?)0(\+)?', tok)
+        if m:
+            return m.group(1) + 'D' + (m.group(2) or '')
+        if tok == '00':
+            return '0D'
+        return tok
+    return re.sub(r'[0-9A-Za-z+]+', lambda m: fix_token(m.group(0)), val)
+
+
+KEY_RE = re.compile(r'^([A-Z][A-Za-z /\.\']{1,28}):\s*(.*)$')
+
+
+def pdf_lines(path, skip_pages=0, ocr=False):
     """Alle Zeilen des PDFs, bereinigt und ohne reine Seitenzahlen."""
     reader = pypdf.PdfReader(path)
     out = []
     for pg in range(skip_pages, len(reader.pages)):
-        txt = reader.pages[pg].extract_text() or ''
+        try:
+            txt = reader.pages[pg].extract_text() or ''
+        except Exception:
+            continue
         for ln in txt.split('\n'):
             ln = clean(ln)
             if not ln:
                 continue
             if re.fullmatch(r'\d{1,3}', ln):        # Seitenzahl
                 continue
+            if ocr:
+                m = KEY_RE.match(ln)
+                if m and m.group(1) in DICE_KEYS:
+                    ln = m.group(1) + ': ' + ocr_dice(m.group(2))
             out.append(ln)
     return merge_wrapped(out)
-
-
-KEY_RE = re.compile(r'^([A-Z][A-Za-z /\.\']{1,28}):\s*(.*)$')
 
 
 def merge_wrapped(lines):
@@ -89,6 +187,15 @@ def merge_wrapped(lines):
     return out
 
 
+def join_wrapped(a, b):
+    """Fortsetzungszeile anhängen. Endet die erste auf einem Trennstrich,
+       gehört das Wort zusammen ('Azalus-' + 'class' -> 'Azalus-class')."""
+    a = a.rstrip()
+    if a.endswith('-'):
+        return a + b.lstrip()
+    return (a + ' ' + b).strip()
+
+
 def parse_blocks(lines, start_key, extra_start=()):
     """Zerlegt in Einträge. Ein Eintrag beginnt bei der Zeile VOR start_key."""
     starts = set([start_key]) | set(extra_start)
@@ -102,6 +209,7 @@ def parse_blocks(lines, start_key, extra_start=()):
             # Namenszeile darf selbst kein "Key:" sein
             if KEY_RE.match(name):
                 name = ''
+            name = strip_bullet(name)
             cur = [ln]
         elif cur is not None:
             cur.append(ln)
@@ -110,29 +218,85 @@ def parse_blocks(lines, start_key, extra_start=()):
     return blocks
 
 
+# Nur die echten Kästchen-Symbole. BULLETS enthält zusätzlich 'm' und 'i'
+# für verunglückte Texterkennung – das wäre hier zu grob und würde jede
+# Fortsetzungszeile abschneiden, die mit "many" oder "in" beginnt.
+NEXT_ENTRY = '■□▪▫•●◆'
+
+
 def kv(block_lines):
     """Key/Value-Paare mit Fortsetzungszeilen und Reihenfolge."""
     data, order, last = {}, [], None
     for ln in block_lines:
+        # Beginnt hier schon der nächste Eintrag, gehört die Zeile nicht mehr
+        # zum letzten Wert – sonst landet sein Name in den "Game Notes".
+        if ln[:1] in NEXT_ENTRY:
+            last = None
+            continue
         m = KEY_RE.match(ln)
         if m:
             k, v = m.group(1), m.group(2)
             if k in data:
-                data[k] += ' ' + v if v else ''
+                data[k] = join_wrapped(data[k], v) if v else data[k]
             else:
                 data[k] = v
                 order.append(k)
             last = k
         elif last:
-            data[last] = (data[last] + ' ' + ln).strip()
+            data[last] = join_wrapped(data[last], ln)
     return data, order
 
 
 def looks_like_name(n):
     if not n or len(n) > 70:
         return False
-    if n.lower().startswith(('table of contents', 'index', 'chapter')):
+    low = n.lower()
+    if low.startswith(('table of contents', 'index', 'chapter', 'appendix')):
         return False
+    # Reine Kapitel-/Kopfzeilen ohne Buchstaben aussortieren
+    if not re.search(r'[A-Za-z]{3}', n):
+        return False
+    # Deckplan-Legenden ("23. Storage/Cargo Hold") stehen in den gescannten
+    # Büchern direkt vor dem Statblock und wären sonst der Name.
+    if re.match(r'^\d+\s*[\.\)]', n):
+        return False
+    return True
+
+
+# ------------------------------------------------------- Plausibilität
+# Zweispaltige Scans mischen Fließtext in die Statblöcke. Solche Einträge
+# sind unbrauchbar und würden den Katalog verwässern – lieber verwerfen.
+# Ein Würfelwert darf qualifiziert sein – "2D (+2 in atmosphere)" oder
+# "1D+2 (dovin basal)" sind gültige Angaben der Bücher. Verworfen wird nur,
+# was gar nicht mit einem Würfelcode beginnt: dann hat der Parser Fließtext
+# erwischt statt eines Statblocks.
+DICE_LEAD = re.compile(r'^\d{1,2}\s*D(\s*\+\s*\d)?\b')
+MAXLEN = {'type': 120, 'scale': 40, 'length': 60, 'crew': 140, 'cargo': 90,
+          'consumables': 70, 'space': 60, 'atmosphere': 90, 'move': 70,
+          'hull': 70, 'shields': 70, 'maneuver': 70}
+
+
+def plausible_craft(e):
+    for k in ('hull', 'shields', 'maneuver'):
+        v = (e.get(k) or '').strip()
+        if v and not DICE_LEAD.match(v):
+            return False
+    return True
+
+
+def trim_fields(e):
+    """Zweispaltige Bücher lassen gelegentlich Text der Nachbarspalte in ein
+       Feld laufen. Der vordere Teil stimmt, der Rest wird gekappt."""
+    for k, lim in MAXLEN.items():
+        if e.get(k) and len(e[k]) > lim:
+            e[k] = cap(e[k], lim)
+    return e
+
+
+def plausible_gear(e):
+    for k, lim in (('type', 120), ('scale', 40), ('skill', 90), ('avail', 40)):
+        if len(e.get(k) or '') > lim:
+            return False
     return True
 
 
@@ -140,13 +304,16 @@ def money(s):
     """'1,000 (includes ...)' -> 1000 ; nicht bezifferbar -> 0"""
     if not s:
         return 0
-    m = re.search(r'([\d][\d,\.]*)', s.replace('.', '.'))
+    m = re.search(r'([\d][\d,\.]*)', s)
     if not m:
         return 0
     try:
-        return int(float(m.group(1).replace(',', '')))
+        val = int(float(m.group(1).replace(',', '')))
     except ValueError:
         return 0
+    if re.search(r'million', s, re.I):
+        val *= 1000000
+    return val
 
 
 def dice_pips(s):
@@ -159,9 +326,49 @@ def dice_pips(s):
     return int(m.group(1)) * 3 + int(m.group(2) or 0)
 
 
+# Die Bücher schreiben die Ära unterschiedlich – auf feste Schlüssel bringen
+ERA_WORDS = [
+    (r'old republic|kotor|knights of the old|cold war|great galactic war', ERA_OLD),
+    (r'rise of the empire|clone wars|prequel', ERA_RISE),
+    (r'rebellion|galactic civil war|classic', ERA_REB),
+    (r'new republic|legacy|new jedi order|dark empire', ERA_NEW),
+]
+
+
+def norm_era(raw, default):
+    low = (raw or '').lower()
+    for pat, key in ERA_WORDS:
+        if re.search(pat, low):
+            return key
+    return default
+
+
+REJECTED = {}          # Buch -> Anzahl verworfener Einträge
+
+
+def reject(src):
+    REJECTED[src.book] = REJECTED.get(src.book, 0) + 1
+
+
+def cap(s, n=600):
+    """Lange Regeltexte kürzen. Vollständig stehen sie im Buch – die App
+       braucht nur so viel, dass der Eintrag verständlich bleibt."""
+    s = (s or '').strip()
+    return s if len(s) <= n else s[:n].rstrip() + ' […]'
+
+
+def tag(entry, src, d):
+    """Buch und Ära ergänzen. Nennt das PDF selbst eine Ära, hat sie Vorrang
+       vor der Voreinstellung des Buches."""
+    entry['book'] = src.book
+    entry['era'] = norm_era(d.get('Era', ''), src.era)
+    if d.get('Source') and not entry.get('source'):
+        entry['source'] = d['Source']
+    return entry
+
+
 # ---------------------------------------------------------------- Waffen
-def parse_weapons(path):
-    lines = pdf_lines(path, skip_pages=6)
+def parse_weapons(lines, src):
     melee, ranged = [], []
     for name, blk in parse_blocks(lines, 'Model'):
         if not looks_like_name(name):
@@ -169,6 +376,9 @@ def parse_weapons(path):
         d, _ = kv(blk)
         typ = d.get('Type', '')
         dmg = d.get('Damage', '')
+        # Ausrüstung ohne Schadenswert gehört nicht in den Waffenkatalog
+        if not dmg and not d.get('Skill'):
+            continue
         entry = {
             'name': name,
             'model': d.get('Model', ''),
@@ -183,25 +393,30 @@ def parse_weapons(path):
             'ammo': d.get('Ammo', ''),
             'rof': d.get('Rate of Fire', ''),
             'range': d.get('Range', ''),
-            'notes': d.get('Game Notes', ''),
+            'notes': cap(d.get('Game Notes', '')),
             'source': d.get('Source', ''),
         }
+        if not plausible_gear(entry):
+            reject(src)
+            continue
         is_melee = ('STR+' in dmg.upper().replace(' ', '')) or \
                    re.search(r'melee|blade|sword|knife|club|axe|pike|staff|whip|lightsaber',
                              (typ + ' ' + d.get('Skill', '')).lower()) is not None
-        (melee if is_melee else ranged).append(entry)
+        (melee if is_melee else ranged).append(tag(entry, src, d))
     return melee, ranged
 
 
 # ------------------------------------------------------------ Ausrüstung
-def parse_equipment(path):
-    lines = pdf_lines(path, skip_pages=6)
+def parse_equipment(lines, src):
     out = []
     for name, blk in parse_blocks(lines, 'Model'):
         if not looks_like_name(name):
             continue
         d, _ = kv(blk)
-        out.append({
+        # Waffen laufen über parse_weapons – hier alles ohne Schadenswert
+        if d.get('Damage'):
+            continue
+        entry = {
             'name': name,
             'model': d.get('Model', ''),
             'type': d.get('Type', ''),
@@ -209,9 +424,13 @@ def parse_equipment(path):
             'costText': d.get('Cost', ''),
             'avail': d.get('Availability', ''),
             'skill': d.get('Skill', ''),
-            'notes': d.get('Game Notes', ''),
+            'notes': cap(d.get('Game Notes', '')),
             'source': d.get('Source', ''),
-        })
+        }
+        if not plausible_gear(entry):
+            reject(src)
+            continue
+        out.append(tag(entry, src, d))
     return out
 
 
@@ -220,8 +439,7 @@ WEAPON_KEYS = {'Fire Arc', 'Fire Control', 'Space Range', 'Atmosphere Range',
                'Damage', 'Crew', 'Skill', 'Scale', 'Rate of Fire', 'Ammo'}
 
 
-def parse_craft(path, kind):
-    lines = pdf_lines(path, skip_pages=6)
+def parse_craft(lines, kind, src):
     out = []
     for name, blk in parse_blocks(lines, 'Craft'):
         if not looks_like_name(name):
@@ -300,10 +518,9 @@ def parse_craft(path, kind):
             'shields': d.get('Shields', ''),
             'move': d.get('Move', ''),
             'cover': d.get('Cover', ''),
-            'era': d.get('Era', ''),
             'affiliation': d.get('Affiliation', ''),
             'source': d.get('Source', ''),
-            'notes': d.get('Game Notes', ''),
+            'notes': cap(d.get('Game Notes', '')),
             'sensors': {k: sd.get(k, '') for k in ('Passive', 'Scan', 'Search', 'Focus')},
             'weapons': wl,
             'kind': kind,
@@ -312,17 +529,34 @@ def parse_craft(path, kind):
         entry['hullPips'] = dice_pips(entry['hull'])
         entry['shieldPips'] = dice_pips(entry['shields'])
         entry['maneuverPips'] = dice_pips(entry['maneuver'])
-        out.append(entry)
+        if not plausible_craft(entry):
+            reject(src)
+            continue
+        out.append(tag(trim_fields(entry), src, d))
     return out
+
+
+def split_craft(items):
+    """Manche Bücher mischen Raumschiffe und Bodenfahrzeuge in einem Kapitel.
+       Ein Eintrag ohne Hyperantrieb und ohne Space-Wert, aber mit Move-Wert,
+       ist ein Fahrzeug."""
+    ships, vehicles = [], []
+    for it in items:
+        is_vehicle = (not it['hyper'] and not it['space'] and
+                      (it['move'] or it['cover'] or
+                       re.search(r'speeder|walker|tank|crawler|ground|repulsor',
+                                 (it['type'] + ' ' + it['skill']).lower()) is not None))
+        (vehicles if is_vehicle else ships).append(it)
+    return ships, vehicles
 
 
 # ------------------------------------------------------------- Droiden
 ATTR_RE = re.compile(r'^(DEXTERITY|KNOWLEDGE|MECHANICAL|PERCEPTION|STRENGTH|TECHNICAL)\s+(\d+D(?:\+\d)?)',
                      re.I)
+SKILL_RE = re.compile(r"([A-Za-z][A-Za-z \/'\-\(\)]*?)\s*(\d+D(?:\+\d)?)")
 
 
-def parse_droids(path):
-    lines = pdf_lines(path, skip_pages=6)
+def parse_droids(lines, src):
     out = []
     for name, blk in parse_blocks(lines, 'Type'):
         if not looks_like_name(name):
@@ -355,91 +589,168 @@ def parse_droids(path):
             elif mode == 'equip':
                 equip.append(ln.lstrip('-').strip())
         d, _ = kv(blk)
-        out.append({
+        out.append(tag({
             'name': name,
             'type': d.get('Type', ''),
             'attrs': attrs,
-            'skills': [s for s in skills if s],
-            'equipped': [e for e in equip if e],
+            'skills': [cap(s, 120) for s in skills if s][:40],
+            'equipped': [cap(e, 120) for e in equip if e][:40],
             'move': d.get('Move', ''),
             'size': d.get('Size', ''),
             'cost': money(d.get('Cost', '')),
             'costText': d.get('Cost', ''),
             'avail': d.get('Availability', ''),
             'source': d.get('Source', ''),
-        })
+        }, src, d))
     return out
 
 
 # ================================================================= Ablauf
-def path_for(key):
-    p = os.path.join(SRC_DIR, FILES[key])
-    return p if os.path.isfile(p) else None
+class Src:
+    def __init__(self, path, book, era, kinds, ocr, skip):
+        self.path, self.book, self.era = path, book, era
+        self.kinds, self.ocr, self.skip = kinds, ocr, skip
 
 
-result = {}
-melee = ranged = []
-p = path_for('weapons')
-if p:
-    melee, ranged = parse_weapons(p)
-p = path_for('equipment')
-equipment = parse_equipment(p) if p else []
-p = path_for('ships')
-ships = parse_craft(p, 'ship') if p else []
-p = path_for('vehicles')
-vehicles = parse_craft(p, 'vehicle') if p else []
-p = path_for('droids')
-droids = parse_droids(p) if p else []
+def find_file(name):
+    for root in SRC_DIRS:
+        direct = os.path.join(root, name)
+        if os.path.isfile(direct):
+            return direct
+        for dirpath, _dirs, files in os.walk(root):
+            if name in files:
+                return os.path.join(dirpath, name)
+    return None
+
+
+melee, ranged, equipment, ships, vehicles, droids = [], [], [], [], [], []
+missing, used = [], []
+
+for fname, book, era, kinds, ocr, skip in SOURCES:
+    path = find_file(fname)
+    if not path:
+        missing.append(fname)
+        continue
+    src = Src(path, book, era, kinds, ocr, skip)
+    try:
+        lines = pdf_lines(path, skip_pages=skip, ocr=ocr)
+    except Exception as e:                      # beschädigte oder verschlüsselte Datei
+        missing.append(f'{fname} ({e})')
+        continue
+    counts = {}
+    if 'weapons' in kinds:
+        m, r = parse_weapons(lines, src)
+        melee += m
+        ranged += r
+        counts['Waffen'] = len(m) + len(r)
+    if 'equipment' in kinds:
+        e = parse_equipment(lines, src)
+        equipment += e
+        counts['Ausruestung'] = len(e)
+    if 'ships' in kinds or 'vehicles' in kinds:
+        craft = parse_craft(lines, 'ship', src)
+        s, v = split_craft(craft)
+        if 'ships' not in kinds:
+            v += s
+            s = []
+        if 'vehicles' not in kinds:
+            s += v
+            v = []
+        for x in v:
+            x['kind'] = 'vehicle'
+        ships += s
+        vehicles += v
+        counts['Schiffe'] = len(s)
+        counts['Fahrzeuge'] = len(v)
+    if 'droids' in kinds:
+        dr = parse_droids(lines, src)
+        droids += dr
+        counts['Droiden'] = len(dr)
+    used.append((book, counts))
 
 
 def dedupe(items):
-    seen, out = set(), []
+    """Erster Treffer gewinnt. Die Sammelbände stehen in SOURCES vorn, weil
+       ihre Textebene am saubersten ist; die Spezialbücher ergänzen nur."""
+    seen, out, dropped = set(), [], 0
     for it in items:
-        k = it['name'].lower()
-        if k in seen:
+        k = re.sub(r'[^a-z0-9]', '', it['name'].lower())
+        if not k or k in seen:
+            dropped += 1
             continue
         seen.add(k)
         out.append(it)
-    return out
+    return out, dropped
 
 
-melee, ranged = dedupe(melee), dedupe(ranged)
-equipment, ships, vehicles, droids = map(dedupe, (equipment, ships, vehicles, droids))
+(melee, d1), (ranged, d2) = dedupe(melee), dedupe(ranged)
+(equipment, d3), (ships, d4) = dedupe(equipment), dedupe(ships)
+(vehicles, d5), (droids, d6) = dedupe(vehicles), dedupe(droids)
 
 """Ausgabe aufgeteilt, damit jede Seite nur lädt, was sie braucht:
      pdfdata-gear.js   – Waffen + Ausrüstung   (Charakter- und Droidenseite)
      pdfdata-craft.js  – Schiffe + Fahrzeuge   (Schiffsseite)
      pdfdata-droids.js – Droiden-Vorlagen      (Droidenseite)"""
 APPDIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-HEAD = ('// Automatisch erzeugt aus den Fanmade-Sammelbaenden (rp_*.pdf)\n'
-        '// Quelle: Star Wars D6 (West End Games), zusammengetragen von der Fan-Community.\n'
+HEAD = ('// Automatisch erzeugt aus den Regelwerk-PDFs.\n'
+        '// Quelle: Star Wars D6 (West End Games) sowie Fan-Kompilationen der Community.\n'
         '// Nicht von Hand bearbeiten - stattdessen tools/extract-from-pdfs.py laufen lassen.\n')
+
+
+# Reihenfolge für das Ära-Dropdown der App. Steht in jeder erzeugten Datei,
+# damit die Auswahlliste nie von den tatsächlichen Daten abweicht.
+ERA_ORDER = [ERA_OLD, ERA_RISE, ERA_REB, ERA_NEW]
+
 
 def write_file(fname, pairs):
     p = os.path.join(APPDIR, fname)
     with open(p, 'w', encoding='utf-8') as f:
         f.write(HEAD)
+        # Die Droidenseite laedt zwei dieser Dateien - ein zweites "const"
+        # waere ein Syntaxfehler, deshalb nur setzen, wenn noch nicht da.
+        f.write('if (typeof PDF_ERAS === "undefined") var PDF_ERAS = %s;\n'
+                % json.dumps(ERA_ORDER))
         for var, data in pairs:
             f.write('const %s = ' % var)
             json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
             f.write(';\n')
     return os.path.getsize(p) / 1024
 
+
 kb_gear = write_file('pdfdata-gear.js', [('PDF_WEAPONS_MELEE', melee),
                                          ('PDF_WEAPONS_RANGED', ranged),
                                          ('PDF_EQUIPMENT', equipment)])
 kb_craft = write_file('pdfdata-craft.js', [('PDF_SHIPS', ships), ('PDF_VEHICLES', vehicles)])
 kb_droid = write_file('pdfdata-droids.js', [('PDF_DROIDS', droids)])
-if os.path.isfile(OUT):
-    os.remove(OUT)      # alte Sammeldatei entfernen
 
-print('--- Zusammenfassung ---')
-print(f'  Nahkampfwaffen:  {len(melee)}')
-print(f'  Fernkampfwaffen: {len(ranged)}')
-print(f'  Ausruestung:     {len(equipment)}')
-print(f'  Raumschiffe:     {len(ships)}')
-print(f'  Fahrzeuge:       {len(vehicles)}')
-print(f'  Droiden:         {len(droids)}')
+print('--- Gelesene Buecher ---')
+for book, counts in used:
+    detail = ', '.join(f'{k}: {v}' for k, v in counts.items() if v)
+    print(f'  {book:<30} {detail or "nichts gefunden"}')
+if REJECTED:
+    print('--- Verworfen (unplausible Werte, meist zweispaltige Scans) ---')
+    for book, n in sorted(REJECTED.items(), key=lambda x: -x[1]):
+        print(f'  {book:<30} {n}')
+if missing:
+    print('--- Nicht gefunden ---')
+    for m in missing:
+        print(f'  {m}')
+
+print('--- Zusammenfassung (nach Dubletten-Abgleich) ---')
+print(f'  Nahkampfwaffen:  {len(melee):>5}   (Dubletten {d1})')
+print(f'  Fernkampfwaffen: {len(ranged):>5}   (Dubletten {d2})')
+print(f'  Ausruestung:     {len(equipment):>5}   (Dubletten {d3})')
+print(f'  Raumschiffe:     {len(ships):>5}   (Dubletten {d4})')
+print(f'  Fahrzeuge:       {len(vehicles):>5}   (Dubletten {d5})')
+print(f'  Droiden:         {len(droids):>5}   (Dubletten {d6})')
+
+eras = {}
+for it in melee + ranged + equipment + ships + vehicles + droids:
+    eras[it.get('era') or '(universell)'] = eras.get(it.get('era') or '(universell)', 0) + 1
+print('--- Verteilung nach Aera ---')
+for k, v in sorted(eras.items(), key=lambda x: -x[1]):
+    print(f'  {k:<16} {v}')
+
 print(f'  pdfdata-gear.js   {kb_gear:6.0f} KB')
 print(f'  pdfdata-craft.js  {kb_craft:6.0f} KB')
 print(f'  pdfdata-droids.js {kb_droid:6.0f} KB')

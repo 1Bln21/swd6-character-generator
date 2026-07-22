@@ -9,3 +9,6 @@ api/data/
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# Lokale Werkzeug-Konfiguration (Vorschau-Server o. ae.)
+.claude/

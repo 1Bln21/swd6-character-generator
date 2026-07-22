@@ -426,3 +426,19 @@ table.sp-table td.num { text-align: right; white-space: nowrap; }
   }
   .sheet-page:last-child { page-break-after: auto; }
 }
+
+/* ---------- Werkstatt: Pannen-Ergebnis (Schiffsseite) ---------- */
+.ws-result {
+  margin-top: 14px; padding: 12px 14px;
+  background: var(--card2); border: 1px solid var(--border);
+  border-left-width: 4px; border-radius: 6px;
+}
+.ws-result p { margin: 8px 0 0; line-height: 1.5; }
+.ws-result-head {
+  display: flex; flex-wrap: wrap; gap: 16px;
+  font-size: 12.5px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase;
+}
+.ws-result-head b { color: var(--text); font-family: Consolas, monospace; font-size: 14px; }
+.ws-minor        { border-left-color: var(--green); }
+.ws-moderate     { border-left-color: var(--accent); }
+.ws-catastrophic { border-left-color: var(--red); }

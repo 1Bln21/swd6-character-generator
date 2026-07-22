@@ -28,6 +28,10 @@ de: {
   import_invalid: 'Keine gültige Datei für diese Seite',
   yes: 'Ja', no: 'Nein', none_dash: '– keine –', none_one: '– keiner –',
   name: 'Name', cost: 'Preis', avail: 'Verf.', qty: 'Anzahl', sum: 'Summe',
+  /* Ären der Kataloge – die Schlüssel stehen in PDF_ERAS (pdfdata-*.js) */
+  era_label: 'Ära', era_all: 'Alle Ären', era_universal: 'zeitlos',
+  era_old_republic: 'Alte Republik', era_rise_empire: 'Aufstieg des Imperiums',
+  era_rebellion: 'Rebellion', era_new_republic: 'Neue Republik / Legacy',
   note: 'Notiz', notes: 'Notizen', add_entry: '+ Eintrag', item: 'Gegenstand',
   skill: 'Skill', damage: 'Schaden', difficulty: 'Schwierigkeit', special: 'Besonderes',
   weapon: 'Waffe', left: 'Übrig', total: 'Gesamt', remove: 'Entfernen',
@@ -53,6 +57,10 @@ en: {
   import_invalid: 'Not a valid file for this page',
   yes: 'Yes', no: 'No', none_dash: '– none –', none_one: '– none –',
   name: 'Name', cost: 'Cost', avail: 'Avail.', qty: 'Qty', sum: 'Total',
+  /* Catalog eras – the keys live in PDF_ERAS (pdfdata-*.js) */
+  era_label: 'Era', era_all: 'All eras', era_universal: 'timeless',
+  era_old_republic: 'Old Republic', era_rise_empire: 'Rise of the Empire',
+  era_rebellion: 'Rebellion', era_new_republic: 'New Republic / Legacy',
   note: 'Note', notes: 'Notes', add_entry: '+ Add entry', item: 'Item',
   skill: 'Skill', damage: 'Damage', difficulty: 'Difficulty', special: 'Special',
   weapon: 'Weapon', left: 'Left', total: 'Total', remove: 'Remove',

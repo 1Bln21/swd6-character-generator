@@ -9,7 +9,7 @@ This project is an HTML port of the Excel workbooks by **Chance Gibboney** — s
 | | |
 |---|---|
 | **Characters** | `index.html` — 60 species, all skills, Force powers, equipment, lightsaber workshop |
-| **Droids** | `droid.html` — degrees, 167 modifications, 295 ready-made droid templates |
+| **Droids** | `droid.html` — degrees, 167 modifications, 522 ready-made droid templates |
 | **Ships** | `ship.html` — 863 ship/vehicle templates, modification workshop, weapons, sensors |
 
 ---
@@ -31,20 +31,21 @@ This project is an HTML port of the Excel workbooks by **Chance Gibboney** — s
 - Shared **25D starting pool** for attributes, skills *and* modifications
 - **167 modifications** in 11 categories (processors, sensors, armor, weapons, medical …)
 - Hard-wired **database skills**
-- **295 droid templates** from the sourcebooks — apply and adjust
+- **522 droid templates** from the sourcebooks — apply and adjust
 
 **Ships** (`ship.html`)
-- **863 templates** (578 starships + 285 vehicles) — pick one and every base stat is filled in, weapons included
+- **1,196 templates** (863 starships + 333 vehicles) — pick one and every base stat is filled in, weapons included
 - **Modification workshop**: sublight drive, maneuverability, hyperdrive, hull, shields, weapon damage — each with install difficulty, cost as a percentage of the ship, and a growing **mishap modifier**
 - Replacement drives, hyperdrives, shield generators, cargo conversions
 - Up to six weapons with fire arc, fire control and ranges; sensors and NPC crew skills
+- **Workshop** with the expanded rules from *Galaxy Guide 6: Tramp Freighters*: a mishap roller covering all five systems and three severities, the repair cost table priced against your ship, spaceport classes with docking fees, the restocking formula, overhaul costs, installation times and the linked-weapons rules
 
 **Everywhere**
 - **Portraits**: import by file or drag & drop, resized automatically, printed on the sheet
 - **Save & load** in the browser (localStorage) plus JSON export/import
 - **Print / PDF export**: clean sheets via the browser's print dialog
 - **Bilingual**: German / English, switchable in the ⚙ menu
-- **Extended catalogs from the sourcebooks**: 451 weapons and 550 pieces of equipment, searchable
+- **Extended catalogs from the sourcebooks**: 500 weapons and 574 pieces of equipment, searchable and filterable by era
 - **Online accounts** (optional, needs PHP hosting): registration, login, **MFA via authenticator app**, cloud storage and sharing with fellow players
 
 ### Quick start (local, no server)
@@ -156,10 +157,16 @@ No build step, no dependencies, no framework — vanilla JS/CSS/PHP.
 pip install openpyxl pypdf
 python tools/extract-from-excel.py   "Character Generator v2-5.xlsx"
 python tools/extract-generators.py   "Droid Generator v1-3.xlsm" "Ship Generator v1-1.xlsx"
-python tools/extract-from-pdfs.py    "path/to/the/rp_*.pdf/folder"
+python tools/extract-from-pdfs.py    "path/to/rulebooks" ["more/folders" ...]
 ```
 
 Each script prints a summary (number of species, skills, ships …) — compare it with the previous run to spot layout changes in a new source version. The source documents themselves are **not** part of this repository.
+
+`extract-from-pdfs.py` reads a list of sourcebooks defined in its `SOURCES` table and searches the given folders recursively, so the books may live in several places. Every catalog entry records which book it came from and which era it belongs to, which is what the era filter in the app uses.
+
+Books currently read: the fan compendia (weapons, equipment, droids, starships, vehicles), *Galaxy Guide 16: The Old Republic*, the CEC Compendium, *Starships & Speeders*, the *Dark Empire* sourcebook and the Saga-Edition conversions (KotOR, Clone Wars, Rebellion Era, Legacy Era, Starships of the Galaxy, Scavenger's Guide to Droids).
+
+Two scanned books are deliberately **not** included: *Stock Ships* and *Galaxy Guide 6* have text layers so damaged that ship names arrive as `R.eekeene's R.etribution`, and *Galladinium's Fantastic Technology* and *Pirates & Privateers* have no text layer at all. Running them through a proper OCR first (e.g. `ocrmypdf`) would make them usable — the `SOURCES` table has commented-out entries ready. The modification rules from *Galaxy Guide 6* are already in the app: they were transcribed by hand into `shiprules.js`.
 
 ---
 
@@ -173,11 +180,11 @@ Das Projekt ist die HTML-Portierung der Excel-Tabellen von **Chance Gibboney** �
 
 **Charaktere** (`index.html`) – 60 Spezies + 9 Near-Human-Varianten, regelkonforme Erschaffung (18D Attribute, 7D Fertigkeiten, Machtfertigkeiten aus dem Attributs-Pool, Steigerung per Charakterpunkten), alle 84 Fertigkeiten, 82 Machtkräfte, Lichtschwert-Werkstatt. **Eigene Spezies lassen sich online speichern** und stehen dann der ganzen Gruppe im Dropdown zur Verfügung.
 
-**Droiden** (`droid.html`) – fünf Degrees mit eigenen Steigerungskosten, gemeinsamer 25D-Startpool für Attribute, Fertigkeiten *und* Modifikationen, 167 Modifikationen in 11 Kategorien, fest verdrahtete Datenbank-Fertigkeiten sowie **295 fertige Droidenmodelle** aus den Regelwerken.
+**Droiden** (`droid.html`) – fünf Degrees mit eigenen Steigerungskosten, gemeinsamer 25D-Startpool für Attribute, Fertigkeiten *und* Modifikationen, 167 Modifikationen in 11 Kategorien, fest verdrahtete Datenbank-Fertigkeiten sowie **522 fertige Droidenmodelle** aus den Regelwerken.
 
-**Schiffe** (`ship.html`) – **863 Vorlagen** (578 Raumschiffe + 285 Fahrzeuge): auswählen und alle Grundwerte samt Bewaffnung sind gefüllt. Dazu die Umbau-Werkstatt (Antrieb, Manövrierfähigkeit, Hyperantrieb, Hülle, Schilde, Waffenschaden) mit Einbau-Schwierigkeit, Kosten in Prozent des Schiffswerts und steigendem **Pannen-Modifikator**, Ersatzteile, bis zu sechs Waffen, Sensoren und Crew-Skills.
+**Schiffe** (`ship.html`) – **1.196 Vorlagen** (863 Raumschiffe + 333 Fahrzeuge): auswählen und alle Grundwerte samt Bewaffnung sind gefüllt. Dazu die Umbau-Werkstatt (Antrieb, Manövrierfähigkeit, Hyperantrieb, Hülle, Schilde, Waffenschaden) mit Einbau-Schwierigkeit, Kosten in Prozent des Schiffswerts und steigendem **Pannen-Modifikator**, Ersatzteile, bis zu sechs Waffen, Sensoren und Crew-Skills. Dazu die **Werkstatt** mit den erweiterten Regeln aus *Galaxy Guide 6: Tramp Freighters*: Pannen auswürfeln für alle fünf Systeme und drei Schweregrade, Reparaturkosten-Tabelle auf den eigenen Schiffswert gerechnet, Raumhafen-Klassen mit Liegegebühren, Vorratsformel, Überholungskosten, Einbauzeiten und die Regeln für gekoppelte Waffen.
 
-**Überall** – Bild-Import per Datei oder Drag & Drop, Speichern im Browser plus JSON-Export, Druck-/PDF-Bögen, zweisprachige Oberfläche (⚙-Menü), durchsuchbare **erweiterte Kataloge** mit 451 Waffen und 550 Ausrüstungsgegenständen sowie optionale **Online-Konten** mit MFA, Cloud-Speicherung und Freigaben.
+**Überall** – Bild-Import per Datei oder Drag & Drop, Speichern im Browser plus JSON-Export, Druck-/PDF-Bögen, zweisprachige Oberfläche (⚙-Menü), durchsuchbare **erweiterte Kataloge** mit 500 Waffen und 574 Ausrüstungsgegenständen, nach Ära filterbar sowie optionale **Online-Konten** mit MFA, Cloud-Speicherung und Freigaben.
 
 ### Schnellstart
 

@@ -12,7 +12,7 @@ let LANG = localStorage.getItem(LS_LANG) || 'de';
 
 /* Wird im ⚙-Menü unter „Über & Credits“ angezeigt.
    Bei jedem Release mit der Versionsnummer des Git-Tags abgleichen! */
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.1.0';
 
 const T = {
 de: {
@@ -26,7 +26,10 @@ de: {
   pdf_search: 'Suchen', pdf_add: '+ Übernehmen',
   pdf_hint: 'Zusätzliche Einträge aus den Fan-Sammelbänden. Suchbegriff eingeben, dann übernehmen – der Eintrag landet mit allen Werten in deiner Liste.',
   pdf_results: 'Treffer', pdf_none: 'Keine Treffer – Suchbegriff anpassen.',
-  pdf_type_all: 'Alle', pdf_min_chars: 'Mindestens 2 Zeichen eingeben.',
+  pdf_type_all: 'Alle', pdf_min_chars: 'Mindestens 2 Zeichen eingeben – oder eine Ära wählen.',
+  era_all: 'Alle Ären', era_universal: 'zeitlos',
+  era_old_republic: 'Alte Republik', era_rise_empire: 'Aufstieg des Imperiums',
+  era_rebellion: 'Rebellion', era_new_republic: 'Neue Republik / Legacy',
   cloud_species_group: '☁ Gespeicherte Spezies (Gruppe)',
   species_save_cloud: '☁ Spezies online speichern',
   species_save_cloud_hint: 'Speichert die eigene Spezies auf dem Server – danach steht sie allen angemeldeten Gruppenmitgliedern im Spezies-Dropdown zur Verfügung.',
@@ -47,6 +50,7 @@ de: {
     'Vor langer Zeit, in einer Tabellenkalkulation weit, weit entfernt, entstand ein Werkzeug, das Helden erschuf.',
     'Der größte Dank gebührt CHANCE GIBBONEY, dem Schöpfer der originalen Excel-Tabelle „Character Generator v2-5“. Seine akribische Arbeit bildet das Fundament dieses Generators – ohne ihn gäbe es diese Anwendung nicht. Er hat der Nutzung freundlicherweise zugestimmt.',
     'Dank gebührt WEST END GAMES für das D6-System und das Star-Wars-Rollenspiel der Zweiten Edition, das Generationen von Spielern zusammenbrachte.',
+    'Dank an die namenlosen Chronisten der Fan-Gemeinde, die über Jahre die Sammelbände für Waffen, Ausrüstung, Droiden, Raumschiffe und Fahrzeuge zusammentrugen und die Saga-Edition ins D6-System zurückübersetzten. Aus ihrer Arbeit stammen die Kataloge dieser Anwendung.',
     'Dank an Kazuhiko Arase für die QR-Code-Bibliothek und an die Schöpfer von PHP, SQLite und Python, deren freie Werkzeuge diese Reise möglich machten.',
     'Dank auch an die KI-Assistenz, die beim Portieren des Codes zur Seite stand.',
     'Und schließlich Dank an dich – tapfere Heldin, tapferer Held am Spieltisch, der neue Charaktere in eine unendliche Galaxis entsendet.',
@@ -205,7 +209,10 @@ en: {
   pdf_search: 'Search', pdf_add: '+ Add',
   pdf_hint: 'Additional entries from the fan compilations. Type a search term, then add – the entry lands in your list with all its stats.',
   pdf_results: 'Matches', pdf_none: 'No matches – try a different term.',
-  pdf_type_all: 'All', pdf_min_chars: 'Enter at least 2 characters.',
+  pdf_type_all: 'All', pdf_min_chars: 'Enter at least 2 characters – or pick an era.',
+  era_all: 'All eras', era_universal: 'timeless',
+  era_old_republic: 'Old Republic', era_rise_empire: 'Rise of the Empire',
+  era_rebellion: 'Rebellion', era_new_republic: 'New Republic / Legacy',
   cloud_species_group: '☁ Saved species (group)',
   species_save_cloud: '☁ Save species online',
   species_save_cloud_hint: 'Stores your custom species on the server – it then appears in the species dropdown for all signed-in group members.',
@@ -226,6 +233,7 @@ en: {
     'A long time ago, in a spreadsheet far, far away, a tool was born that forged heroes.',
     'Our greatest thanks go to CHANCE GIBBONEY, creator of the original Excel workbook “Character Generator v2-5”. His meticulous work is the foundation of this generator — without him, this app would not exist. He kindly gave his permission for it to be used.',
     'Thanks to WEST END GAMES for the D6 system and the Second Edition of the Star Wars Roleplaying Game that brought generations of players together.',
+    'Thanks to the unnamed chroniclers of the fan community, who over many years compiled the compendia of weapons, equipment, droids, starships and vehicles, and converted the Saga Edition back into the D6 system. Their work is where the catalogs in this app come from.',
     'Thanks to Kazuhiko Arase for the QR code library, and to the makers of PHP, SQLite and Python, whose free tools made this journey possible.',
     'Thanks also to the AI assistance that helped port the code.',
     'And finally, thanks to you — brave hero at the gaming table, who sends new characters into an endless galaxy.',
@@ -889,6 +897,19 @@ function viewInfo() {
    bzw. Ausrüstung in der Charakterliste – damit funktionieren Bogen und
    Kostenrechnung unverändert weiter. */
 const pdfFilter = { melee: '', ranged: '', equip: '' };
+const pdfEra = { melee: '', ranged: '', equip: '' };
+
+/* Ära-Auswahl. Die Schlüssel liefert die erzeugte Katalogdatei mit, damit
+   Dropdown und Daten nicht auseinanderlaufen. */
+function eraOptions(selected) {
+  const list = (typeof PDF_ERAS !== 'undefined') ? PDF_ERAS : [];
+  return [`<option value="">${t('era_all')}</option>`].concat(
+    list.map(e => `<option ${selected === e ? 'selected' : ''} value="${e}">${t('era_' + e.replace('-', '_'))}</option>`)
+  ).join('');
+}
+function eraLabel(e) {
+  return e ? t('era_' + e.replace('-', '_')) : t('era_universal');
+}
 function pdfSource(kind) {
   if (kind === 'melee') return (typeof PDF_WEAPONS_MELEE !== 'undefined') ? PDF_WEAPONS_MELEE : [];
   if (kind === 'ranged') return (typeof PDF_WEAPONS_RANGED !== 'undefined') ? PDF_WEAPONS_RANGED : [];
@@ -898,13 +919,18 @@ function pdfCatalogBlock(kind) {
   const src = pdfSource(kind);
   if (!src.length) return '';
   const f = (pdfFilter[kind] || '').toLowerCase().trim();
+  const era = pdfEra[kind] || '';
   let rows = '', info = '';
-  if (f.length < 2) {
+  /* Ohne Suchbegriff wird nur gelistet, wenn eine Ära gewählt ist – sonst
+     wären es je nach Katalog mehrere hundert Zeilen. */
+  if (f.length < 2 && !era) {
     info = `<p class="hint">${t('pdf_min_chars')}</p>`;
   } else {
-    const hits = src.filter(x =>
+    const matchEra = x => !era || x.era === era;
+    const matchText = x => f.length < 2 ||
       x.name.toLowerCase().includes(f) || (x.type || '').toLowerCase().includes(f) ||
-      (x.model || '').toLowerCase().includes(f)).slice(0, 60);
+      (x.model || '').toLowerCase().includes(f);
+    const hits = src.filter(x => matchEra(x) && matchText(x)).slice(0, 60);
     if (!hits.length) info = `<p class="hint">${t('pdf_none')}</p>`;
     else {
       const cols = kind === 'equip'
@@ -912,7 +938,10 @@ function pdfCatalogBlock(kind) {
         : h => `<td>${esc(h.damage)}</td><td>${esc(h.range || h.diff)}</td><td class="num">${fmtCr(h.cost)}</td>`;
       rows = hits.map(h => {
         const idx = src.indexOf(h);
-        return `<tr><td>${esc(h.name)}${h.notes ? `<br><span class="hint">${esc(h.notes.slice(0, 160))}${h.notes.length > 160 ? '…' : ''}</span>` : ''}</td>
+        const prov = [h.book, eraLabel(h.era)].filter(Boolean).join(' · ');
+        return `<tr><td>${esc(h.name)}
+          ${prov ? `<br><span class="hint">${esc(prov)}</span>` : ''}
+          ${h.notes ? `<br><span class="hint">${esc(h.notes.slice(0, 160))}${h.notes.length > 160 ? '…' : ''}</span>` : ''}</td>
           ${cols(h)}
           <td><button class="mini" data-act="pdfAdd" data-kind="${kind}" data-i="${idx}">${t('pdf_add')}</button></td></tr>`;
       }).join('');
@@ -925,7 +954,8 @@ function pdfCatalogBlock(kind) {
   return `<div class="card"><h2>${t('pdf_catalog')}</h2>
     <p class="hint">${t('pdf_hint')}</p>
     <p><input type="text" data-pdfsearch="${kind}" value="${esc(pdfFilter[kind])}"
-       placeholder="${esc(t('pdf_search'))}…" style="width:260px"></p>
+       placeholder="${esc(t('pdf_search'))}…" style="width:260px">
+       <select data-pdfera="${kind}" style="width:200px">${eraOptions(pdfEra[kind])}</select></p>
     ${info}
     ${rows ? `<div class="table-scroll"><table class="list"><tr>${head}</tr>${rows}</table></div>` : ''}
   </div>`;
@@ -1924,6 +1954,11 @@ content.addEventListener('change', e => {
   if (el.id === 'portraitFile') {
     if (el.files && el.files[0]) importPortrait(el.files[0]);
     el.value = '';
+    return;
+  }
+  if (el.dataset.pdfera != null) {
+    pdfEra[el.dataset.pdfera] = el.value;
+    update();
     return;
   }
   if (el.dataset.pdfsearch != null) {

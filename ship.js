@@ -69,6 +69,44 @@ Object.assign(T.de, {
   sh_info_block: 'Schiffsdaten', sh_movement: 'Bewegung',
   sh_fees: 'Wartung & Vorräte',
   sh_fees_text: '„Basisgebühr“ × (Crew + Passagiere) × Tage aufzufüllender Vorräte',
+  /* Werkstatt (Galaxy Guide 6) */
+  tab_shop: 'Werkstatt',
+  ws_intro: 'Erweiterte Regeln aus „Galaxy Guide 6: Tramp Freighters“, Kapitel Acht. Gedacht für leichte Frachter – nicht für Jäger oder Schiffe der Capital-Klasse.',
+  ws_mishap: 'Pannen auswürfeln',
+  ws_mishap_when: 'Ein umgebautes System versagt, wenn der Wild Die eine 1 zeigt und der Spielleiter daraus eine Komplikation macht. Dann 1D werfen und den Pannen-Modifikator addieren.',
+  ws_system: 'System', ws_modifier: 'Pannen-Modifikator', ws_roll: '🎲 Würfeln',
+  ws_result_roll: 'Wurf', ws_result_total: 'Gesamt', ws_result_sev: 'Schweregrad',
+  ws_sev_minor: 'Leicht', ws_sev_moderate: 'Mittel', ws_sev_catastrophic: 'Katastrophal',
+  ws_sev_note: 'Eine gewürfelte 1 gilt immer als leichte Panne.',
+  ws_repairs: 'Reparaturkosten',
+  ws_repairs_hint: 'Prozentsätze vom ursprünglichen Kaufpreis des Schiffs – bei Waffen vom Preis der Waffe. Preise gelten für neue Teile in Eigenarbeit. Gebrauchtteile kosten die Hälfte, sind aber unzuverlässig; ein bezahlter Mechaniker verlangt noch einmal ungefähr den Teilepreis als Lohn.',
+  ws_damage: 'Schaden', ws_diff: 'Schwierigkeit', ws_pct: 'Anteil', ws_credits: 'Credits',
+  ws_of_weapon: 'vom Waffenpreis',
+  ws_ports: 'Raumhäfen', ws_docking: 'Liegegebühr',
+  ws_per_day: 'pro Tag', ws_none_listed: 'nicht festgelegt',
+  ws_costs: 'Laufende Kosten',
+  ws_restock: 'Vorräte auffüllen', ws_basefee: 'Basisgebühr',
+  ws_people: 'Crew + Passagiere', ws_days: 'Tage', ws_dockdays: 'Liegetage',
+  ws_basefee_hint: 'Übliche Route 10 Cr., abgelegener Außenrand bis 35 Cr.',
+  ws_overhaul: 'Generalüberholung',
+  ws_overhaul_hint: 'Nach je 20 Hyperraumsprüngen fällig. Wird sie versäumt, empfiehlt die Quelle rund drei Prozent Ausfallrisiko pro weiterem Sprung: der Spielleiter würfelt heimlich 2D, bei einer 2 versagt der Hyperantrieb.',
+  ws_sum: 'Summe',
+  ws_times: 'Einbauzeiten',
+  ws_times_hint: 'Überstunden oder kräftige Bestechung halbieren die Zeit – zum doppelten Preis.',
+  ws_time: 'Dauer',
+  ws_rules: 'Faustregeln',
+  ws_link: 'Waffen koppeln',
+  ws_link_hint: 'Bis zu drei baugleiche Waffen mit identischem Schadenswert lassen sich koppeln. Die Rechnereinbindung kostet 100 Cr. je Waffe. Eine zweite Feuerstelle für dieselbe Waffe kostet ebenfalls 100 Cr. und zählt als +1 auf den Pannen-Tabellen.',
+  ws_weapons_linked: 'gekoppelt', ws_bonus: 'Schadensbonus',
+  sh_template_count: '{ships} Schiffe, {vehicles} Fahrzeuge zur Auswahl',
+  sh_template_cut: '{n} weitere nicht angezeigt, bitte Suche oder Ära eingrenzen',
+  ws_sh_bay: 'Reparaturbucht',
+  ws_rule_used: 'Gebrauchtteile kosten die Hälfte – können aber jederzeit ausfallen.',
+  ws_rule_resale: 'Eine Werft zahlt für ein ausgebautes Teil höchstens 25 % des Neupreises; ist es beschädigt, nur rund 5 % Schrottwert.',
+  ws_rule_labor: 'Lässt man den Umbau ausführen, kostet die Arbeit 20 bis 50 % der Umbaukosten. Unabhängige Techniker handeln mit sich reden, Konzerntechniker nicht.',
+  ws_rule_permit: 'Eine imperiale Waffengenehmigung kostet 30 % des Kaufpreises. Dafür ein vergleichender Con- oder Bureaucracy-Wurf gegen den Schadenswert der Waffe – je Waffe einzeln.',
+  ws_rule_nav: 'Ersatz-Navigationscomputer: 2.000 Cr. Voll ausgerüstete Reparaturbucht: rund 100 Cr. pro Tag.',
+  ws_source: 'Quelle',
 });
 Object.assign(T.en, {
   title: 'Star Wars D6 – Ship Generator',
@@ -128,6 +166,44 @@ Object.assign(T.en, {
   sh_info_block: 'Ship Information', sh_movement: 'Movement',
   sh_fees: 'Maintenance & restocking',
   sh_fees_text: '"Base fee" × (crew + passengers) × days of consumables to restock',
+  /* Workshop (Galaxy Guide 6) */
+  tab_shop: 'Workshop',
+  ws_intro: 'Expanded rules from "Galaxy Guide 6: Tramp Freighters", Chapter Eight. Written for light freighters – not for starfighters or capital combat ships.',
+  ws_mishap: 'Roll for mishaps',
+  ws_mishap_when: 'A modified system malfunctions when the wild die comes up 1 and the GM turns it into a complication. Then roll 1D and add the mishap modifier.',
+  ws_system: 'System', ws_modifier: 'Mishap modifier', ws_roll: '🎲 Roll',
+  ws_result_roll: 'Roll', ws_result_total: 'Total', ws_result_sev: 'Severity',
+  ws_sev_minor: 'Minor', ws_sev_moderate: 'Moderate', ws_sev_catastrophic: 'Catastrophic',
+  ws_sev_note: 'A roll of 1 always counts as a minor mishap.',
+  ws_repairs: 'Repair costs',
+  ws_repairs_hint: 'Percentages of the ship\'s original retail cost – for weapons, of the weapon\'s cost. Prices are for new parts with the characters doing the work themselves. Used parts cost half but may not be reliable; hired labour runs about the cost of the new parts again.',
+  ws_damage: 'Damage', ws_diff: 'Difficulty', ws_pct: 'Share', ws_credits: 'Credits',
+  ws_of_weapon: 'of weapon cost',
+  ws_ports: 'Spaceports', ws_docking: 'Docking fee',
+  ws_per_day: 'per day', ws_none_listed: 'not listed',
+  ws_costs: 'Running costs',
+  ws_restock: 'Restocking', ws_basefee: 'Base fee',
+  ws_people: 'Crew + passengers', ws_days: 'Days', ws_dockdays: 'Days docked',
+  ws_basefee_hint: 'Well-travelled routes around 10 cr., isolated Outer Rim ports up to 35 cr.',
+  ws_overhaul: 'Maintenance overhaul',
+  ws_overhaul_hint: 'Due after every 20 hyperspace jumps. If skipped, the source suggests roughly a three percent chance of failure per further jump: the GM secretly rolls 2D, and on a 2 the hyperdrive malfunctions.',
+  ws_sum: 'Total',
+  ws_times: 'Installation times',
+  ws_times_hint: 'Overtime or substantial bribes cut the time in half – at double the cost.',
+  ws_time: 'Time taken',
+  ws_rules: 'Rules of thumb',
+  ws_link: 'Linked weapons',
+  ws_link_hint: 'Up to three identical weapons with matching damage codes can be linked. The computer linkage costs 100 cr. per weapon. A second firing station for the same weapon also costs 100 cr. and counts as a +1 modification on the mishap charts.',
+  ws_weapons_linked: 'linked', ws_bonus: 'Damage bonus',
+  sh_template_count: '{ships} ships, {vehicles} vehicles to choose from',
+  sh_template_cut: '{n} more not shown – narrow the search or era',
+  ws_sh_bay: 'Repair bay',
+  ws_rule_used: 'Used parts cost half – but they may give out at the worst possible moment.',
+  ws_rule_resale: 'A shipyard will never offer more than 25 % of list for a part it takes out; if the part is damaged, only about 5 % salvage price.',
+  ws_rule_labor: 'Hiring the work out costs 20 to 50 % of the modification cost. Independent technicians can be bargained with, corporate ones cannot.',
+  ws_rule_permit: 'An Imperial weapon permit costs 30 % of the purchase price. Roll con or bureaucracy opposed by the weapon\'s damage code – separately for each weapon.',
+  ws_rule_nav: 'Replacement nav computer: 2,000 cr. A fully equipped repair bay rents for about 100 cr. per day.',
+  ws_source: 'Source',
 });
 
 /* ---------------- Dokument ---------------- */
@@ -178,6 +254,13 @@ function emptyWeapon() {
 
 /* ---------------- Berechnungen ---------------- */
 function pctMod(list, label) { return list.find(m => m.label === label) || null; }
+
+/* Das Excel beginnt beim Hyperantrieb erst bei x2. Galaxy Guide 6 nennt
+   davor noch den Schritt x4 → x3, der hier vorangestellt wird. */
+function hyperImproveList() {
+  const extra = (typeof TRAMP_RULES !== 'undefined') ? TRAMP_RULES.hyperImproveExtra : [];
+  return extra.concat(SHIP_DATA.hyperImprove);
+}
 function modPips(label) {
   /* '+0D+1' → 1 Pip usw. */
   const m = /\+?(\d+)D\+(\d+)/.exec(label || '');
@@ -191,7 +274,7 @@ function shipDerived() {
   let modCost = 0, mishap = +i.mishapBase || 0, weight = 0;
   const pct = [
     ['drive', SHIP_DATA.driveMods], ['maneuver', SHIP_DATA.maneuverMods],
-    ['hyper', SHIP_DATA.hyperImprove], ['hull', SHIP_DATA.hullMods],
+    ['hyper', hyperImproveList()], ['hull', SHIP_DATA.hullMods],
     ['shield', SHIP_DATA.shieldMods], ['wdmg', SHIP_DATA.weaponDmgMods],
   ];
   for (const [key, list] of pct) {
@@ -246,6 +329,16 @@ function selOpts(list, sel, noneLabel) {
 /* ---------------- Ansichten ---------------- */
 /* ---------------- Vorlagen aus den Regelwerks-PDFs ---------------- */
 let tplFilter = '';
+let tplEra = '';
+
+/* Ära-Auswahl. Die Schlüssel liefert die erzeugte Katalogdatei mit, damit
+   Dropdown und Daten nicht auseinanderlaufen. */
+function eraOptions(selected) {
+  const list = (typeof PDF_ERAS !== 'undefined') ? PDF_ERAS : [];
+  return [`<option value="">${t('era_all')}</option>`].concat(
+    list.map(e => `<option ${selected === e ? 'selected' : ''} value="${e}">${t('era_' + e.replace('-', '_'))}</option>`)
+  ).join('');
+}
 function templates() {
   const ships = (typeof PDF_SHIPS !== 'undefined') ? PDF_SHIPS : [];
   const vehicles = (typeof PDF_VEHICLES !== 'undefined') ? PDF_VEHICLES : [];
@@ -255,12 +348,18 @@ function templateCard() {
   const { ships, vehicles } = templates();
   if (!ships.length && !vehicles.length) return '';
   const f = tplFilter.toLowerCase();
-  const match = x => !f || x.name.toLowerCase().includes(f) || (x.craft || '').toLowerCase().includes(f);
-  const opt = (x, idx, kind) => `<option value="${kind}:${idx}">${esc(x.name)}${x.scale ? ' · ' + esc(x.scale) : ''}</option>`;
-  const sOpts = ships.map((x, n) => [x, n]).filter(([x]) => match(x)).slice(0, 400)
-    .map(([x, n]) => opt(x, n, 'ship')).join('');
-  const vOpts = vehicles.map((x, n) => [x, n]).filter(([x]) => match(x)).slice(0, 400)
-    .map(([x, n]) => opt(x, n, 'vehicle')).join('');
+  const match = x => (!f || x.name.toLowerCase().includes(f) || (x.craft || '').toLowerCase().includes(f)) &&
+                     (!tplEra || x.era === tplEra);
+  const opt = (x, idx, kind) => `<option value="${kind}:${idx}">${esc(x.name)}${x.scale ? ' · ' + esc(x.scale) : ''}${x.book ? ' · ' + esc(x.book) : ''}</option>`;
+  const CAP = 400;                      // längere Listen macht kein Browser mit
+  const sHits = ships.map((x, n) => [x, n]).filter(([x]) => match(x));
+  const vHits = vehicles.map((x, n) => [x, n]).filter(([x]) => match(x));
+  const sOpts = sHits.slice(0, CAP).map(([x, n]) => opt(x, n, 'ship')).join('');
+  const vOpts = vHits.slice(0, CAP).map(([x, n]) => opt(x, n, 'vehicle')).join('');
+  /* Stillschweigend abschneiden wäre irreführend – wer nichts findet, soll
+     wissen, dass er die Auswahl eingrenzen muss. */
+  const cut = (sHits.length > CAP ? sHits.length - CAP : 0) +
+              (vHits.length > CAP ? vHits.length - CAP : 0);
   return `
   <div class="card"><h2>${t('sh_template')}</h2>
     <p class="hint">${t('sh_template_hint')}</p>
@@ -268,6 +367,10 @@ function templateCard() {
       <div style="flex:0 0 200px">
         <label>${t('sh_template_search')}</label>
         <input type="text" id="tplSearch" value="${esc(tplFilter)}" placeholder="YT-1300, X-wing …">
+      </div>
+      <div style="flex:0 0 200px">
+        <label>${t('era_label')}</label>
+        <select id="tplEra">${eraOptions(tplEra)}</select>
       </div>
       <div style="flex:1; min-width:240px">
         <label>${t('sh_template_pick')}</label>
@@ -278,6 +381,9 @@ function templateCard() {
       </div>
       <div><button class="accent" data-act="applyTemplate">${t('sh_template_apply')}</button></div>
     </div>
+    <p class="hint">${t('sh_template_count')
+      .replace('{ships}', sHits.length).replace('{vehicles}', vHits.length)}${
+      cut ? ' · ' + t('sh_template_cut').replace('{n}', cut) : ''}</p>
     ${tplMsg ? `<p class="ok" style="margin-top:8px">${esc(tplMsg)}</p>` : ''}
   </div>`;
 }
@@ -516,7 +622,7 @@ function viewMods() {
     <div class="formgrid">
       ${pctSel('drive', SHIP_DATA.driveMods, t('sh_mod_drive'))}
       ${pctSel('maneuver', SHIP_DATA.maneuverMods, t('sh_mod_maneuver'))}
-      ${pctSel('hyper', SHIP_DATA.hyperImprove, t('sh_mod_hyper'))}
+      ${pctSel('hyper', hyperImproveList(), t('sh_mod_hyper'))}
       ${pctSel('hull', SHIP_DATA.hullMods, t('sh_mod_hull'))}
       ${pctSel('shield', SHIP_DATA.shieldMods, t('sh_mod_shield'))}
       ${pctSel('wdmg', SHIP_DATA.weaponDmgMods, t('sh_mod_wdmg'))}
@@ -660,6 +766,160 @@ function renderSheet() {
 }
 
 /* ---------------- Seiten-Verkabelung ---------------- */
+/* ================= Werkstatt: erweiterte Regeln aus Galaxy Guide 6 =========
+   Reiner Nachschlage- und Rechenbereich. Nichts davon wandert ins Dokument,
+   deshalb steht der Zustand hier und nicht in C. */
+const WS = {
+  system: 'drive', extra: 0, result: null,
+  port: 'standard', baseFee: 10, days: 1, people: 0, dockDays: 1,
+};
+
+function firstInt(s) { const m = /(\d+)/.exec(String(s == null ? '' : s)); return m ? +m[1] : 0; }
+
+/* Crew + Passagiere aus den Freitextfeldern schätzen ("4; skeleton 2/+5" → 4) */
+function wsPeopleDefault() {
+  return firstInt(C.info.crew) + firstInt(C.info.passengers);
+}
+
+function wsSeverity(total) {
+  for (const s of TRAMP_RULES.severity) if (total <= s.max) return s.key;
+  return 'catastrophic';
+}
+
+function rollMishap() {
+  const die = 1 + Math.floor(Math.random() * 6);
+  const total = die + (+WS.extra || 0);
+  /* "A roll of 1 always counts as a minor mishap" – der Modifikator zählt
+     dann nicht, sonst wäre die Zusicherung der Quelle wirkungslos. */
+  const sev = die === 1 ? 'minor' : wsSeverity(total);
+  const list = TRAMP_RULES.mishaps[WS.system][sev];
+  const idx = Math.floor(Math.random() * 6);
+  WS.result = { die, total, sev, text: list[idx], resultRoll: idx + 1 };
+  update('shop');
+}
+
+function viewWorkshop() {
+  const lang = LANG === 'de' ? 'de' : 'en';
+  const cost = +C.info.costNew || 0;
+  const der = shipDerived();
+  if (WS.people === 0) WS.people = wsPeopleDefault();
+
+  /* --- Pannen-Würfel --- */
+  const sysOpts = TRAMP_RULES.systems.map(s =>
+    `<option ${WS.system === s.key ? 'selected' : ''} value="${s.key}">${esc(s[lang])}</option>`).join('');
+  const r = WS.result;
+  const sevLabel = { minor: t('ws_sev_minor'), moderate: t('ws_sev_moderate'),
+                     catastrophic: t('ws_sev_catastrophic') };
+  const resultBlock = !r ? '' : `
+    <div class="ws-result ws-${r.sev}">
+      <div class="ws-result-head">
+        <span>${t('ws_result_roll')}: <b>${r.die}</b></span>
+        <span>${t('ws_result_total')}: <b>${r.total}</b></span>
+        <span>${t('ws_result_sev')}: <b>${sevLabel[r.sev]}</b></span>
+        <span>1D: <b>${r.resultRoll}</b></span>
+      </div>
+      <p>${esc(r.text)}</p>
+    </div>`;
+
+  /* --- Reparaturkosten --- */
+  const repairBlocks = Object.values(TRAMP_RULES.repairs).map(grp => {
+    const rows = grp.rows.map(row => {
+      const cr = grp.ofWeapon || !row.pct ? '–'
+               : fmtCr(Math.round(cost * row.pct)) + ' Cr.';
+      return `<tr><td>${esc(row.label)}</td><td>${esc(row.diff)}</td>
+        <td class="num">${row.pct ? Math.round(row.pct * 100) + ' %' : '–'}</td>
+        <td class="num">${cr}</td></tr>`;
+    }).join('');
+    return `<h3>${esc(lang === 'de' ? grp.deName : grp.enName)}${grp.ofWeapon ? ` <span class="hint">(${t('ws_of_weapon')})</span>` : ''}</h3>
+      <div class="table-scroll"><table class="list">
+        <tr><th>${t('ws_damage')}</th><th>${t('ws_diff')}</th><th>${t('ws_pct')}</th><th>${t('ws_credits')}</th></tr>
+        ${rows}</table></div>`;
+  }).join('');
+
+  /* --- Raumhäfen und laufende Kosten --- */
+  const portOpts = TRAMP_RULES.spaceports.map(p =>
+    `<option ${WS.port === p.key ? 'selected' : ''} value="${p.key}">${esc(p[lang].name)}</option>`).join('');
+  const port = TRAMP_RULES.spaceports.find(p => p.key === WS.port) || TRAMP_RULES.spaceports[2];
+  const restock = (+WS.baseFee || 0) * (+WS.people || 0) * (+WS.days || 0);
+  const docking = port.docking * (+WS.dockDays || 0);
+  const rn = TRAMP_RULES.running;
+
+  const timeRows = TRAMP_RULES.installTime.map(x =>
+    `<tr><td>${esc(x.diff)}</td><td>${esc(x.time)}</td></tr>`).join('');
+
+  const ec = TRAMP_RULES.economics;
+  const linkRows = TRAMP_RULES.linked.map(l =>
+    `<tr><td>${l.count} ${t('ws_weapons_linked')}</td><td>${l.bonus}</td>
+     <td class="num">${fmtCr(l.count * ec.linkCostPerWeapon)} Cr.</td></tr>`).join('');
+
+  return `
+  <p class="hint">${t('ws_intro')}</p>
+
+  <div class="card"><h2>${t('ws_mishap')}</h2>
+    <p class="hint">${t('ws_mishap_when')} ${t('ws_sev_note')}</p>
+    <div class="formgrid">
+      <div><label>${t('ws_system')}</label><select data-ws="system">${sysOpts}</select></div>
+      <div><label>${t('ws_modifier')}</label>
+        <input type="number" data-ws="extra" value="${WS.extra}" style="width:90px">
+        <span class="hint">${t('sh_mishap_total')}: ${der.mishap}</span></div>
+      <div><label>&nbsp;</label><button class="accent" data-act="rollMishap">${t('ws_roll')}</button></div>
+    </div>
+    ${resultBlock}
+  </div>
+
+  <div class="card"><h2>${t('ws_costs')}</h2>
+    <div class="formgrid">
+      <div><label>${t('ws_ports')}</label><select data-ws="port">${portOpts}</select></div>
+      <div><label>${t('ws_dockdays')}</label><input type="number" min="0" data-ws="dockDays" value="${WS.dockDays}" style="width:80px"></div>
+    </div>
+    <p class="hint">${esc(port[lang].desc)}</p>
+    <p>${t('ws_docking')}: <b>${port.docking ? fmtCr(port.docking) + ' Cr. ' + t('ws_per_day') : t('ws_none_listed')}</b>
+       ${port.docking ? ` &nbsp;→&nbsp; ${t('ws_sum')}: <b>${fmtCr(docking)} Cr.</b>` : ''}</p>
+
+    <h3>${t('ws_restock')}</h3>
+    <p class="hint">${t('sh_fees_text')} · ${t('ws_basefee_hint')}</p>
+    <div class="formgrid">
+      <div><label>${t('ws_basefee')}</label><input type="number" min="0" data-ws="baseFee" value="${WS.baseFee}" style="width:80px"></div>
+      <div><label>${t('ws_people')}</label><input type="number" min="0" data-ws="people" value="${WS.people}" style="width:80px"></div>
+      <div><label>${t('ws_days')}</label><input type="number" min="0" data-ws="days" value="${WS.days}" style="width:80px"></div>
+    </div>
+    <p>${t('ws_sum')}: <b>${fmtCr(restock)} Cr.</b></p>
+
+    <h3>${t('ws_overhaul')}</h3>
+    <p class="hint">${t('ws_overhaul_hint')}</p>
+    <p>${fmtCr(rn.overhaulAvg)}–${fmtCr(rn.overhaulHeavy)} Cr. · ${t('ws_sh_bay')}: ${fmtCr(rn.repairBayPerDay)} Cr. ${t('ws_per_day')}</p>
+  </div>
+
+  <div class="card"><h2>${t('ws_repairs')}</h2>
+    <p class="hint">${t('ws_repairs_hint')}</p>
+    ${repairBlocks}
+  </div>
+
+  <div class="card"><h2>${t('ws_times')}</h2>
+    <p class="hint">${t('ws_times_hint')}</p>
+    <div class="table-scroll"><table class="list">
+      <tr><th>${t('ws_diff')}</th><th>${t('ws_time')}</th></tr>${timeRows}</table></div>
+  </div>
+
+  <div class="card"><h2>${t('ws_link')}</h2>
+    <p class="hint">${t('ws_link_hint')}</p>
+    <div class="table-scroll"><table class="list">
+      <tr><th>${t('ws_weapons_linked')}</th><th>${t('ws_bonus')}</th><th>${t('ws_credits')}</th></tr>
+      ${linkRows}</table></div>
+  </div>
+
+  <div class="card"><h2>${t('ws_rules')}</h2>
+    <ul class="hint">
+      <li>${t('ws_rule_used')}</li>
+      <li>${t('ws_rule_resale')}</li>
+      <li>${t('ws_rule_labor')}</li>
+      <li>${t('ws_rule_permit')}</li>
+      <li>${t('ws_rule_nav')}</li>
+    </ul>
+    <p class="hint">${t('ws_source')}: ${esc(TRAMP_RULES.source)}</p>
+  </div>`;
+}
+
 function renderTab(tab) {
   const el = document.getElementById('tab-' + tab);
   if (!el) return;
@@ -668,6 +928,7 @@ function renderTab(tab) {
     case 'weapons': el.innerHTML = viewWeapons(); break;
     case 'crew': el.innerHTML = viewCrew(); break;
     case 'mods': el.innerHTML = viewMods(); break;
+    case 'shop': el.innerHTML = viewWorkshop(); break;
     case 'sheet': renderSheet(); break;
   }
 }
@@ -686,9 +947,27 @@ function pageAction(el) {
     case 'delCustomMod':
       C.mods.custom.splice(+el.dataset.idx, 1);
       update(); break;
+    case 'rollMishap': rollMishap(); break;
   }
 }
 function pageChange(el) {
+  /* Werkstatt-Felder gehören nicht ins Dokument – nur neu zeichnen,
+     nicht speichern. */
+  if (el.dataset.ws) {
+    const k = el.dataset.ws;
+    WS[k] = (el.type === 'number') ? (+el.value || 0) : el.value;
+    if (k === 'system') WS.result = null;   // Ergebnis passt sonst nicht zum System
+    update('shop');
+    const again = document.querySelector(`[data-ws="${k}"]`);
+    if (again && el.type === 'number') { again.focus(); again.select(); }
+    return true;
+  }
+  if (el.id === 'tplEra') {
+    tplEra = el.value;
+    tplMsg = '';
+    update('ship');
+    return true;
+  }
   if (el.id === 'tplSearch') {
     tplFilter = el.value;
     tplMsg = '';

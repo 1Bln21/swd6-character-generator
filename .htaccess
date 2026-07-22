@@ -18,3 +18,16 @@
     Header set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>
 </IfModule>
+
+# Die Kataloge aus den Regelwerken sind gross (pdfdata-craft.js allein rund
+# 1,5 MB). Als Text lassen sie sich hervorragend komprimieren - gzip drueckt
+# sie auf etwa ein Fuenftel. Ohne diesen Block uebertraegt Apache sie roh.
+#
+# The rulebook catalogs are large (pdfdata-craft.js alone is about 1.5 MB).
+# Being plain text they compress very well - gzip cuts them to roughly a
+# fifth. Without this block Apache would send them uncompressed.
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/plain
+  AddOutputFilterByType DEFLATE application/javascript text/javascript
+  AddOutputFilterByType DEFLATE application/json image/svg+xml
+</IfModule>

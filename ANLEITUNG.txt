@@ -12,13 +12,31 @@ DREI GENERATOREN
 Oben links wechselt man zwischen ihnen. Anmeldung, Sprache und die
 Rechtsangaben gelten für alle drei Seiten gemeinsam.
 
-NEU: Vorlagen aus den Regelwerken
-  * Schiffe: 863 fertige Raumschiffe und Fahrzeuge – auswählen, und
+VORLAGEN AUS DEN REGELWERKEN
+  * Schiffe: 1.196 fertige Raumschiffe und Fahrzeuge – auswählen, und
     alle Grundwerte samt Bewaffnung sind gefüllt.
-  * Droiden: 295 fertige Droidenmodelle.
-  * Waffen und Ausrüstung: durchsuchbarer Zusatzkatalog mit 451
-    Waffen und 550 Ausrüstungsgegenständen (Tab "Waffen" bzw.
+  * Droiden: 522 fertige Droidenmodelle.
+  * Waffen und Ausrüstung: durchsuchbarer Zusatzkatalog mit 500
+    Waffen und 574 Ausrüstungsgegenständen (Tab "Waffen" bzw.
     "Ausrüstung", Suchbegriff eingeben und übernehmen).
+  * NEU: Jeder Eintrag nennt sein Quellbuch und lässt sich über das
+    Ära-Dropdown eingrenzen – Alte Republik, Aufstieg des Imperiums,
+    Rebellion oder Neue Republik/Legacy. Mit gewählter Ära genügt
+    das Dropdown allein, ein Suchbegriff ist dann nicht nötig.
+
+NEU: WERKSTATT (Schiffs-Generator, Reiter "Werkstatt")
+  Die erweiterten Regeln aus "Galaxy Guide 6: Tramp Freighters",
+  Kapitel Acht:
+  * Pannen auswürfeln – System wählen, Pannen-Modifikator eintragen,
+    würfeln. Die App bestimmt Schweregrad und Ergebnis aus den
+    Tabellen des Buches (fünf Systeme, je drei Schweregrade).
+  * Reparaturkosten, direkt auf den Kaufpreis des eigenen Schiffs
+    umgerechnet.
+  * Raumhafen-Klassen mit Liegegebühren, Formel für das Auffüllen
+    der Vorräte und Kosten der Generalüberholung.
+  * Einbauzeiten je Schwierigkeitsgrad und die Regeln für gekoppelte
+    Waffen.
+  Gedacht für leichte Frachter – nicht für Jäger oder Capital-Schiffe.
 
 EIGENE SPEZIES SPEICHERN
   Auf dem Charakter-Tab die Spezies "Custom" wählen, ausfüllen und
