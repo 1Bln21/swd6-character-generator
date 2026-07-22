@@ -8,7 +8,7 @@ This project is an HTML port of the Excel workbooks by **Chance Gibboney** — s
 
 | | |
 |---|---|
-| **Characters** | `index.html` — 60 species, all skills, Force powers, equipment, lightsaber workshop |
+| **Characters** | `index.html` — 372 species, all skills, Force powers, equipment, lightsaber workshop |
 | **Droids** | `droid.html` — degrees, 167 modifications, 522 ready-made droid templates |
 | **Ships** | `ship.html` — 863 ship/vehicle templates, modification workshop, weapons, sensors |
 
@@ -19,7 +19,7 @@ This project is an HTML port of the Excel workbooks by **Chance Gibboney** — s
 ### Features
 
 **Characters**
-- **60 species + 9 near-human variants** with attribute limits, move, special abilities, story factors and page references — including Trianii (m/f) and a builder for custom species
+- **372 species + 9 near-human variants** with attribute limits, move, special abilities, story factors and page references — 60 from the original workbook plus 312 taken from the Alien Compendium, listed separately in the dropdown. Includes Trianii (m/f) and a builder for custom species
 - **Rules-based creation**: 18D attribute dice (species-dependent), 7D skills (max. +2D), Force skills from the attribute pool, Character Point advancement with automatic cost calculation
 - **All 84 skills**, advanced skills, specializations and custom skills
 - **82 Force powers** with prerequisites, difficulties and page references
@@ -158,6 +158,7 @@ pip install openpyxl pypdf
 python tools/extract-from-excel.py   "Character Generator v2-5.xlsx"
 python tools/extract-generators.py   "Droid Generator v1-3.xlsm" "Ship Generator v1-1.xlsx"
 python tools/extract-from-pdfs.py    "path/to/rulebooks" ["more/folders" ...]
+python tools/extract-species.py      "path/to/rp_aliens.pdf" ["more/files" ...]
 ```
 
 Each script prints a summary (number of species, skills, ships …) — compare it with the previous run to spot layout changes in a new source version. The source documents themselves are **not** part of this repository.
@@ -178,7 +179,7 @@ Das Projekt ist die HTML-Portierung der Excel-Tabellen von **Chance Gibboney** �
 
 ### Was drin ist
 
-**Charaktere** (`index.html`) – 60 Spezies + 9 Near-Human-Varianten, regelkonforme Erschaffung (18D Attribute, 7D Fertigkeiten, Machtfertigkeiten aus dem Attributs-Pool, Steigerung per Charakterpunkten), alle 84 Fertigkeiten, 82 Machtkräfte, Lichtschwert-Werkstatt. **Eigene Spezies lassen sich online speichern** und stehen dann der ganzen Gruppe im Dropdown zur Verfügung.
+**Charaktere** (`index.html`) – 372 Spezies (60 aus der Excel, 312 weitere aus dem Alien Compendium, im Dropdown getrennt aufgeführt) + 9 Near-Human-Varianten, regelkonforme Erschaffung (18D Attribute, 7D Fertigkeiten, Machtfertigkeiten aus dem Attributs-Pool, Steigerung per Charakterpunkten), alle 84 Fertigkeiten, 82 Machtkräfte, Lichtschwert-Werkstatt. **Eigene Spezies lassen sich online speichern** und stehen dann der ganzen Gruppe im Dropdown zur Verfügung.
 
 **Droiden** (`droid.html`) – fünf Degrees mit eigenen Steigerungskosten, gemeinsamer 25D-Startpool für Attribute, Fertigkeiten *und* Modifikationen, 167 Modifikationen in 11 Kategorien, fest verdrahtete Datenbank-Fertigkeiten sowie **522 fertige Droidenmodelle** aus den Regelwerken.
 

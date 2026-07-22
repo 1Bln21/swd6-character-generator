@@ -59,6 +59,7 @@ Object.assign(T.de, {
   pdf_catalog: 'Erweiterter Katalog aus den Regelwerken', pdf_search: 'Suchen', pdf_add: '+ Übernehmen',
   pdf_hint: 'Zusätzliche Einträge aus den Fan-Sammelbänden. Suchbegriff eingeben, dann übernehmen.',
   pdf_results: 'Treffer', pdf_none: 'Keine Treffer.', pdf_min_chars: 'Mindestens 2 Zeichen eingeben – oder eine Ära wählen.',
+  pdf_more: 'weitere über Suche oder Ära eingrenzen',
   dr_custom_gear: 'Eigene Einträge',
   dr_melee: 'Nahkampf', dr_ranged: 'Fernkampf',
   sheet_title_droid: 'Das Rollenspiel · D6 · Droidenbogen',
@@ -110,6 +111,7 @@ Object.assign(T.en, {
   pdf_catalog: 'Extended catalog from the sourcebooks', pdf_search: 'Search', pdf_add: '+ Add',
   pdf_hint: 'Additional entries from the fan compilations. Type a search term, then add.',
   pdf_results: 'Matches', pdf_none: 'No matches.', pdf_min_chars: 'Enter at least 2 characters – or pick an era.',
+  pdf_more: 'narrow further with the search or era',
   dr_custom_gear: 'Custom entries',
   dr_melee: 'Melee', dr_ranged: 'Ranged',
   sheet_title_droid: 'The Roleplaying Game · D6 · Droid Sheet',
@@ -344,21 +346,24 @@ function pdfCatalogBlock(kind) {
   if (!src.length) return '';
   const f = (pdfFilter[kind] || '').toLowerCase().trim();
   const era = pdfEra[kind] || '';
+  const LIMIT = 50;
   let rows = '', info = '';
-  /* Ohne Suchbegriff wird nur gelistet, wenn eine Ära gewählt ist – sonst
-     wären es je nach Katalog mehrere hundert Zeilen. */
-  if (f.length < 2 && !era) info = `<p class="hint">${t('pdf_min_chars')}</p>`;
-  else {
-    const hits = src.filter(x => (!era || x.era === era) &&
+  {
+    /* Der Katalog zeigt von sich aus die ersten Einträge. Früher blieb er
+       leer, bis jemand zwei Zeichen tippte – dann wirkt die Karte, als
+       wäre gar nichts drin. Suche und Ära grenzen jetzt nur noch ein. */
+    const all = src.filter(x => (!era || x.era === era) &&
       (f.length < 2 || x.name.toLowerCase().includes(f) ||
-       (x.type || '').toLowerCase().includes(f))).slice(0, 50);
+       (x.type || '').toLowerCase().includes(f)));
+    const hits = all.slice(0, LIMIT);
     if (!hits.length) info = `<p class="hint">${t('pdf_none')}</p>`;
     else {
       rows = hits.map(h => `<tr><td>${esc(h.name)}${h.book ? `<br><span class="hint">${esc(h.book)}</span>` : ''}</td>
         <td>${esc(kind === 'equip' ? h.type : h.damage)}</td>
         <td class="num">${fmtCr(h.cost)}</td>
         <td><button class="mini" data-act="pdfAdd" data-kind="${kind}" data-i="${src.indexOf(h)}">${t('pdf_add')}</button></td></tr>`).join('');
-      info = `<p class="hint">${t('pdf_results')}: ${hits.length}</p>`;
+      info = `<p class="hint">${t('pdf_results')}: ${hits.length} / ${all.length}${
+        all.length > LIMIT ? ' · ' + t('pdf_more') : ''}</p>`;
     }
   }
   const label = kind === 'equip' ? t('dr_equipment') : (kind === 'melee' ? t('dr_melee') : t('dr_ranged'));

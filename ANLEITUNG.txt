@@ -12,6 +12,17 @@ DREI GENERATOREN
 Oben links wechselt man zwischen ihnen. Anmeldung, Sprache und die
 Rechtsangaben gelten für alle drei Seiten gemeinsam.
 
+SPEZIES
+  Das Dropdown auf dem Charakter-Tab fuehrt zuerst die 60 Spezies aus
+  der Excel-Vorlage, darunter unter "Weitere Spezies aus den
+  Regelwerken" 312 zusaetzliche aus dem Alien Compendium - von
+  Adarian bis Zizimaak, inklusive Mirialaner.
+
+  Hinweis zu den Attributwuerfeln: Die Sammelbaende rechnen nach der
+  2. Edition (Basis 12D), die App nach "Revised & Expanded" (Basis
+  18D). Beim Import werden die Werte umgerechnet, damit die neuen
+  Spezies genauso stark sind wie die bisherigen.
+
 VORLAGEN AUS DEN REGELWERKEN
   * Schiffe: 1.196 fertige Raumschiffe und Fahrzeuge – auswählen, und
     alle Grundwerte samt Bewaffnung sind gefüllt.

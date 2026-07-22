@@ -12,7 +12,7 @@ let LANG = localStorage.getItem(LS_LANG) || 'de';
 
 /* Wird im ⚙-Menü unter „Über & Credits“ angezeigt.
    Bei jedem Release mit der Versionsnummer des Git-Tags abgleichen! */
-const APP_VERSION = '2.1.0';
+const APP_VERSION = '2.2.0';
 
 const T = {
 de: {
@@ -24,13 +24,15 @@ de: {
   doc_one: 'Charakter', doc_plural: 'Charaktere',
   pdf_catalog: 'Erweiterter Katalog aus den Regelwerken',
   pdf_search: 'Suchen', pdf_add: '+ Übernehmen',
-  pdf_hint: 'Zusätzliche Einträge aus den Fan-Sammelbänden. Suchbegriff eingeben, dann übernehmen – der Eintrag landet mit allen Werten in deiner Liste.',
+  pdf_hint: 'Zusätzliche Einträge aus den Regelwerken und Fan-Sammelbänden. Blättern oder über Suche und Ära eingrenzen, dann übernehmen – der Eintrag landet mit allen Werten in deiner Liste.',
   pdf_results: 'Treffer', pdf_none: 'Keine Treffer – Suchbegriff anpassen.',
   pdf_type_all: 'Alle', pdf_min_chars: 'Mindestens 2 Zeichen eingeben – oder eine Ära wählen.',
+  pdf_more: 'weitere über Suche oder Ära eingrenzen',
   era_all: 'Alle Ären', era_universal: 'zeitlos',
   era_old_republic: 'Alte Republik', era_rise_empire: 'Aufstieg des Imperiums',
   era_rebellion: 'Rebellion', era_new_republic: 'Neue Republik / Legacy',
   cloud_species_group: '☁ Gespeicherte Spezies (Gruppe)',
+  pdf_species_group: '📖 Weitere Spezies aus den Regelwerken',
   species_save_cloud: '☁ Spezies online speichern',
   species_save_cloud_hint: 'Speichert die eigene Spezies auf dem Server – danach steht sie allen angemeldeten Gruppenmitgliedern im Spezies-Dropdown zur Verfügung.',
   species_saved: 'Spezies gespeichert ✔',
@@ -207,13 +209,15 @@ en: {
   doc_one: 'character', doc_plural: 'characters',
   pdf_catalog: 'Extended catalog from the sourcebooks',
   pdf_search: 'Search', pdf_add: '+ Add',
-  pdf_hint: 'Additional entries from the fan compilations. Type a search term, then add – the entry lands in your list with all its stats.',
+  pdf_hint: 'Additional entries from the sourcebooks and fan compilations. Browse, or narrow it down with the search and era, then add – the entry lands in your list with all its stats.',
   pdf_results: 'Matches', pdf_none: 'No matches – try a different term.',
   pdf_type_all: 'All', pdf_min_chars: 'Enter at least 2 characters – or pick an era.',
+  pdf_more: 'narrow further with the search or era',
   era_all: 'All eras', era_universal: 'timeless',
   era_old_republic: 'Old Republic', era_rise_empire: 'Rise of the Empire',
   era_rebellion: 'Rebellion', era_new_republic: 'New Republic / Legacy',
   cloud_species_group: '☁ Saved species (group)',
+  pdf_species_group: '📖 More species from the sourcebooks',
   species_save_cloud: '☁ Save species online',
   species_save_cloud_hint: 'Stores your custom species on the server – it then appears in the species dropdown for all signed-in group members.',
   species_saved: 'Species saved ✔',
@@ -516,7 +520,26 @@ function speciesData() {
       abilities: [], story: [], skillImprove: [], bonusSkills: [], armorP: 0, armorE: 0,
     };
   }
-  return DATA.species.find(x => x.name === name) || DATA.species.find(x => x.name === 'Human');
+  return DATA.species.find(x => x.name === name)
+      || extraSpecies().find(x => x.name === name)
+      || DATA.species.find(x => x.name === 'Human');
+}
+
+/* Zusätzliche Spezies aus den Regelwerken (pdfdata-species.js). Die Datei
+   enthält nur, was im Excel fehlt – doppelt geprüft wird hier trotzdem,
+   falls data.js neu erzeugt wurde und inzwischen mehr kennt. */
+function extraSpecies() {
+  if (typeof PDF_SPECIES === 'undefined') return [];
+  if (!extraSpecies._cache) {
+    const have = new Set(DATA.species.map(x => speciesKey(x.name)));
+    extraSpecies._cache = PDF_SPECIES.filter(x => !have.has(speciesKey(x.name)));
+  }
+  return extraSpecies._cache;
+}
+function speciesKey(n) {
+  /* Wookiee/Wookie und Toydarian/Toydarians sollen als dasselbe gelten */
+  return String(n || '').toLowerCase().replace(/[^a-z]/g, '')
+    .replace(/(.)\1+/g, '$1').replace(/s$/, '');
 }
 function attrIdx(key) { return ATTRS.findIndex(a => a.key === key); }
 function attrMin(key) { const sp = speciesData(); return +sp.min[attrIdx(key)] || 0; }
@@ -763,8 +786,14 @@ function importPortrait(file) {
 function viewInfo() {
   const sp = speciesData();
   ensureCloudSpecies();
+  const extra = extraSpecies();
   const speciesOpts = DATA.species.map(s =>
     `<option ${C.info.species === s.name ? 'selected' : ''}>${esc(s.name)}</option>`).join('')
+    + (extra.length
+      ? `<optgroup label="${esc(t('pdf_species_group'))}">`
+        + extra.map(s => `<option ${C.info.species === s.name ? 'selected' : ''}>${esc(s.name)}</option>`).join('')
+        + '</optgroup>'
+      : '')
     + ((cloudSpecies || []).length
       ? `<optgroup label="${esc(t('cloud_species_group'))}">`
         + cloudSpecies.map(cs => `<option value="cloud:${cs.id}">${esc(cs.name)} (${esc(cs.owner)})</option>`).join('')
@@ -920,17 +949,18 @@ function pdfCatalogBlock(kind) {
   if (!src.length) return '';
   const f = (pdfFilter[kind] || '').toLowerCase().trim();
   const era = pdfEra[kind] || '';
+  const LIMIT = 60;
   let rows = '', info = '';
-  /* Ohne Suchbegriff wird nur gelistet, wenn eine Ära gewählt ist – sonst
-     wären es je nach Katalog mehrere hundert Zeilen. */
-  if (f.length < 2 && !era) {
-    info = `<p class="hint">${t('pdf_min_chars')}</p>`;
-  } else {
+  {
+    /* Der Katalog zeigt von sich aus die ersten Einträge. Früher blieb er
+       leer, bis jemand zwei Zeichen tippte – dann wirkt die Karte, als
+       wäre gar nichts drin. Suche und Ära grenzen jetzt nur noch ein. */
     const matchEra = x => !era || x.era === era;
     const matchText = x => f.length < 2 ||
       x.name.toLowerCase().includes(f) || (x.type || '').toLowerCase().includes(f) ||
       (x.model || '').toLowerCase().includes(f);
-    const hits = src.filter(x => matchEra(x) && matchText(x)).slice(0, 60);
+    const all = src.filter(x => matchEra(x) && matchText(x));
+    const hits = all.slice(0, LIMIT);
     if (!hits.length) info = `<p class="hint">${t('pdf_none')}</p>`;
     else {
       const cols = kind === 'equip'
@@ -945,7 +975,8 @@ function pdfCatalogBlock(kind) {
           ${cols(h)}
           <td><button class="mini" data-act="pdfAdd" data-kind="${kind}" data-i="${idx}">${t('pdf_add')}</button></td></tr>`;
       }).join('');
-      info = `<p class="hint">${t('pdf_results')}: ${hits.length}${hits.length === 60 ? '+' : ''}</p>`;
+      info = `<p class="hint">${t('pdf_results')}: ${hits.length} / ${all.length}${
+        all.length > LIMIT ? ' · ' + t('pdf_more') : ''}</p>`;
     }
   }
   const head = kind === 'equip'
