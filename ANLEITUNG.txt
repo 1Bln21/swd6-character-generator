@@ -23,12 +23,19 @@ SPEZIES
   18D). Beim Import werden die Werte umgerechnet, damit die neuen
   Spezies genauso stark sind wie die bisherigen.
 
+FRACHTRAUM UND UMBAUTEN
+  Eingebaute Ersatzsysteme und Umbauten wiegen etwas, und dieses
+  Gewicht geht vom Frachtraum ab - so sieht es Galaxy Guide 6 vor.
+  Der Reiter "Umbauten" zeigt deshalb "Frachtraum frei: X / Y t",
+  der Schiffsbogen die verbleibende Kapazitaet. Wird der Wert
+  negativ und rot, passt der Umbau nicht mehr ins Schiff.
+
 VORLAGEN AUS DEN REGELWERKEN
-  * Schiffe: 1.196 fertige Raumschiffe und Fahrzeuge – auswählen, und
+  * Schiffe: 1.145 fertige Raumschiffe und Fahrzeuge – auswählen, und
     alle Grundwerte samt Bewaffnung sind gefüllt.
-  * Droiden: 522 fertige Droidenmodelle.
-  * Waffen und Ausrüstung: durchsuchbarer Zusatzkatalog mit 500
-    Waffen und 574 Ausrüstungsgegenständen (Tab "Waffen" bzw.
+  * Droiden: 518 fertige Droidenmodelle.
+  * Waffen und Ausrüstung: durchsuchbarer Zusatzkatalog mit 492
+    Waffen und 563 Ausrüstungsgegenständen (Tab "Waffen" bzw.
     "Ausrüstung", Suchbegriff eingeben und übernehmen).
   * NEU: Jeder Eintrag nennt sein Quellbuch und lässt sich über das
     Ära-Dropdown eingrenzen – Alte Republik, Aufstieg des Imperiums,

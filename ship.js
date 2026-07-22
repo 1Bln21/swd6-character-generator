@@ -58,6 +58,9 @@ Object.assign(T.de, {
   sh_shieldgen: 'Schildgenerator', sh_keep: '– Original behalten –',
   sh_mods_general: 'Ausrüstungs-Umbauten',
   sh_cargo_mods: 'Fracht-Umbauten',
+  sh_cargo_left: 'Frachtraum frei',
+  sh_cargo_of: 'von', sh_cargo_used: 'belegt durch Umbauten:',
+  sh_cargo_hint: 'Eingebaute Ersatzsysteme und Umbauten gehen vom Frachtraum ab – so sieht die Quelle es vor. Wird der Wert negativ, passt der Umbau nicht ins Schiff.',
   sh_custom_mods: 'Eigene Umbauten',
   sh_weight: 'Gewicht (t)', sh_effect: 'Effekt',
   sh_summary: 'Zusammenfassung',
@@ -155,6 +158,9 @@ Object.assign(T.en, {
   sh_shieldgen: 'Shield generator', sh_keep: '– keep original –',
   sh_mods_general: 'Equipment modifications',
   sh_cargo_mods: 'Cargo modifications',
+  sh_cargo_left: 'Cargo space free',
+  sh_cargo_of: 'of', sh_cargo_used: 'taken by modifications:',
+  sh_cargo_hint: 'Replacement systems and modifications are subtracted from cargo capacity, as the source requires. A negative value means the refit does not fit into the ship.',
   sh_custom_mods: 'Custom modifications',
   sh_weight: 'Weight (t)', sh_effect: 'Effect',
   sh_summary: 'Summary',
@@ -309,8 +315,23 @@ function shipDerived() {
   let hyper = i.hyper;
   if (rh) hyper = rh.mult; else if (md.hyper) hyper = md.hyper;
   const wdmgPips = modPips(md.wdmg);
+  const cargoBase = cargoTons();
   return { modCost, mishap, weight, hull, shields, maneuver, space, hyper, wdmgPips,
-           costTotal: cost + modCost };
+           costTotal: cost + modCost,
+           cargoBase, cargoLeft: Math.round((cargoBase - weight) * 100) / 100 };
+}
+
+/* Die Frachtkapazität steht als Freitext im Quellenbuch
+   ("800 metric tons, in four cargo bays"). Für die Rechnung zählt die
+   erste Zahl; kleine Schiffe sind gelegentlich in Kilogramm angegeben. */
+function cargoTons() {
+  const txt = String(C.info.cargo || '');
+  const m = /([\d,.]+)\s*(?:metric\s*)?(ton|tonne)/i.exec(txt);
+  if (m) return parseFloat(m[1].replace(/,/g, '')) || 0;
+  const kg = /([\d,.]+)\s*kg/i.exec(txt);
+  if (kg) return (parseFloat(kg[1].replace(/,/g, '')) || 0) / 1000;
+  const n = /([\d,.]+)/.exec(txt);
+  return n ? parseFloat(n[1].replace(/,/g, '')) || 0 : 0;
 }
 
 /* ---------------- Eingabe-Helfer ---------------- */
@@ -616,6 +637,7 @@ function viewMods() {
     <span>${t('sh_cost_mods')}: <b>${fmtCr(der.modCost)}</b> Cr.</span>
     <span>${t('sh_cost_total')}: <b>${fmtCr(der.costTotal)}</b> Cr.</span>
     <span>${t('sh_weight_total')}: <b>${der.weight}</b> t</span>
+    ${der.cargoBase ? `<span>${t('sh_cargo_left')}: <b class="${der.cargoLeft < 0 ? 'warn' : ''}">${fmtCr(der.cargoLeft)}</b> / ${fmtCr(der.cargoBase)} t</span>` : ''}
     <span>${t('sh_mishap_total')}: <b>${der.mishap}</b></span>
   </div>
   <div class="card"><h2>${t('sh_mods_pct')}</h2>
@@ -628,6 +650,7 @@ function viewMods() {
       ${pctSel('wdmg', SHIP_DATA.weaponDmgMods, t('sh_mod_wdmg'))}
     </div>
     <p class="hint">${t('sh_mishap_hint')}</p>
+    <p class="hint">${t('sh_cargo_hint')}</p>
   </div>
   <div class="card"><h2>${t('sh_parts')}</h2>
     <div class="formgrid">
@@ -705,7 +728,9 @@ function renderSheet() {
       ${sheetField(t('sh_skill'), i.skill + (i.skillSpec ? ': ' + i.skillSpec : ''), 6)}
       ${sheetField(t('sh_crew'), i.crew, 3)}
       ${sheetField(t('sh_passengers'), i.passengers, 3)}
-      ${sheetField(t('sh_cargo'), i.cargo, 3)}
+      ${sheetField(t('sh_cargo'), der.cargoBase && der.weight
+        ? `${fmtCr(der.cargoLeft)} t ${t('sh_cargo_of')} ${fmtCr(der.cargoBase)} t (${t('sh_cargo_used')} ${der.weight} t)`
+        : i.cargo, 3)}
       ${sheetField(t('sh_consumables'), i.consumables, 3)}
       ${sheetField(t('sh_nav'), i.nav ? t('yes') : t('no'), 3)}
       ${sheetField(t('sh_cover'), i.cover, 3)}

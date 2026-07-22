@@ -31,10 +31,10 @@ This project is an HTML port of the Excel workbooks by **Chance Gibboney** — s
 - Shared **25D starting pool** for attributes, skills *and* modifications
 - **167 modifications** in 11 categories (processors, sensors, armor, weapons, medical …)
 - Hard-wired **database skills**
-- **522 droid templates** from the sourcebooks — apply and adjust
+- **518 droid templates** from the sourcebooks — apply and adjust
 
 **Ships** (`ship.html`)
-- **1,196 templates** (863 starships + 333 vehicles) — pick one and every base stat is filled in, weapons included
+- **1,145 templates** (821 starships + 324 vehicles) — pick one and every base stat is filled in, weapons included
 - **Modification workshop**: sublight drive, maneuverability, hyperdrive, hull, shields, weapon damage — each with install difficulty, cost as a percentage of the ship, and a growing **mishap modifier**
 - Replacement drives, hyperdrives, shield generators, cargo conversions
 - Up to six weapons with fire arc, fire control and ranges; sensors and NPC crew skills
@@ -45,7 +45,7 @@ This project is an HTML port of the Excel workbooks by **Chance Gibboney** — s
 - **Save & load** in the browser (localStorage) plus JSON export/import
 - **Print / PDF export**: clean sheets via the browser's print dialog
 - **Bilingual**: German / English, switchable in the ⚙ menu
-- **Extended catalogs from the sourcebooks**: 500 weapons and 574 pieces of equipment, searchable and filterable by era
+- **Extended catalogs from the sourcebooks**: 492 weapons and 563 pieces of equipment, searchable and filterable by era
 - **Online accounts** (optional, needs PHP hosting): registration, login, **MFA via authenticator app**, cloud storage and sharing with fellow players
 
 ### Quick start (local, no server)
@@ -181,11 +181,11 @@ Das Projekt ist die HTML-Portierung der Excel-Tabellen von **Chance Gibboney** �
 
 **Charaktere** (`index.html`) – 372 Spezies (60 aus der Excel, 312 weitere aus dem Alien Compendium, im Dropdown getrennt aufgeführt) + 9 Near-Human-Varianten, regelkonforme Erschaffung (18D Attribute, 7D Fertigkeiten, Machtfertigkeiten aus dem Attributs-Pool, Steigerung per Charakterpunkten), alle 84 Fertigkeiten, 82 Machtkräfte, Lichtschwert-Werkstatt. **Eigene Spezies lassen sich online speichern** und stehen dann der ganzen Gruppe im Dropdown zur Verfügung.
 
-**Droiden** (`droid.html`) – fünf Degrees mit eigenen Steigerungskosten, gemeinsamer 25D-Startpool für Attribute, Fertigkeiten *und* Modifikationen, 167 Modifikationen in 11 Kategorien, fest verdrahtete Datenbank-Fertigkeiten sowie **522 fertige Droidenmodelle** aus den Regelwerken.
+**Droiden** (`droid.html`) – fünf Degrees mit eigenen Steigerungskosten, gemeinsamer 25D-Startpool für Attribute, Fertigkeiten *und* Modifikationen, 167 Modifikationen in 11 Kategorien, fest verdrahtete Datenbank-Fertigkeiten sowie **518 fertige Droidenmodelle** aus den Regelwerken.
 
-**Schiffe** (`ship.html`) – **1.196 Vorlagen** (863 Raumschiffe + 333 Fahrzeuge): auswählen und alle Grundwerte samt Bewaffnung sind gefüllt. Dazu die Umbau-Werkstatt (Antrieb, Manövrierfähigkeit, Hyperantrieb, Hülle, Schilde, Waffenschaden) mit Einbau-Schwierigkeit, Kosten in Prozent des Schiffswerts und steigendem **Pannen-Modifikator**, Ersatzteile, bis zu sechs Waffen, Sensoren und Crew-Skills. Dazu die **Werkstatt** mit den erweiterten Regeln aus *Galaxy Guide 6: Tramp Freighters*: Pannen auswürfeln für alle fünf Systeme und drei Schweregrade, Reparaturkosten-Tabelle auf den eigenen Schiffswert gerechnet, Raumhafen-Klassen mit Liegegebühren, Vorratsformel, Überholungskosten, Einbauzeiten und die Regeln für gekoppelte Waffen.
+**Schiffe** (`ship.html`) – **1.145 Vorlagen** (821 Raumschiffe + 324 Fahrzeuge): auswählen und alle Grundwerte samt Bewaffnung sind gefüllt. Dazu die Umbau-Werkstatt (Antrieb, Manövrierfähigkeit, Hyperantrieb, Hülle, Schilde, Waffenschaden) mit Einbau-Schwierigkeit, Kosten in Prozent des Schiffswerts und steigendem **Pannen-Modifikator**, Ersatzteile, bis zu sechs Waffen, Sensoren und Crew-Skills. Dazu die **Werkstatt** mit den erweiterten Regeln aus *Galaxy Guide 6: Tramp Freighters*: Pannen auswürfeln für alle fünf Systeme und drei Schweregrade, Reparaturkosten-Tabelle auf den eigenen Schiffswert gerechnet, Raumhafen-Klassen mit Liegegebühren, Vorratsformel, Überholungskosten, Einbauzeiten und die Regeln für gekoppelte Waffen.
 
-**Überall** – Bild-Import per Datei oder Drag & Drop, Speichern im Browser plus JSON-Export, Druck-/PDF-Bögen, zweisprachige Oberfläche (⚙-Menü), durchsuchbare **erweiterte Kataloge** mit 500 Waffen und 574 Ausrüstungsgegenständen, nach Ära filterbar sowie optionale **Online-Konten** mit MFA, Cloud-Speicherung und Freigaben.
+**Überall** – Bild-Import per Datei oder Drag & Drop, Speichern im Browser plus JSON-Export, Druck-/PDF-Bögen, zweisprachige Oberfläche (⚙-Menü), durchsuchbare **erweiterte Kataloge** mit 492 Waffen und 563 Ausrüstungsgegenständen, nach Ära filterbar sowie optionale **Online-Konten** mit MFA, Cloud-Speicherung und Freigaben.
 
 ### Schnellstart
 

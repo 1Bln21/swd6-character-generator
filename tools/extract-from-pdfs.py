@@ -102,7 +102,13 @@ LIG = {'ﬁ': 'fi', 'ﬂ': 'fl', 'ﬀ': 'ff', '’': "'", '‘': "'", '“': '"'
        '–': '-', '—': '-', ' ': ' ', ' ': ' '}
 
 # Aufzählungszeichen, mit denen die Bücher ihre Statblöcke einleiten
-BULLETS = '■□▪▫•●◆·mi'
+BULLET_CHARS = '■□▪▫•●◆·'
+
+# Die Texterkennung macht aus dem Kästchen je nach Buch ein 'm', 'mi', 'w',
+# 's' oder '@'. Das darf nur als eigenständiges Zeichen VOR dem Namen weg –
+# als Zeichenklasse abgezogen verliert "interceptor" sein i und
+# "modifications" sein m.
+OCR_BULLET = re.compile(r'^(?:mi|m|w|s|a|@|\|)\s+(?=\S)')
 
 
 def clean(s):
@@ -114,10 +120,41 @@ def clean(s):
 
 def strip_bullet(name):
     """'■ Azalus-Class Dreadnought' -> 'Azalus-Class Dreadnought'
-       Die Bücher setzen vor jeden Statblock ein Kästchen; die Texterkennung
-       macht daraus je nach Buch 'm', 'mi' oder ein Sonderzeichen."""
-    n = name.lstrip(BULLETS + ' ').strip()
+       'mi Sensor Decoys'          -> 'Sensor Decoys'
+       'interceptor'               -> 'interceptor'  (bleibt unangetastet)"""
+    n = name.lstrip(BULLET_CHARS + ' ').strip()
+    n = OCR_BULLET.sub('', n).strip()
     return n or name.strip()
+
+
+def repair_clipped(name, ref):
+    """Manchmal verliert nur die Namenszeile ihren Anfang, waehrend die
+       Modellzeile heil bleibt:
+         'anta Droid Subfighter' + 'Haor Chall Engineering Manta Droid Subfighter'
+         -> 'Manta Droid Subfighter'
+       Nur anwenden, wenn der Name wirklich das abgeschnittene Ende der
+       Modellzeile ist - sonst bliebe etwa 'x1 Hyperdrive' nicht erhalten."""
+    if not name or not ref or not name[0].islower():
+        return name
+    if not ref.lower().endswith(name.lower()) or len(ref) <= len(name):
+        return name
+    start = len(ref) - len(name)
+    while start > 0 and ref[start - 1] not in ' \t-/':
+        start -= 1
+    return ref[start:].strip() or name
+
+
+def tidy_name(n):
+    """Manche Bücher setzen Überschriften komplett klein oder komplett groß.
+       In einer Auswahlliste liest sich das schlecht – aber nur anfassen,
+       wenn die Schreibweise wirklich einheitlich ist, damit Modellkürzel
+       wie 'YT-1300' oder 'TIE/ln' erhalten bleiben."""
+    letters = [c for c in n if c.isalpha()]
+    if letters and all(c.islower() for c in letters):
+        return n.title()
+    if letters and all(c.isupper() for c in letters) and len(n) > 5:
+        return n.title()
+    return n
 
 
 # --------------------------------------------------------- OCR-Korrektur
@@ -209,7 +246,7 @@ def parse_blocks(lines, start_key, extra_start=()):
             # Namenszeile darf selbst kein "Key:" sein
             if KEY_RE.match(name):
                 name = ''
-            name = strip_bullet(name)
+            name = tidy_name(strip_bullet(name))
             cur = [ln]
         elif cur is not None:
             cur.append(ln)
@@ -277,11 +314,76 @@ MAXLEN = {'type': 120, 'scale': 40, 'length': 60, 'crew': 140, 'cargo': 90,
 
 
 def plausible_craft(e):
+    if damaged(e):
+        return False
     for k in ('hull', 'shields', 'maneuver'):
         v = (e.get(k) or '').strip()
         if v and not DICE_LEAD.match(v):
             return False
     return True
+
+
+# ------------------------------------------------------- Namen aufwerten
+# Manche Buecher setzen die Gattung als Ueberschrift und nennen das Modell
+# nur in der "Craft:"-Zeile - der CEC Compendium etwa fuehrt den HT-2200 als
+# blosses "Medium Freighter". In einer Auswahlliste ist das wertlos: man
+# liest die Bauart, nicht das Schiff. Solche Namen werden aus "Craft:"
+# ersetzt, wobei der Hersteller vorn wegfaellt.
+GENRE_ONLY = re.compile(
+    r'^(the\s+)?((light|medium|heavy|small|large|armed|advanced|modified|bulk|assault|'
+    r'auxiliary|escort|patrol|attack|battle|strike|troop|cargo|passenger|utility|'
+    r'diplomatic|drone|republic|imperial|star|space)\s+)*'
+    r'(freighter|transport|shuttle|fighter|starfighter|cruiser|yacht|barge|hauler|'
+    r'scout|bomber|gunship|corvette|frigate|speeder|walker|tank|carrier|dreadnought|'
+    r'destroyer|ship|craft|vessel)s?$', re.I)
+
+MAKERS = (
+    'Corellian Engineering Corporation', 'Corellian Engineering Corp.',
+    'Corellian Engineering', 'Sienar Fleet Systems', 'Sienar Fleet',
+    'Republic Sienar Systems', 'Kuat Drive Yards\'', 'Kuat Drive Yards',
+    'Kuat Systems Engineering', 'Kuat Drive', 'Republic Engineering Corporation',
+    'Republic Engineering', 'Rendili StarDrive\'s', 'Rendili StarDrive',
+    'Dromund Kalakar Shipyard', 'Dromund Kalakar', 'Slayn & Korpil',
+    'Mon Calamari', 'Bespin Motors', 'Incom Corporation', 'Koensayr',
+    'Telgorn Corp', 'Hoersch-Kessel Drive', 'Ubrikkian Industries', 'Ubrikkian',
+    'SoroSuub Corporation', 'SoroSuub', 'MandalMotors', 'Loronar', 'Incom',
+)
+
+
+def better_name(name, craft):
+    """'Medium Freighter' + 'Corellian Engineering Corporation HT-2200'
+       -> 'HT-2200'.   Ohne brauchbares craft bleibt der Name, wie er ist."""
+    if not craft or not GENRE_ONLY.match(name.strip()):
+        return name
+    rest = craft.strip()
+    for m in MAKERS:
+        if rest.lower().startswith(m.lower()):
+            rest = rest[len(m):].strip(' -–')
+            break
+    # "Modified ..." bleibt aussagekraeftiger als die blosse Gattung
+    if not rest or GENRE_ONLY.match(rest):
+        rest = craft.strip()
+    return rest if rest else name
+
+
+# --------------------------------------------------------- Waffennamen
+def clean_weapons(weapons):
+    """Bildunterschriften ("PICTURE REMOVED") und Fliesstext-Reste, die als
+       Waffenname im Block landen, gehoeren nicht in die Waffenliste."""
+    out = []
+    for w in weapons:
+        n = (w.get('name') or '').strip()
+        if not n or len(n) > 60:
+            continue
+        if n.endswith('.') or n.upper() == n and len(n) > 4 and not re.search(r'\d', n):
+            # Saetze enden auf Punkt; reine Grossschrift ohne Ziffer ist
+            # fast immer eine Bildunterschrift ("PICTURE REMOVED")
+            if n.endswith('.') or n in ('REMOVED', 'PICTURE REMOVED'):
+                continue
+        if not re.search(r'[A-Za-z]', n):
+            continue
+        out.append(w)
+    return out
 
 
 def trim_fields(e):
@@ -293,7 +395,23 @@ def trim_fields(e):
     return e
 
 
+# In einigen zweispaltig gesetzten Büchern verliert die Textextraktion
+# zeilenweise das erste Zeichen: aus "Type:" wird "ype:", aus "Scale:"
+# "cale:". Ein Eintrag, in dem das auftaucht, ist durchgehend beschädigt –
+# auch sein Name ("spo Riot Gu" statt "Espo Riot Gun"). Nicht reparierbar,
+# also verwerfen.
+TRUNCATED_KEY = re.compile(r'(?:^|\s)(ype|cale|kill|otes|amage|odel|vail|ost):')
+CITATION = re.compile(r'\(page|Campaign Guide|Sourcebook \(', re.I)
+
+
+def damaged(e):
+    text = ' '.join(str(v) for v in e.values() if isinstance(v, str))
+    return bool(TRUNCATED_KEY.search(text)) or bool(CITATION.search(e.get('name', '')))
+
+
 def plausible_gear(e):
+    if damaged(e):
+        return False
     for k, lim in (('type', 120), ('scale', 40), ('skill', 90), ('avail', 40)):
         if len(e.get(k) or '') > lim:
             return False
@@ -380,7 +498,7 @@ def parse_weapons(lines, src):
         if not dmg and not d.get('Skill'):
             continue
         entry = {
-            'name': name,
+            'name': tidy_name(repair_clipped(name, d.get('Model', ''))),
             'model': d.get('Model', ''),
             'type': typ,
             'scale': d.get('Scale', 'Character'),
@@ -417,7 +535,7 @@ def parse_equipment(lines, src):
         if d.get('Damage'):
             continue
         entry = {
-            'name': name,
+            'name': tidy_name(repair_clipped(name, d.get('Model', ''))),
             'model': d.get('Model', ''),
             'type': d.get('Type', ''),
             'cost': money(d.get('Cost', '')),
@@ -495,7 +613,8 @@ def parse_craft(lines, kind, src):
             })
 
         entry = {
-            'name': name,
+            'name': tidy_name(better_name(repair_clipped(name, d.get('Craft', '')),
+                                          d.get('Craft', ''))),
             'craft': d.get('Craft', ''),
             'type': d.get('Type', ''),
             'scale': d.get('Scale', ''),
@@ -522,7 +641,7 @@ def parse_craft(lines, kind, src):
             'source': d.get('Source', ''),
             'notes': cap(d.get('Game Notes', '')),
             'sensors': {k: sd.get(k, '') for k in ('Passive', 'Scan', 'Search', 'Focus')},
-            'weapons': wl,
+            'weapons': clean_weapons(wl),
             'kind': kind,
         }
         # Pips für die direkte Übernahme in den Generator
@@ -589,7 +708,7 @@ def parse_droids(lines, src):
             elif mode == 'equip':
                 equip.append(ln.lstrip('-').strip())
         d, _ = kv(blk)
-        out.append(tag({
+        entry_d = {
             'name': name,
             'type': d.get('Type', ''),
             'attrs': attrs,
@@ -601,7 +720,11 @@ def parse_droids(lines, src):
             'costText': d.get('Cost', ''),
             'avail': d.get('Availability', ''),
             'source': d.get('Source', ''),
-        }, src, d))
+        }
+        if damaged(entry_d):
+            reject(src)
+            continue
+        out.append(tag(entry_d, src, d))
     return out
 
 
@@ -669,23 +792,30 @@ for fname, book, era, kinds, ocr, skip in SOURCES:
     used.append((book, counts))
 
 
-def dedupe(items):
+def dedupe(items, by_craft=False):
     """Erster Treffer gewinnt. Die Sammelbände stehen in SOURCES vorn, weil
-       ihre Textebene am saubersten ist; die Spezialbücher ergänzen nur."""
+       ihre Textebene am saubersten ist; die Spezialbücher ergänzen nur.
+
+       Bei Schiffen und Fahrzeugen zählt zusätzlich die "Craft:"-Zeile als
+       Kennung. Dasselbe Schiff steht in mehreren Büchern unter verschiedenen
+       Überschriften – der HT-2200 etwa einmal als "HT-2200 Medium Freighter",
+       im CEC Compendium aber nur als "Medium Freighter"."""
     seen, out, dropped = set(), [], 0
     for it in items:
-        k = re.sub(r'[^a-z0-9]', '', it['name'].lower())
-        if not k or k in seen:
+        keys = [re.sub(r'[^a-z0-9]', '', it['name'].lower())]
+        if by_craft and it.get('craft'):
+            keys.append('craft:' + re.sub(r'[^a-z0-9]', '', it['craft'].lower()))
+        if not keys[0] or any(k in seen for k in keys):
             dropped += 1
             continue
-        seen.add(k)
+        seen.update(keys)
         out.append(it)
     return out, dropped
 
 
 (melee, d1), (ranged, d2) = dedupe(melee), dedupe(ranged)
-(equipment, d3), (ships, d4) = dedupe(equipment), dedupe(ships)
-(vehicles, d5), (droids, d6) = dedupe(vehicles), dedupe(droids)
+(equipment, d3), (ships, d4) = dedupe(equipment), dedupe(ships, by_craft=True)
+(vehicles, d5), (droids, d6) = dedupe(vehicles, by_craft=True), dedupe(droids)
 
 """Ausgabe aufgeteilt, damit jede Seite nur lädt, was sie braucht:
      pdfdata-gear.js   – Waffen + Ausrüstung   (Charakter- und Droidenseite)
