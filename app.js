@@ -12,7 +12,7 @@ let LANG = localStorage.getItem(LS_LANG) || 'de';
 
 /* Wird im ⚙-Menü unter „Über & Credits“ angezeigt.
    Bei jedem Release mit der Versionsnummer des Git-Tags abgleichen! */
-const APP_VERSION = '2.3.2';
+const APP_VERSION = '2.3.3';
 
 /* Rückfall, falls skills-de.js nicht geladen wurde (etwa bei einem
    unvollständigen Upload): dann bleiben die englischen Fertigkeitsnamen
@@ -27,7 +27,7 @@ de: {
   subtitle: 'Charaktergenerator · 2nd Edition (Revised & Expanded)',
   footer: 'Basiert auf „Character Generator v2-5“ (Excel) · Star Wars: The Roleplaying Game, 2nd Edition – West End Games D6-System',
   options: 'Optionen', opt_language: 'Sprache / Language',
-  nav_char: 'Charaktere', nav_droid: 'Droiden', nav_ship: 'Schiffe',
+  nav_char: 'Charaktere', nav_droid: 'Droiden', nav_ship: 'Schiffe / Fahrzeuge',
   doc_one: 'Charakter', doc_plural: 'Charaktere',
   pdf_catalog: 'Erweiterter Katalog aus den Regelwerken',
   pdf_search: 'Suchen', pdf_add: '+ Übernehmen',
@@ -212,7 +212,7 @@ en: {
   subtitle: 'Character Generator · 2nd Edition (Revised & Expanded)',
   footer: 'Based on "Character Generator v2-5" (Excel) · Star Wars: The Roleplaying Game, 2nd Edition – West End Games D6 System',
   options: 'Options', opt_language: 'Sprache / Language',
-  nav_char: 'Characters', nav_droid: 'Droids', nav_ship: 'Ships',
+  nav_char: 'Characters', nav_droid: 'Droids', nav_ship: 'Ships / Vehicles',
   doc_one: 'character', doc_plural: 'characters',
   pdf_catalog: 'Extended catalog from the sourcebooks',
   pdf_search: 'Search', pdf_add: '+ Add',

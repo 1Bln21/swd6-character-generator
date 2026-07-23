@@ -23,7 +23,7 @@ const ATTRS = [
 /* ---------------- Übersetzungen ---------------- */
 Object.assign(T.de, {
   title: 'Star Wars D6 – Droiden-Generator',
-  subtitle: 'Droiden-Generator · Droid Generator v1-3',
+  subtitle: 'Droiden-Generator',
   footer: 'Basiert auf „Droid Generator v1-3“ von Chance Gibboney · Star Wars: The Roleplaying Game, 2nd Edition – West End Games D6-System',
   doc_one: 'Droide', doc_plural: 'Droiden',
   tab_model: 'Modell', tab_attrs: 'Attribute', tab_skills: 'Fertigkeiten',
@@ -75,7 +75,7 @@ Object.assign(T.de, {
 });
 Object.assign(T.en, {
   title: 'Star Wars D6 – Droid Generator',
-  subtitle: 'Droid Generator · Droid Generator v1-3',
+  subtitle: 'Droid Generator',
   footer: 'Based on "Droid Generator v1-3" by Chance Gibboney · Star Wars: The Roleplaying Game, 2nd Edition – West End Games D6 system',
   doc_one: 'droid', doc_plural: 'droids',
   tab_model: 'Model', tab_attrs: 'Attributes', tab_skills: 'Skills',

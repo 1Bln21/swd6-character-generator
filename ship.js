@@ -12,8 +12,8 @@ const LS_SAVED = 'swd6_ships';
 
 /* ---------------- Übersetzungen ---------------- */
 Object.assign(T.de, {
-  title: 'Star Wars D6 – Schiffs-Generator',
-  subtitle: 'Schiffs-Generator · Ship Generator v1-1',
+  title: 'Star Wars D6 – Schiffs- und Fahrzeug-Generator',
+  subtitle: 'Schiffs- und Fahrzeug-Generator',
   footer: 'Basiert auf „Ship Generator v1-1“ von Chance Gibboney · Star Wars: The Roleplaying Game, 2nd Edition – West End Games D6-System',
   doc_one: 'Schiff', doc_plural: 'Schiffe',
   tab_ship: 'Schiff', tab_weapons: 'Waffen', tab_crew: 'Sensoren & Crew',
@@ -125,8 +125,8 @@ Object.assign(T.de, {
   ws_source: 'Quelle',
 });
 Object.assign(T.en, {
-  title: 'Star Wars D6 – Ship Generator',
-  subtitle: 'Ship Generator · Ship Generator v1-1',
+  title: 'Star Wars D6 – Ship & Vehicle Generator',
+  subtitle: 'Ship & Vehicle Generator',
   footer: 'Based on "Ship Generator v1-1" by Chance Gibboney · Star Wars: The Roleplaying Game, 2nd Edition – West End Games D6 system',
   doc_one: 'ship', doc_plural: 'ships',
   tab_ship: 'Ship', tab_weapons: 'Weapons', tab_crew: 'Sensors & Crew',
