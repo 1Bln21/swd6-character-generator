@@ -342,15 +342,31 @@ function shipDerived() {
 
   /* Effektive Werte */
   const hull = (+i.hull || 0) + modPips(md.hull);
-  const shields = (+i.shields || 0) + modPips(md.shield) + (sg ? sg.pips : 0);
+  /* Der Schildgenerator ist ein Ersatzsystem, kein Zusatz: Er tritt an die
+     Stelle der vorhandenen Schilde, genau wie Ersatz-Antrieb und
+     Ersatz-Hyperantrieb. Bisher wurde er aufaddiert – ein 4D-Generator in
+     einem Schiff mit 3D Schilden ergab 7D statt 4D.
+     Prozentuale Umbauten ("Schilde verstärken") kommen danach obendrauf. */
+  const shields = (sg ? sg.pips : (+i.shields || 0)) + modPips(md.shield);
   const maneuver = (+i.maneuver || 0) + modPips(md.maneuver);
-  let space = (+i.space || 0);
-  if (rd) space = rd.space; else {
-    const dm = pctMod(SHIP_DATA.driveMods, md.drive);
-    if (dm) space += +dm.label.replace('+', '');
-  }
+  /* Ein Ersatz-Antrieb gibt den neuen Grundwert vor; ein zusätzlicher
+     Leistungs-Umbau kommt darauf. Die Quelle sieht das ausdrücklich vor
+     ("Double all difficulties for modifying this drive"), bisher wurde der
+     Umbau bei eingebautem Ersatz-Antrieb stillschweigend verschluckt. */
+  let space = rd ? rd.space : (+i.space || 0);
+  const dm = pctMod(SHIP_DATA.driveMods, md.drive);
+  if (dm) space += +dm.label.replace('+', '');
+
+  /* Beim Hyperantrieb sind beide Angaben absolute Multiplikatoren, keine
+     Zuschläge. Kleiner ist schneller – deshalb gilt der bessere Wert, sonst
+     würde ein eingebauter x1-Antrieb von einem alten "auf x2 verbessern"
+     wieder ausgebremst. */
   let hyper = i.hyper;
-  if (rh) hyper = rh.mult; else if (md.hyper) hyper = md.hyper;
+  const hyperCandidates = [i.hyper, rh && rh.mult, md.hyper].filter(Boolean);
+  if (hyperCandidates.length > 1 || rh || md.hyper) {
+    const val = x => { const m = /x\s*([\d.]+)/i.exec(String(x)); return m ? parseFloat(m[1]) : Infinity; };
+    hyper = hyperCandidates.reduce((best, x) => (val(x) < val(best) ? x : best));
+  }
   const wdmgPips = modPips(md.wdmg);
   const cargoBase = cargoTons();
   return { modCost, mishap, weight, hull, shields, maneuver, space, hyper, wdmgPips,

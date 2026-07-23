@@ -233,6 +233,41 @@ def join_wrapped(a, b):
     return (a + ' ' + b).strip()
 
 
+def is_continuation(ln):
+    """Überschriften tragen oft einen erklärenden Zusatz in Klammern, der über
+       mehrere Zeilen läuft:
+
+           R2-D2 (Artoo-Detoo)
+           (as of the Battle of Yavin - as of the Jedi Academy
+           Trilogy)
+           Type: Industrial Automaton R2-D2 Astromech Droid
+
+       Die Zeile direkt über "Type:" ist dann "Trilogy)" – als Name unbrauchbar.
+       Solche Fortsetzungen erkennt man an unausgeglichenen Klammern."""
+    ln = ln.strip()
+    if not ln:
+        return True
+    if ln.startswith('('):
+        return True
+    return ln.count(')') > ln.count('(')
+
+
+def find_name(lines, idx):
+    """Von der Zeile über dem Statblock aus nach oben gehen, bis eine Zeile
+       gefunden ist, die als Überschrift taugt. Höchstens vier Zeilen weit –
+       darüber beginnt der Fließtext des vorherigen Eintrags."""
+    for back in range(1, 5):
+        if idx - back < 0:
+            break
+        cand = lines[idx - back]
+        if KEY_RE.match(cand):          # ein "Key: Wert" ist nie der Name
+            break
+        if is_continuation(cand):
+            continue
+        return cand
+    return lines[idx - 1] if idx > 0 else ''
+
+
 def parse_blocks(lines, start_key, extra_start=()):
     """Zerlegt in Einträge. Ein Eintrag beginnt bei der Zeile VOR start_key."""
     starts = set([start_key]) | set(extra_start)
@@ -242,7 +277,7 @@ def parse_blocks(lines, start_key, extra_start=()):
         if m and m.group(1) in starts:
             if cur is not None and name:
                 blocks.append((name, cur))
-            name = lines[idx - 1] if idx > 0 else ''
+            name = find_name(lines, idx)
             # Namenszeile darf selbst kein "Key:" sein
             if KEY_RE.match(name):
                 name = ''

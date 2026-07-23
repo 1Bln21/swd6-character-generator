@@ -33,6 +33,15 @@ WAFFEN FUER SCHIFFE
   laesst sich alles frei anpassen. Ueber Suchfeld und Groessenklasse
   laesst sich die Liste eingrenzen.
 
+ERSATZSYSTEME VS. UMBAUTEN
+  Ersatz-Antrieb, Ersatz-Hyperantrieb und Schildgenerator ERSETZEN den
+  vorhandenen Wert - sie kommen nicht dazu. Ein 4D-Schildgenerator in
+  einem Schiff mit 3D Schilden ergibt also 4D, nicht 7D. Ein
+  zusaetzlicher Leistungs-Umbau ("Schilde verstaerken") rechnet danach
+  obendrauf: 4D + 1D+1 = 5D+1.
+  Beim Hyperantrieb sind beide Angaben Multiplikatoren; kleiner ist
+  schneller, deshalb gilt immer der bessere der beiden Werte.
+
 FRACHTRAUM UND UMBAUTEN
   Eingebaute Ersatzsysteme und Umbauten wiegen etwas, und dieses
   Gewicht geht vom Frachtraum ab - so sieht es Galaxy Guide 6 vor.

@@ -12,7 +12,7 @@ let LANG = localStorage.getItem(LS_LANG) || 'de';
 
 /* Wird im ⚙-Menü unter „Über & Credits“ angezeigt.
    Bei jedem Release mit der Versionsnummer des Git-Tags abgleichen! */
-const APP_VERSION = '2.3.0';
+const APP_VERSION = '2.3.1';
 
 const T = {
 de: {
