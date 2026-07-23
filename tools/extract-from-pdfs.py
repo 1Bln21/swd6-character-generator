@@ -43,7 +43,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # Waffennamen aus den Statbloecken - dieselben Regeln braucht auch
 # repair-catalogs.py, deshalb liegen sie in einem eigenen Modul.
 from weaponnames import (clean_weapon_name, plausible_weapon_name,   # noqa: E402
-                         weapon_base_name, fix_apostrophes,
+                         weapon_base_name, fix_apostrophes, strip_lead_punct,
                          WEAPON_COUNT_RE, WEAPON_PLURAL)
 
 SRC_DIRS = sys.argv[1:] or ['.']
@@ -173,6 +173,11 @@ def tidy_name(n):
         n = n.title()
     elif letters and all(c.isupper() for c in letters) and len(n) > 5:
         n = n.title()
+    # Fuehrendes Trennzeichen (von zwei per "/" verbundenen Herstellern) und
+    # der vom Hersteller uebrig gebliebene Genitiv ("Corporation's Patrol
+    # Cruiser" -> nach Herstellerschnitt "'s Patrol Cruiser") abraeumen.
+    n = strip_lead_punct(n)
+    n = re.sub(r"^['’]s\b\s*", '', n).strip()
     # .title() zieht den Buchstaben hinter dem Apostroph mit hoch:
     # "HOUND'S TOOTH" -> "Hound'S Tooth"
     return fix_apostrophes(n)
@@ -423,10 +428,6 @@ def better_name(name, craft):
             # Trennzeichen inkl. "/" abraeumen - manche Schiffe nennen zwei
             # Hersteller ("... Corporation/Wereling Spaceworks' Corvette").
             rest = rest[len(m):].strip(" -–/")
-            # Der Hersteller steht oft im Genitiv: "Corellian Engineering
-            # Corporation's Patrol Cruiser". Ohne diese Zeile bliebe ein
-            # "'s Patrol Cruiser" in der Auswahlliste stehen.
-            rest = re.sub(r"^['’]s\b\s*", '', rest).strip(" -–/")
             break
     # "Modified ..." bleibt aussagekraeftiger als die blosse Gattung
     if not rest or GENRE_ONLY.match(rest):
@@ -824,6 +825,29 @@ ATTR_RE = re.compile(r'^(DEXTERITY|KNOWLEDGE|MECHANICAL|PERCEPTION|STRENGTH|TECH
 SKILL_RE = re.compile(r"([A-Za-z][A-Za-z \/'\-\(\)]*?)\s*(\d+D(?:\+\d)?)")
 
 
+CHAR_STAT = re.compile(r'\b(Force Points|Character Points|Dark Side Points)\b', re.I)
+ATTR_WORD = re.compile(r'\b(DEXTERITY|KNOWLEDGE|MECHANICAL|PERCEPTION|STRENGTH|TECHNICAL)\b')
+# Ein Droiden-Typ endet auf "... Droid"/"... Automaton" (evtl. mit Grad oder
+# einem verrutschten Wuerfelwert dahinter). "Droid engineer" dagegen hat das
+# Wort mittendrin - das ist eine Person, kein Droide.
+DROID_TYPE = re.compile(
+    r'\b(droids?|automat(?:on|a)|mainframe computer|battle computer|droid brain)\b'
+    r'[\s\W]*'
+    r'(?:\(?\s*(?:1st|2nd|3rd|4th|5th|first|second|third|fourth|fifth)[- ]?'
+    r'(?:degree|class)?\s*\)?)?'
+    r'\s*(?:\d+D(?:\+\d)?)?\s*$', re.I)
+
+
+def is_droid_typed(name, typ):
+    """True, wenn Name oder Typ den Eintrag klar als Droiden ausweist -
+       auch fuer benannte Droiden-Figuren wie R2-D2 oder C-3PO, die als
+       Charaktere Charakterpunkte tragen, aber trotzdem Droiden sind."""
+    m = ATTR_WORD.search(typ or '')
+    prefix = (typ[:m.start()] if m else (typ or '')).strip()
+    return bool(DROID_TYPE.search(prefix)) or \
+        bool(re.search(r'\b(droid|automaton)\b', name or '', re.I))
+
+
 def parse_droids(lines, src):
     out = []
     for name, blk in parse_blocks(lines, 'Type'):
@@ -871,6 +895,25 @@ def parse_droids(lines, src):
             'source': d.get('Source', ''),
         }
         if damaged(entry_d):
+            reject(src)
+            continue
+        droidish = is_droid_typed(name, entry_d['type'])
+        # Helden und NPCs (Boba Fett, Luke, die Sith- und Jedi-Kaesten aus
+        # GG16 ...) stehen in denselben Statblock-Kaesten wie Droiden, tragen
+        # aber Macht-, Charakter- oder Dunkle-Seite-Punkte - Droiden haben so
+        # etwas nie. Ausnahme: benannte Droiden-Figuren wie R2-D2 und C-3PO
+        # werden als Charaktere mit Charakterpunkten gefuehrt, sind aber
+        # eindeutig als Droide typisiert - die bleiben drin.
+        if CHAR_STAT.search(' '.join(blk)) and not droidish:
+            reject(src)
+            continue
+        # Kreaturen (Banthas, Akk-Hunde, Predatoren aus den Bestiarien der
+        # Bücher) fuehren nur DEXTERITY/PERCEPTION/STRENGTH. Ein Droide hat
+        # immer mindestens eine "maschinelle" Eigenschaft - KNOWLEDGE,
+        # MECHANICAL oder TECHNICAL - oder ist ausdruecklich als Droide
+        # typisiert (dann nur unvollstaendig gelesen).
+        machine = any(k in attrs for k in ('kno', 'mec', 'tec'))
+        if not machine and not droidish:
             reject(src)
             continue
         out.append(tag(entry_d, src, d))
@@ -961,6 +1004,11 @@ def build_weapon_catalog(craft_items):
             if not name or len(name) < 4 or not dmg:
                 continue
             if not re.match(r'^\d{1,2}D', dmg):        # kein sauberer Schadenswert
+                continue
+            # weapon_base_name entfernt die Stückzahl ("5 batteries rear" ->
+            # "batteries rear"), erst danach wird der Rest als Phantomwaffe
+            # erkennbar - deshalb hier noch einmal prüfen.
+            if not plausible_weapon_name(name):
                 continue
             key = (re.sub(r'[^a-z0-9]', '', name.lower()), scale, dmg)
             hit = seen.get(key)
