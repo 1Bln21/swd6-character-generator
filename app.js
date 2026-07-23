@@ -12,7 +12,14 @@ let LANG = localStorage.getItem(LS_LANG) || 'de';
 
 /* Wird im ⚙-Menü unter „Über & Credits“ angezeigt.
    Bei jedem Release mit der Versionsnummer des Git-Tags abgleichen! */
-const APP_VERSION = '2.3.1';
+const APP_VERSION = '2.3.2';
+
+/* Rückfall, falls skills-de.js nicht geladen wurde (etwa bei einem
+   unvollständigen Upload): dann bleiben die englischen Fertigkeitsnamen
+   stehen, statt dass die Seite mit einem ReferenceError abbricht. */
+if (typeof skillName !== 'function') {
+  window.skillName = function (en) { return en; };
+}
 
 const T = {
 de: {
@@ -120,15 +127,15 @@ de: {
   skill_hint: 'max. +2D pro Fertigkeit bei der Erschaffung · ★ = typische Spezies-Fertigkeit',
   override_skill: 'Override Skillwürfel (D):',
   spent: 'verteilt:', add_custom_skill: '+ Eigene Fertigkeit',
-  adv_skills: 'Advanced Skills', requirement: 'Voraussetzung',
+  adv_skills: 'Fortgeschrittene Fertigkeiten', requirement: 'Voraussetzung',
   req_missing: '⚠ Voraussetzung nicht erfüllt',
-  add_adv_skill: '+ Eigener Advanced Skill',
-  adv_hint: 'Advanced Skills bauen nicht auf einem Attribut auf (Start 0D) und kosten bei CP-Steigerung das Doppelte.',
+  add_adv_skill: '+ Eigene fortgeschrittene Fertigkeit',
+  adv_hint: 'Fortgeschrittene Fertigkeiten („Advanced Skills“) bauen nicht auf einem Attribut auf (Start 0D) und kosten bei CP-Steigerung das Doppelte.',
   specialization: '(Spezialisierung)', species_bonus: '(Spezies-Bonus)',
   add_spec_title: 'Spezialisierung hinzufügen', remove: 'Entfernen',
   prompt_spec: 'Name der Spezialisierung (z. B. "Blaster: Heavy Blaster Pistol"):',
   prompt_skill: 'Name der neuen Fertigkeit:',
-  prompt_adv: 'Name des Advanced Skills (z. B. "(A) Engineering"):',
+  prompt_adv: 'Name der fortgeschrittenen Fertigkeit (z. B. "(A) Engineering"):',
   prompt_adv_req: 'Voraussetzung (z. B. "Repulsorlift Repair 5D"):',
   /* Macht-Tab */
   the_force: 'Die Macht',
@@ -1142,7 +1149,7 @@ function viewSkills() {
       const canPlus = left > 0 && e.c < 6;
       const extraIdx = C.extraSkills.findIndex(x => x.attr === a.key && x.name === r.name && !x.adv);
       return `<div class="skill-row ${r.spec ? 'spec' : ''} ${isImproved(r.name) ? 'improved' : ''}">
-        <span class="sname">${r.spec ? '↳ ' : ''}${esc(r.name)}
+        <span class="sname">${r.spec ? '↳ ' : ''}${esc(skillName(r.name))}
           ${r.spec ? `<span class="tag">${t('specialization')}</span>` : ''}
           ${r.sb ? `<span class="tag">${t('species_bonus')}</span>` : ''}
         </span>
@@ -1528,7 +1535,7 @@ function renderSheet() {
       return (e && ((e.c || 0) + (e.cp || 0)) > 0) || r.sb;
     }).map(r => {
       const key = skillKey(a.key, r.name);
-      return `<div class="sp-skill ${r.spec ? 'spec' : ''}"><span>${esc(r.name)}</span><span class="d">${fmtD(skillTotal(key))}</span></div>`;
+      return `<div class="sp-skill ${r.spec ? 'spec' : ''}"><span>${esc(skillName(r.name))}</span><span class="d">${fmtD(skillTotal(key))}</span></div>`;
     }).join('');
     return `<div class="sp-attr">
       <div class="ah"><span>${a.name}</span><span>${fmtD(attrTotal(a.key))}</span></div>${rows}</div>`;
@@ -1536,7 +1543,7 @@ function renderSheet() {
   const advBlock = () => {
     const advAll = ADV_SKILLS.concat(C.extraSkills.filter(e => e.adv));
     const rows = advAll.filter(sk => skillPips(skillKey(sk.attr, sk.name)) > 0)
-      .map(sk => `<div class="sp-skill"><span>${esc(sk.name)}</span><span class="d">${fmtD(skillTotal(skillKey(sk.attr, sk.name)))}</span></div>`).join('');
+      .map(sk => `<div class="sp-skill"><span>${esc(skillName(sk.name))}</span><span class="d">${fmtD(skillTotal(skillKey(sk.attr, sk.name)))}</span></div>`).join('');
     return rows ? `<div class="sp-attr"><div class="ah"><span>Advanced</span><span></span></div>${rows}</div>` : '';
   };
   const forceBlock = () => {

@@ -33,6 +33,20 @@ WAFFEN FUER SCHIFFE
   laesst sich alles frei anpassen. Ueber Suchfeld und Groessenklasse
   laesst sich die Liste eingrenzen.
 
+DEUTSCHE FERTIGKEITSNAMEN
+  Auf Deutsch heissen die Fertigkeiten jetzt wie in der deutschen
+  Ausgabe "Krieg der Sterne - Das Rollenspiel": Faelschen, Gluecksspiel,
+  Schleichen, Bolzenschleuder, Kampflaeufer und so weiter. Eigennamen
+  bleiben, wie sie sind - Blaster heisst Blaster, Astrogation heisst
+  Astrogation.
+
+  Wichtig: Das sind reine Anzeigenamen. Gespeichert wird weiterhin mit
+  den englischen Bezeichnungen. Ein Charakter laesst sich also zwischen
+  beiden Sprachen hin- und herschalten, ohne dass etwas verloren geht,
+  und Mitspieler mit englischer Oberflaeche sehen dieselbe Figur.
+
+  Die Zuordnung steht in skills-de.js und kann dort angepasst werden.
+
 ERSATZSYSTEME VS. UMBAUTEN
   Ersatz-Antrieb, Ersatz-Hyperantrieb und Schildgenerator ERSETZEN den
   vorhandenen Wert - sie kommen nicht dazu. Ein 4D-Schildgenerator in

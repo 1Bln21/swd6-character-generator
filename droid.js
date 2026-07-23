@@ -476,7 +476,7 @@ function viewSkills() {
       const total = skillTotal(key);
       const extraIdx = C.extraSkills.findIndex(x => x.attr === a.key && x.name === r.name);
       return `<div class="skill-row">
-        <span class="sname">${esc(r.name)}</span>
+        <span class="sname">${esc(skillName(r.name))}</span>
         ${stepper('skill', `data-key="${esc(key)}"`, e.c > 0, left >= 1 && e.c < 6)}
         <span class="dice ${total > attrTotal(a.key) ? '' : 'plain'}">${fmtD(total)}</span>
         <span class="cost-hint">CP (${skillCpCost(key)}):</span>
@@ -605,7 +605,7 @@ function renderSheet() {
     const rows = skillsFor(a.key).filter(r => {
       const e = C.skills[skillKey(a.key, r.name)];
       return e && ((e.c || 0) + (e.cp || 0)) > 0;
-    }).map(r => `<div class="sp-skill"><span>${esc(r.name)}</span><span class="d">${fmtD(skillTotal(skillKey(a.key, r.name)))}</span></div>`).join('');
+    }).map(r => `<div class="sp-skill"><span>${esc(skillName(r.name))}</span><span class="d">${fmtD(skillTotal(skillKey(a.key, r.name)))}</span></div>`).join('');
     return `<div class="sp-attr">
       <div class="ah"><span>${a.name}</span><span>${fmtD(attrTotal(a.key))}</span></div>${rows}</div>`;
   };

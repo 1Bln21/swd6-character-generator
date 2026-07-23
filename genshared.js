@@ -369,3 +369,10 @@ function initPage(defaultTab) {
   wireCommonEvents();
   renderAll();
 }
+
+/* Rückfall, falls skills-de.js nicht geladen wurde (etwa bei einem
+   unvollständigen Upload): dann bleiben die englischen Namen stehen,
+   statt dass die Seite mit einem ReferenceError abbricht. */
+if (typeof skillName !== 'function') {
+  window.skillName = function (en) { return en; };
+}

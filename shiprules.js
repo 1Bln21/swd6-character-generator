@@ -108,6 +108,25 @@ const TRAMP_RULES = {
   ],
 
   /* --------------------------------------------------------------------
+     Hausregel: eine Stufe über dem Buch
+     ---------------------------------------------------------------------
+     Galaxy Guide 6 deckelt den Rumpf ausdrücklich bei +1D+1 ("Due to
+     current technology standards, it is impossible to improve the hull
+     code by more than +1D+1", S. 36). Für Schilde nennt das Kapitel gar
+     keine Verbesserungstabelle – auf S. 40 heißt es nur, Schilde seien
+     "almost impossible to improve beyond their initial strength"; die
+     Stufen im Generator stammen aus der Excel-Vorlage.
+
+     Die Stufe +1D+2 geht damit über beide Quellen hinaus. Sie ist auf
+     Wunsch der Spielleitung ergänzt und folgt der Manövrierfähigkeit,
+     die im Buch bis +1D+2 reicht (Heroic, 25 %, Pannen-Modifikator +3).
+     Wer streng nach Buch spielen will, entfernt diese Liste hier.
+     -------------------------------------------------------------------- */
+  hullShieldExtra: [
+    { label: '+1D+2', diff: 'Heroic', costPct: 0.25, mishap: 3, houseRule: true },
+  ],
+
+  /* --------------------------------------------------------------------
      Waffenübersicht aus Kapitel Acht ("Weapon Summary")
      Die Preise gelten für den Einbau in einen leichten Frachter; das
      Gewicht geht vom Frachtraum ab. Für eine legale Bewaffnung verlangt

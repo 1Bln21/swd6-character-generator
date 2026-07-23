@@ -59,6 +59,8 @@ Object.assign(T.de, {
   sh_mods_general: 'Ausrüstungs-Umbauten',
   sh_cargo_mods: 'Fracht-Umbauten',
   sh_cargo_left: 'Frachtraum frei',
+  sh_houserule: 'Hausregel',
+  sh_houserule_hint: 'Die Stufe +1D+2 bei Rumpf und Schilden geht über Galaxy Guide 6 hinaus: Das Buch deckelt den Rumpf ausdrücklich bei +1D+1 und nennt für Schilde gar keine Verbesserungstabelle. Sie ist als Hausregel ergänzt und folgt der Manövrierfähigkeit.',
   sh_wpn_catalog: 'Waffe aus den Regelwerken übernehmen',
   sh_wpn_hint: 'Die Bewaffnung stammt aus den Schiffsbeschreibungen der Sammelbände; die Übersicht aus „Galaxy Guide 6“ steht mit Preis und Gewicht voran. Auswählen und übernehmen – danach lässt sich alles frei anpassen.',
   sh_wpn_search: 'Suchen', sh_wpn_pick: '– Waffe wählen –',
@@ -170,6 +172,8 @@ Object.assign(T.en, {
   sh_mods_general: 'Equipment modifications',
   sh_cargo_mods: 'Cargo modifications',
   sh_cargo_left: 'Cargo space free',
+  sh_houserule: 'house rule',
+  sh_houserule_hint: 'The +1D+2 step for hull and shields goes beyond Galaxy Guide 6: the book explicitly caps the hull at +1D+1 and gives no improvement table for shields at all. It is included as a house rule, mirroring maneuverability.',
   sh_wpn_catalog: 'Add a weapon from the sourcebooks',
   sh_wpn_hint: 'These weapons are taken from the ship entries in the compendia; the summary from "Galaxy Guide 6" comes first, with price and weight. Pick one and add it – everything stays editable afterwards.',
   sh_wpn_search: 'Search', sh_wpn_pick: '– pick a weapon –',
@@ -300,6 +304,15 @@ function pctMod(list, label) { return list.find(m => m.label === label) || null;
 
 /* Das Excel beginnt beim Hyperantrieb erst bei x2. Galaxy Guide 6 nennt
    davor noch den Schritt x4 → x3, der hier vorangestellt wird. */
+/* Rumpf und Schilde: das Excel endet bei +1D+1. Galaxy Guide 6 deckelt den
+   Rumpf dort ausdruecklich und nennt fuer Schilde gar keine Tabelle - die
+   Stufe +1D+2 ist eine bewusst ergaenzte Hausregel (siehe shiprules.js). */
+function hullShieldList(base) {
+  const extra = (typeof TRAMP_RULES !== 'undefined' && TRAMP_RULES.hullShieldExtra)
+    ? TRAMP_RULES.hullShieldExtra : [];
+  return base.concat(extra);
+}
+
 function hyperImproveList() {
   const extra = (typeof TRAMP_RULES !== 'undefined') ? TRAMP_RULES.hyperImproveExtra : [];
   return extra.concat(SHIP_DATA.hyperImprove);
@@ -317,8 +330,8 @@ function shipDerived() {
   let modCost = 0, mishap = +i.mishapBase || 0, weight = 0;
   const pct = [
     ['drive', SHIP_DATA.driveMods], ['maneuver', SHIP_DATA.maneuverMods],
-    ['hyper', hyperImproveList()], ['hull', SHIP_DATA.hullMods],
-    ['shield', SHIP_DATA.shieldMods], ['wdmg', SHIP_DATA.weaponDmgMods],
+    ['hyper', hyperImproveList()], ['hull', hullShieldList(SHIP_DATA.hullMods)],
+    ['shield', hullShieldList(SHIP_DATA.shieldMods)], ['wdmg', SHIP_DATA.weaponDmgMods],
   ];
   for (const [key, list] of pct) {
     const sel = pctMod(list, md[key]);
@@ -760,7 +773,7 @@ function viewCrew() {
       <td>${diceCtl('sensors.' + k + 'Bonus', sn[k + 'Bonus'])}</td></tr>`).join('');
   const crewRows = SHIP_DATA.crewSkills.map(name => {
     const pips = C.crewSkills[name] || 0;
-    return `<tr><td>${esc(name)}</td><td>${diceCtl('crewSkills.' + name, pips)}</td></tr>`;
+    return `<tr><td>${esc(skillName(name))}</td><td>${diceCtl('crewSkills.' + name, pips)}</td></tr>`;
   }).join('');
   return `
   <div class="card"><h2>${t('sh_sensors')}</h2>
@@ -783,7 +796,7 @@ function viewMods() {
   const pctSel = (key, list, label) => {
     const opts = [`<option value="">${t('sh_mod_none')}</option>`]
       .concat(list.map(m =>
-        `<option ${md[key] === m.label ? 'selected' : ''} value="${esc(m.label)}">${esc(m.label)} · ${t('sh_install')}: ${esc(m.diff)} · ${Math.round(m.costPct * 100)}% · ${t('sh_mishap_col')} +${m.mishap}</option>`)).join('');
+        `<option ${md[key] === m.label ? 'selected' : ''} value="${esc(m.label)}">${esc(m.label)} · ${t('sh_install')}: ${esc(m.diff)} · ${Math.round(m.costPct * 100)}% · ${t('sh_mishap_col')} +${m.mishap}${m.houseRule ? ' · ' + t('sh_houserule') : ''}</option>`)).join('');
     return `<div><label>${label}</label><select data-bind="mods.${key}" data-rerender="1">${opts}</select></div>`;
   };
   const genRows = SHIP_DATA.generalMods.map(g => {
@@ -821,12 +834,13 @@ function viewMods() {
       ${pctSel('drive', SHIP_DATA.driveMods, t('sh_mod_drive'))}
       ${pctSel('maneuver', SHIP_DATA.maneuverMods, t('sh_mod_maneuver'))}
       ${pctSel('hyper', hyperImproveList(), t('sh_mod_hyper'))}
-      ${pctSel('hull', SHIP_DATA.hullMods, t('sh_mod_hull'))}
-      ${pctSel('shield', SHIP_DATA.shieldMods, t('sh_mod_shield'))}
+      ${pctSel('hull', hullShieldList(SHIP_DATA.hullMods), t('sh_mod_hull'))}
+      ${pctSel('shield', hullShieldList(SHIP_DATA.shieldMods), t('sh_mod_shield'))}
       ${pctSel('wdmg', SHIP_DATA.weaponDmgMods, t('sh_mod_wdmg'))}
     </div>
     <p class="hint">${t('sh_mishap_hint')}</p>
     <p class="hint">${t('sh_cargo_hint')}</p>
+    <p class="hint">${t('sh_houserule_hint')}</p>
   </div>
   <div class="card"><h2>${t('sh_parts')}</h2>
     <div class="formgrid">
@@ -876,8 +890,8 @@ function renderSheet() {
   const modList = [];
   for (const [key, list, label] of [
     ['drive', SHIP_DATA.driveMods, t('sh_mod_drive')], ['maneuver', SHIP_DATA.maneuverMods, t('sh_mod_maneuver')],
-    ['hyper', SHIP_DATA.hyperImprove, t('sh_mod_hyper')], ['hull', SHIP_DATA.hullMods, t('sh_mod_hull')],
-    ['shield', SHIP_DATA.shieldMods, t('sh_mod_shield')], ['wdmg', SHIP_DATA.weaponDmgMods, t('sh_mod_wdmg')],
+    ['hyper', hyperImproveList(), t('sh_mod_hyper')], ['hull', hullShieldList(SHIP_DATA.hullMods), t('sh_mod_hull')],
+    ['shield', hullShieldList(SHIP_DATA.shieldMods), t('sh_mod_shield')], ['wdmg', SHIP_DATA.weaponDmgMods, t('sh_mod_wdmg')],
   ]) {
     if (C.mods[key]) modList.push(`${label}: ${C.mods[key]}`);
   }
@@ -888,7 +902,7 @@ function renderSheet() {
   for (const [n, q] of Object.entries(C.mods.cargo)) if (q > 0) modList.push(n + (q > 1 ? ' ×' + q : ''));
   C.mods.custom.forEach(cm => { if (cm.name) modList.push(cm.name); });
   const crewRows = SHIP_DATA.crewSkills.filter(n => (C.crewSkills[n] || 0) > 0)
-    .map(n => `<div class="sp-skill"><span>${esc(n)}</span><span class="d">${fmtD(C.crewSkills[n])}</span></div>`).join('');
+    .map(n => `<div class="sp-skill"><span>${esc(skillName(n))}</span><span class="d">${fmtD(C.crewSkills[n])}</span></div>`).join('');
 
   const html = `
   <div class="sheet-page">
