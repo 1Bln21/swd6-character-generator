@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Star Wars D6 – Schiffs- und Fahrzeug-Generator</title>
+<title>Star Wars D6 – Ship &amp; Vehicle Generator</title>
 <link rel="stylesheet" href="style.css">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
 </head>
@@ -35,13 +35,15 @@
     <button id="btnOnline">☁ Online</button>
     <span class="sep"></span>
     <div class="options-wrap">
-      <button id="btnOptions" title="Optionen / Options">⚙</button>
+      <button id="btnOptions" title="Options / Optionen">⚙</button>
       <div id="optionsMenu" class="hidden">
-        <div class="opt-title" data-i18n="options">Optionen</div>
+        <div class="opt-title" data-i18n="options">Options</div>
         <div class="opt-section" data-i18n="opt_language">Sprache / Language</div>
         <label class="opt-row"><input type="radio" name="langOpt" value="de"> 🇩🇪 Deutsch</label>
         <label class="opt-row"><input type="radio" name="langOpt" value="en"> 🇬🇧 English</label>
         <div id="legalConfig"></div>
+        <div class="opt-section" data-i18n="opt_about">Info</div>
+        <button id="btnAbout" class="opt-btn" data-i18n="about_open">ℹ About &amp; Credits</button>
       </div>
     </div>
   </div>
@@ -78,6 +80,7 @@
 <script src="pdfdata-craft.js"></script>
 <script src="skills-de.js"></script>
 <script src="ship.js"></script>
+<script src="credits.js"></script>
 <script src="qrcode.js"></script>
 <script src="online.js"></script>
 <script src="legal.js"></script>

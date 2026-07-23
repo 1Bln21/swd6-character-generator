@@ -46,7 +46,7 @@ This project is an HTML port of the Excel workbooks by **Chance Gibboney** — s
 - **Portraits**: import by file or drag & drop, resized automatically, printed on the sheet
 - **Save & load** in the browser (localStorage) plus JSON export/import
 - **Print / PDF export**: clean sheets via the browser's print dialog
-- **Bilingual**: German / English, switchable in the ⚙ menu — including all 84 skill names, taken from the German edition ("Krieg der Sterne – Das Rollenspiel"). Characters stay interchangeable between languages because the data keeps the English names
+- **Bilingual**: English by default, German switchable in the ⚙ menu (the choice is remembered per browser) — including all 84 skill names, taken from the German edition ("Krieg der Sterne – Das Rollenspiel"). Characters stay interchangeable between languages because the data keeps the English names
 - **Extended catalogs from the sourcebooks**: 492 weapons and 563 pieces of equipment, searchable and filterable by era
 - **Online accounts** (optional, needs PHP hosting): registration, login, **MFA via authenticator app**, cloud storage and sharing with fellow players
 
@@ -187,7 +187,7 @@ Das Projekt ist die HTML-Portierung der Excel-Tabellen von **Chance Gibboney** �
 
 **Schiffe & Fahrzeuge** (`ship.html`) – **1.145 Vorlagen** (821 Raumschiffe + 324 Fahrzeuge): auswählen und alle Grundwerte samt Bewaffnung sind gefüllt. Dazu die Umbau-Werkstatt (Antrieb, Manövrierfähigkeit, Hyperantrieb, Hülle, Schilde, Waffenschaden) mit Einbau-Schwierigkeit, Kosten in Prozent des Schiffswerts und steigendem **Pannen-Modifikator**, Ersatzteile, bis zu sechs Waffen, Sensoren und Crew-Skills. Die Bewaffnung lässt sich aus einem **Waffen-Katalog** übernehmen: 933 Typen aus den Schiffsbeschreibungen der Sammelbände plus die Übersicht aus *Galaxy Guide 6* mit Preis und Gewicht, filterbar nach Größenklasse. Dazu die **Werkstatt** mit den erweiterten Regeln aus *Galaxy Guide 6: Tramp Freighters*: Pannen auswürfeln für alle fünf Systeme und drei Schweregrade, Reparaturkosten-Tabelle auf den eigenen Schiffswert gerechnet, Raumhafen-Klassen mit Liegegebühren, Vorratsformel, Überholungskosten, Einbauzeiten und die Regeln für gekoppelte Waffen.
 
-**Überall** – Bild-Import per Datei oder Drag & Drop, Speichern im Browser plus JSON-Export, Druck-/PDF-Bögen, zweisprachige Oberfläche (⚙-Menü) samt aller 84 Fertigkeitsnamen nach der deutschen Ausgabe „Krieg der Sterne – Das Rollenspiel“, durchsuchbare **erweiterte Kataloge** mit 492 Waffen und 563 Ausrüstungsgegenständen, nach Ära filterbar sowie optionale **Online-Konten** mit MFA, Cloud-Speicherung und Freigaben.
+**Überall** – Bild-Import per Datei oder Drag & Drop, Speichern im Browser plus JSON-Export, Druck-/PDF-Bögen, zweisprachige Oberfläche (Englisch als Standard, Deutsch im ⚙-Menü) samt aller 84 Fertigkeitsnamen nach der deutschen Ausgabe „Krieg der Sterne – Das Rollenspiel“, durchsuchbare **erweiterte Kataloge** mit 492 Waffen und 563 Ausrüstungsgegenständen, nach Ära filterbar sowie optionale **Online-Konten** mit MFA, Cloud-Speicherung und Freigaben.
 
 ### Schnellstart
 

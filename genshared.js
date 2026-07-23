@@ -9,7 +9,10 @@
 'use strict';
 
 const LS_LANG = 'swd6_lang';
-let LANG = localStorage.getItem(LS_LANG) || 'de';
+/* Standardsprache Englisch: Das Projekt wird in den englischsprachigen
+   SWD6-Gemeinschaften beworben. Wer einmal auf Deutsch umgestellt hat,
+   bekommt seine Wahl weiterhin aus dem localStorage. */
+let LANG = localStorage.getItem(LS_LANG) || 'en';
 
 /* Basis-Wörterbuch – Seiten und Module ergänzen per Object.assign */
 const T = {
@@ -75,6 +78,9 @@ en: {
 function t(k) {
   const v = T[LANG] && T[LANG][k];
   if (v !== undefined) return v;
+  /* Fehlt ein Schlüssel, lieber die englische Fassung zeigen als die
+     deutsche – Englisch ist die Standardsprache der App. */
+  if (T.en && T.en[k] !== undefined) return T.en[k];
   return T.de[k] !== undefined ? T.de[k] : k;
 }
 function tCat(cat) { const v = t('cat_' + cat); return v === 'cat_' + cat ? cat : v; }
@@ -89,6 +95,9 @@ function setLang(l) {
   document.title = t('title');
   applyStaticI18n();
   if (typeof renderLegal === 'function') renderLegal();
+  /* Offenen Credits-Dialog mitziehen */
+  const am = document.getElementById('aboutModal');
+  if (am && !am.classList.contains('hidden') && typeof renderAbout === 'function') renderAbout();
   renderAll();
 }
 

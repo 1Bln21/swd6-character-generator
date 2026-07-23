@@ -15,6 +15,13 @@
 
 /* ---------------- Übersetzungen ---------------- */
 Object.assign(T.de, {
+  /* Diese fünf standen früher in app.js und fehlten damit auf der
+     Droiden- und Schiffsseite – sie gehören zu diesem Modul. */
+  opt_legal: 'Rechtliches (fürs Hosting)',
+  legal_impressum_label: 'Link zum Impressum',
+  legal_datenschutz_label: 'Link zur Datenschutzerklärung',
+  legal_hint: 'Leer = Link ausgeblendet. Gilt nur für diesen Browser – damit alle Besucher die Links sehen, die URLs in config.js eintragen.',
+  link_impressum: 'Impressum', link_datenschutz: 'Datenschutz',
   legal_open_settings: '⚖ Impressum & Datenschutz…',
   legal_settings_title: 'Impressum & Datenschutz',
   legal_urls_section: 'Eigene Seiten verlinken (optional)',
@@ -44,6 +51,11 @@ Object.assign(T.de, {
   legal_updated: 'Stand',
 });
 Object.assign(T.en, {
+  opt_legal: 'Legal (for hosting)',
+  legal_impressum_label: 'Legal notice (Impressum) URL',
+  legal_datenschutz_label: 'Privacy policy URL',
+  legal_hint: 'Empty = link hidden. Applies to this browser only – to show the links to all visitors, set the URLs in config.js.',
+  link_impressum: 'Legal Notice', link_datenschutz: 'Privacy Policy',
   legal_open_settings: '⚖ Legal notice & privacy…',
   legal_settings_title: 'Legal notice & privacy policy',
   legal_urls_section: 'Link to your own pages (optional)',
@@ -381,8 +393,14 @@ async function legalSave() {
   renderLegalSettings();
 }
 
-/* ---------------- Footer-Links & Menü-Eintrag ---------------- */
-renderLegal = function () {
+/* ---------------- Footer-Links & Menü-Eintrag ----------------
+   Bewusst über window: app.js bringt eine Stub-Funktion renderLegal()
+   mit, genshared.js (Droiden- und Schiffsseite) nicht. Eine einfache
+   Zuweisung "renderLegal = …" wirft dort im Strict Mode einen
+   ReferenceError – und damit brach der Rest dieser Datei ab, weshalb
+   der Menü-Eintrag für Impressum und Datenschutz auf beiden Seiten
+   fehlte. */
+window.renderLegal = function () {
   const d = legalData();
   const links = [];
   const mk = (which, label) => {
@@ -437,12 +455,18 @@ document.addEventListener('keydown', e => {
     if (m) m.classList.add('hidden');
   });
 });
-/* Das Options-Menü stoppt die Propagation – daher dort ein eigener Listener */
-if (typeof optionsMenu !== 'undefined' && optionsMenu) {
-  optionsMenu.addEventListener('click', e => {
+/* Das Options-Menü stoppt die Propagation – daher dort ein eigener Listener.
+
+   Das Element direkt holen, nicht die Variable optionsMenu benutzen:
+   app.js setzt sie beim Einlesen, genshared.js (Droiden- und Schiffsseite)
+   erst bei DOMContentLoaded. Da diese Datei vorher läuft, war sie dort noch
+   undefined – der Listener wurde nie gehängt und der Menüpunkt tat nichts. */
+const legalOptionsMenu = document.getElementById('optionsMenu');
+if (legalOptionsMenu) {
+  legalOptionsMenu.addEventListener('click', e => {
     const act = e.target.closest('[data-legal-act]');
     if (act && act.dataset.legalAct === 'settings') {
-      optionsMenu.classList.add('hidden');
+      legalOptionsMenu.classList.add('hidden');
       openLegalSettings();
     }
   });

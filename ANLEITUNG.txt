@@ -33,6 +33,19 @@ WAFFEN FUER SCHIFFE
   laesst sich alles frei anpassen. Ueber Suchfeld und Groessenklasse
   laesst sich die Liste eingrenzen.
 
+SPRACHE
+  Die App startet auf ENGLISCH. Das Projekt wird in den
+  englischsprachigen SWD6-Gemeinschaften beworben, deshalb ist das die
+  Voreinstellung. Deutsch laesst sich jederzeit im Zahnrad-Menue oben
+  rechts waehlen - die Wahl merkt sich der Browser.
+
+  Im Zahnrad-Menue stehen auf ALLEN drei Seiten:
+    * Sprache
+    * Impressum & Datenschutz
+    * Ueber & Credits
+  (Bis 2.3.6 gab es auf der Droiden- und der Schiffsseite nur die
+  Sprachwahl.)
+
 DEUTSCHE FERTIGKEITSNAMEN
   Auf Deutsch heissen die Fertigkeiten jetzt wie in der deutschen
   Ausgabe "Krieg der Sterne - Das Rollenspiel": Faelschen, Gluecksspiel,

@@ -8,11 +8,13 @@
    SPRACHEN / LANGUAGES
    ===================================================================== */
 const LS_LANG = 'swd6_lang';
-let LANG = localStorage.getItem(LS_LANG) || 'de';
+/* Standardsprache Englisch: Das Projekt wird in den englischsprachigen
+   SWD6-Gemeinschaften beworben. Wer einmal auf Deutsch umgestellt hat,
+   bekommt seine Wahl weiterhin aus dem localStorage. */
+let LANG = localStorage.getItem(LS_LANG) || 'en';
 
 /* Wird im ⚙-Menü unter „Über & Credits“ angezeigt.
    Bei jedem Release mit der Versionsnummer des Git-Tags abgleichen! */
-const APP_VERSION = '2.3.6';
 
 /* Rückfall, falls skills-de.js nicht geladen wurde (etwa bei einem
    unvollständigen Upload): dann bleiben die englischen Fertigkeitsnamen
@@ -48,28 +50,6 @@ de: {
   species_cloud_list: 'Online gespeicherte Spezies',
   species_by: 'von', species_use: 'Übernehmen',
   species_confirm_delete: 'Gespeicherte Spezies „{name}“ wirklich löschen?',
-  opt_about: 'Info', about_open: 'ℹ Über & Credits',
-  about_title: 'Über & Credits',
-  app_name: 'SWD6 Charaktergenerator',
-  about_created: 'Erstellt von', about_license: 'Lizenz', about_repo: 'Quellcode',
-  about_replay: '↻ Crawl wiederholen', about_close: 'Schließen',
-  about_disclaimer: 'Nicht-kommerzielles Fan-Projekt. Nicht verbunden mit Lucasfilm Ltd., Disney oder West End Games. „Star Wars“ ist eine Marke der jeweiligen Rechteinhaber.',
-  about_crawl: [
-    'SWD6 CHARAKTER-GENERATOR',
-    'Vor langer Zeit, in einer Tabellenkalkulation weit, weit entfernt, entstand ein Werkzeug, das Helden erschuf.',
-    'Der größte Dank gebührt CHANCE GIBBONEY, dem Schöpfer der originalen Excel-Tabelle „Character Generator v2-5“. Seine akribische Arbeit bildet das Fundament dieses Generators – ohne ihn gäbe es diese Anwendung nicht. Er hat der Nutzung freundlicherweise zugestimmt.',
-    'Dank gebührt WEST END GAMES für das D6-System und das Star-Wars-Rollenspiel der Zweiten Edition, das Generationen von Spielern zusammenbrachte.',
-    'Dank an die namenlosen Chronisten der Fan-Gemeinde, die über Jahre die Sammelbände für Waffen, Ausrüstung, Droiden, Raumschiffe und Fahrzeuge zusammentrugen und die Saga-Edition ins D6-System zurückübersetzten. Aus ihrer Arbeit stammen die Kataloge dieser Anwendung.',
-    'Dank an Kazuhiko Arase für die QR-Code-Bibliothek und an die Schöpfer von PHP, SQLite und Python, deren freie Werkzeuge diese Reise möglich machten.',
-    'Dank auch an die KI-Assistenz, die beim Portieren des Codes zur Seite stand.',
-    'Und schließlich Dank an dich – tapfere Heldin, tapferer Held am Spieltisch, der neue Charaktere in eine unendliche Galaxis entsendet.',
-    'Möge die Macht mit dir sein.',
-  ],
-  opt_legal: 'Rechtliches (fürs Hosting)',
-  legal_impressum_label: 'Link zum Impressum',
-  legal_datenschutz_label: 'Link zur Datenschutzerklärung',
-  legal_hint: 'Leer = Link ausgeblendet. Gilt nur für diesen Browser – damit alle Besucher die Links sehen, die URLs in config.js eintragen.',
-  link_impressum: 'Impressum', link_datenschutz: 'Datenschutz',
   btn_load: 'Laden', btn_save: '💾 Speichern', btn_new: 'Neu',
   btn_export: '⬇ Export', btn_import: '⬆ Import', btn_print: '🖨 Drucken / PDF',
   tab_info: 'Charakter', tab_attrs: 'Attribute', tab_skills: 'Fertigkeiten',
@@ -233,28 +213,6 @@ en: {
   species_cloud_list: 'Species stored online',
   species_by: 'by', species_use: 'Use',
   species_confirm_delete: 'Really delete stored species "{name}"?',
-  opt_about: 'Info', about_open: 'ℹ About & Credits',
-  about_title: 'About & Credits',
-  app_name: 'SWD6 Character Generator',
-  about_created: 'Created by', about_license: 'License', about_repo: 'Source code',
-  about_replay: '↻ Replay crawl', about_close: 'Close',
-  about_disclaimer: 'Non-commercial fan project. Not affiliated with Lucasfilm Ltd., Disney or West End Games. “Star Wars” is a trademark of its respective owners.',
-  about_crawl: [
-    'SWD6 CHARACTER GENERATOR',
-    'A long time ago, in a spreadsheet far, far away, a tool was born that forged heroes.',
-    'Our greatest thanks go to CHANCE GIBBONEY, creator of the original Excel workbook “Character Generator v2-5”. His meticulous work is the foundation of this generator — without him, this app would not exist. He kindly gave his permission for it to be used.',
-    'Thanks to WEST END GAMES for the D6 system and the Second Edition of the Star Wars Roleplaying Game that brought generations of players together.',
-    'Thanks to the unnamed chroniclers of the fan community, who over many years compiled the compendia of weapons, equipment, droids, starships and vehicles, and converted the Saga Edition back into the D6 system. Their work is where the catalogs in this app come from.',
-    'Thanks to Kazuhiko Arase for the QR code library, and to the makers of PHP, SQLite and Python, whose free tools made this journey possible.',
-    'Thanks also to the AI assistance that helped port the code.',
-    'And finally, thanks to you — brave hero at the gaming table, who sends new characters into an endless galaxy.',
-    'May the Force be with you.',
-  ],
-  opt_legal: 'Legal (for hosting)',
-  legal_impressum_label: 'Legal notice (Impressum) URL',
-  legal_datenschutz_label: 'Privacy policy URL',
-  legal_hint: 'Empty = link hidden. Applies to this browser only – to show the links to all visitors, set the URLs in config.js.',
-  link_impressum: 'Legal Notice', link_datenschutz: 'Privacy Policy',
   btn_load: 'Load', btn_save: '💾 Save', btn_new: 'New',
   btn_export: '⬇ Export', btn_import: '⬆ Import', btn_print: '🖨 Print / PDF',
   tab_info: 'Character', tab_attrs: 'Attributes', tab_skills: 'Skills',
@@ -396,6 +354,9 @@ en: {
 function t(k) {
   const v = T[LANG] && T[LANG][k];
   if (v !== undefined) return v;
+  /* Fehlt ein Schlüssel, lieber die englische Fassung zeigen als die
+     deutsche – Englisch ist die Standardsprache der App. */
+  if (T.en && T.en[k] !== undefined) return T.en[k];
   return T.de[k] !== undefined ? T.de[k] : k;
 }
 function tCat(cat) { return t('cat_' + cat); }
@@ -2079,64 +2040,6 @@ document.addEventListener('click', () => optionsMenu.classList.add('hidden'));
 document.querySelectorAll('input[name="langOpt"]').forEach(r => {
   r.addEventListener('change', () => { setLang(r.value); });
 });
-/* ---------------- Über / About & Credits ---------------- */
-function aboutModal() {
-  let m = document.getElementById('aboutModal');
-  if (!m) {
-    m = document.createElement('div');
-    m.id = 'aboutModal';
-    m.className = 'modal-overlay no-print hidden';
-    m.innerHTML = '<div class="modal-box about-box" id="aboutBox"></div>';
-    document.body.appendChild(m);
-    m.addEventListener('click', e => { if (e.target === m) m.classList.add('hidden'); });
-  }
-  return m;
-}
-function openAbout() { aboutModal().classList.remove('hidden'); renderAbout(); }
-function renderAbout() {
-  const box = document.getElementById('aboutBox');
-  if (!box) return;
-  const crawl = t('about_crawl');
-  const title = crawl[0];
-  const paras = crawl.slice(1).map(p => `<p>${esc(p)}</p>`).join('');
-  box.innerHTML = `
-    <div class="modal-head"><h2>${t('about_title')}</h2>
-      <button class="mini" data-about="close">✕</button></div>
-    <div class="sw-crawl">
-      <div class="sw-crawl-content" id="swCrawl">
-        <div class="sw-title">${esc(title)}</div>
-        ${paras}
-      </div>
-    </div>
-    <div class="about-info">
-      <p><b>${esc(t('app_name'))}</b> · v${APP_VERSION}</p>
-      <p>${t('about_created')} <b>1Bln21</b> · ${t('about_license')}:
-        <a href="LICENSE" target="_blank" rel="noopener">MIT</a></p>
-      <p class="hint">${t('about_repo')}: github.com/1Bln21/swd6-character-generator</p>
-      <p class="hint">${t('about_disclaimer')}</p>
-    </div>
-    <p style="text-align:center; margin-top:10px">
-      <button data-about="replay">${t('about_replay')}</button>
-      <button class="accent" data-about="close">${t('about_close')}</button>
-    </p>`;
-}
-const btnAbout = document.getElementById('btnAbout');
-if (btnAbout) btnAbout.addEventListener('click', () => { optionsMenu.classList.add('hidden'); openAbout(); });
-document.addEventListener('click', e => {
-  const el = e.target.closest('[data-about]');
-  if (!el) return;
-  const act = el.dataset.about;
-  const m = document.getElementById('aboutModal');
-  if (act === 'close' && m) m.classList.add('hidden');
-  if (act === 'replay') {
-    const c = document.getElementById('swCrawl');
-    if (c) { c.style.animation = 'none'; void c.offsetWidth; c.style.animation = ''; }
-  }
-});
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { const m = document.getElementById('aboutModal'); if (m) m.classList.add('hidden'); }
-});
-
 /* ---------------- Start ---------------- */
 (function init() {
   try {
