@@ -62,6 +62,7 @@ Object.assign(T.de, {
   pdf_more: 'weitere über Suche oder Ära eingrenzen',
   dr_custom_gear: 'Eigene Einträge',
   dr_melee: 'Nahkampf', dr_ranged: 'Fernkampf',
+  range_pkml: 'Reichweite (P/K/M/L)',
   sheet_title_droid: 'Das Rollenspiel · D6 · Droidenbogen',
   dr_installed: 'Eingebaute Modifikationen',
   dr_dbline: 'Datenbank',
@@ -114,6 +115,7 @@ Object.assign(T.en, {
   pdf_more: 'narrow further with the search or era',
   dr_custom_gear: 'Custom entries',
   dr_melee: 'Melee', dr_ranged: 'Ranged',
+  range_pkml: 'Range (PB/S/M/L)',
   sheet_title_droid: 'The Roleplaying Game · D6 · Droid Sheet',
   dr_installed: 'Installed modifications',
   dr_dbline: 'Database',
@@ -566,7 +568,7 @@ function viewGear() {
       ${mOwned || `<tr><td colspan="4" class="hint">${t('none_dash')}</td></tr>`}</table></div>
     <p><select id="addMeleeSel">${mCat}</select> <button class="mini" data-act="addOwn" data-list="melee">+</button></p>
     <h3>${t('dr_ranged')}</h3>
-    <div class="table-scroll"><table class="list"><tr><th>${t('weapon')}</th><th>${t('skill')}</th><th>${t('damage')}</th><th>${t('sh_range') || 'Range'}</th><th></th></tr>
+    <div class="table-scroll"><table class="list"><tr><th>${t('weapon')}</th><th>${t('skill')}</th><th>${t('damage')}</th><th>${t('range_pkml')}</th><th></th></tr>
       ${rOwned || `<tr><td colspan="5" class="hint">${t('none_dash')}</td></tr>`}</table></div>
     <p><select id="addRangedSel">${rCat}</select> <button class="mini" data-act="addOwn" data-list="ranged">+</button></p>
   </div>

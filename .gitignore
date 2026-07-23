@@ -12,3 +12,7 @@ Desktop.ini
 
 # Lokale Werkzeug-Konfiguration (Vorschau-Server o. ae.)
 .claude/
+
+# Python-Zwischendateien der Extraktionsskripte
+__pycache__/
+*.pyc

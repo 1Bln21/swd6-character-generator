@@ -1,0 +1,194 @@
+# -*- coding: utf-8 -*-
+"""
+=============================================================================
+ Bereits erzeugte pdfdata-*.js nachtraeglich in Ordnung bringen
+=============================================================================
+
+ Normalerweise entstehen die Kataloge in einem Rutsch aus den PDFs
+ (tools/extract-from-pdfs.py). Wenn nur die Namensregeln nachgezogen werden,
+ waere ein kompletter Neudurchlauf unnoetig - und er setzt voraus, dass alle
+ Quellbuecher zur Hand sind. Dieses Skript wendet dieselben Regeln (aus
+ weaponnames.py) auf die fertigen Dateien an:
+
+   * Waffennamen in den Schiffs- und Fahrzeug-Statbloecken saeubern
+   * Phantomwaffen entfernen (Zeilen aus dem Statblock der vorigen Waffe)
+   * PDF_SHIP_WEAPONS aus den bereinigten Listen neu aufbauen
+   * am Zeilenanfang abgeschnittene Namen anhand der Modell-/Craft-Zeile
+     reparieren ("ary Load Lifter" -> "Binary Load Lifter")
+
+ Aufruf (aus dem Projektordner):
+     python tools/repair-catalogs.py
+
+ Ohne --write wird nur berichtet, was sich aendern wuerde.
+=============================================================================
+"""
+import io
+import json
+import os
+import re
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from weaponnames import (clean_weapon_name, plausible_weapon_name,
+                         weapon_base_name)
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+WRITE = '--write' in sys.argv
+
+
+def load_arrays(path):
+    """'const PDF_SHIPS = [...];' -> {'PDF_SHIPS': [...]} plus Rohtext."""
+    src = io.open(path, encoding='utf-8').read()
+    out = {}
+    for m in re.finditer(r'^(?:const|var)\s+(\w+)\s*=\s*(\[.*\]);\s*$', src, re.M):
+        out[m.group(1)] = json.loads(m.group(2))
+    return src, out
+
+
+def save_arrays(path, src, arrays):
+    def repl(m):
+        name = m.group('name')
+        if name not in arrays:
+            return m.group(0)
+        body = json.dumps(arrays[name], ensure_ascii=False, separators=(',', ':'))
+        return '%s %s = %s;' % (m.group('kw'), name, body)
+    new = re.sub(r'^(?P<kw>const|var)\s+(?P<name>\w+)\s*=\s*\[.*\];\s*$',
+                 repl, src, flags=re.M)
+    io.open(path, 'w', encoding='utf-8', newline='\n').write(new)
+
+
+def repair_clipped(name, ref):
+    """Wie in extract-from-pdfs.py: der Name hat seinen Anfang verloren,
+       die Modell- oder Craft-Zeile fuehrt ihn noch vollstaendig."""
+    if not name or not ref or not name[0].islower():
+        return name
+    if ref.lower().endswith(name.lower()) and len(ref) > len(name):
+        start = len(ref) - len(name)
+        while start > 0 and ref[start - 1] not in ' \t-/':
+            start -= 1
+        return ref[start:].strip() or name
+    if ref[1:].lower().startswith(name.lower()):
+        return (ref[0] + name).strip()
+    first = name.split(' ', 1)[0]
+    if len(first) >= 3:
+        for w in re.findall(r"[A-Za-z][\w'-]*", ref):
+            if len(w) > len(first) and w.lower().endswith(first.lower()):
+                return (w + name[len(first):]).strip()
+    return name
+
+
+def build_weapon_catalog(craft_items):
+    """Gleiche Waffe, gleiche Skala, gleicher Schaden = ein Eintrag.
+       Wie oft ein Typ vorkommt, entscheidet die Reihenfolge."""
+    seen = {}
+    for e in craft_items:
+        for w in e.get('weapons', []):
+            name = weapon_base_name(w.get('name', ''))
+            dmg = (w.get('damage') or '').strip()
+            scale = (w.get('scale') or '').strip() or (e.get('scale') or '').strip()
+            if not name or len(name) < 4 or not dmg:
+                continue
+            if not re.match(r'^\d{1,2}D', dmg):
+                continue
+            if not plausible_weapon_name(name):
+                continue
+            key = (re.sub(r'[^a-z0-9]', '', name.lower()), scale, dmg)
+            hit = seen.get(key)
+            if hit:
+                hit['count'] += 1
+                continue
+            seen[key] = {
+                'name': name, 'scale': scale, 'damage': dmg,
+                'fireControl': (w.get('fireControl') or '').strip(),
+                'arc': (w.get('arc') or '').strip(),
+                'skill': (w.get('skill') or '').strip(),
+                'crew': (w.get('crew') or '').strip(),
+                'spaceRange': (w.get('spaceRange') or '').strip(),
+                'atmRange': (w.get('atmRange') or '').strip(),
+                'book': e.get('book', ''), 'count': 1,
+            }
+    return sorted(seen.values(), key=lambda x: (-x['count'], x['name'].lower()))
+
+
+report = {'weapons_repaired': [], 'weapons_dropped': [], 'names_repaired': [],
+          'entries_dropped': []}
+
+
+def fix_craft(items, ref_key):
+    """Waffenlisten saeubern und abgeschnittene Namen reparieren.
+       Gibt die Eintraege zurueck, deren Name danach brauchbar ist."""
+    ok = []
+    for e in items:
+        kept = []
+        for w in e.get('weapons') or []:
+            raw = w.get('name') or ''
+            n = clean_weapon_name(raw)
+            if not plausible_weapon_name(n):
+                report['weapons_dropped'].append('%s: %s' % (e.get('name'), raw))
+                continue
+            if n != raw:
+                report['weapons_repaired'].append('%s  ->  %s' % (raw, n))
+            w['name'] = n
+            kept.append(w)
+        if 'weapons' in e:
+            e['weapons'] = kept
+        fixed = repair_clipped(e.get('name') or '', e.get(ref_key) or '')
+        if fixed != e.get('name'):
+            report['names_repaired'].append('%s  ->  %s' % (e['name'], fixed))
+            e['name'] = fixed
+        # Ein Schiffsname faengt gross an. Bleibt er klein, ist die
+        # Ueberschrift gar keine, sondern der Rest einer Quellenangabe -
+        # und der Eintrag dahinter ist durchgehend abgeschnitten.
+        if (e.get('name') or ' ')[0].islower():
+            report['entries_dropped'].append(e.get('name'))
+            continue
+        ok.append(e)
+    return ok
+
+
+# ------------------------------------------------------------- Schiffe
+craft_path = os.path.join(ROOT, 'pdfdata-craft.js')
+craft_src, craft = load_arrays(craft_path)
+craft['PDF_SHIPS'] = fix_craft(craft['PDF_SHIPS'], 'craft')
+craft['PDF_VEHICLES'] = fix_craft(craft['PDF_VEHICLES'], 'craft')
+before = len(craft['PDF_SHIP_WEAPONS'])
+craft['PDF_SHIP_WEAPONS'] = build_weapon_catalog(
+    craft['PDF_SHIPS'] + craft['PDF_VEHICLES'])
+
+# ------------------------------------------ Waffen, Ausruestung, Droiden
+gear_path = os.path.join(ROOT, 'pdfdata-gear.js')
+gear_src, gear = load_arrays(gear_path)
+for key in ('PDF_WEAPONS_MELEE', 'PDF_WEAPONS_RANGED', 'PDF_EQUIPMENT'):
+    for e in gear[key]:
+        fixed = repair_clipped(e.get('name') or '', e.get('model') or '')
+        if fixed != e.get('name'):
+            report['names_repaired'].append('%s  ->  %s' % (e['name'], fixed))
+            e['name'] = fixed
+
+droid_path = os.path.join(ROOT, 'pdfdata-droids.js')
+droid_src, droids = load_arrays(droid_path)
+for e in droids['PDF_DROIDS']:
+    fixed = repair_clipped(e.get('name') or '', e.get('type') or '')
+    if fixed != e.get('name'):
+        report['names_repaired'].append('%s  ->  %s' % (e['name'], fixed))
+        e['name'] = fixed
+
+# ------------------------------------------------------------- Bericht
+print('Waffennamen repariert: %5d' % len(report['weapons_repaired']))
+print('Phantomwaffen entfernt:%5d' % len(report['weapons_dropped']))
+print('Eintragsnamen repariert:%4d' % len(report['names_repaired']))
+print('Eintraege verworfen:  %5d   %s' % (len(report['entries_dropped']), report['entries_dropped']))
+print('Waffenkatalog: %d -> %d Eintraege' % (before, len(craft['PDF_SHIP_WEAPONS'])))
+for k in ('names_repaired', 'weapons_repaired', 'weapons_dropped'):
+    print('\n--- %s (erste 40) ---' % k)
+    for line in report[k][:40]:
+        # Die Konsole unter Windows kann die Kaestchen der Buecher nicht
+        print('   ' + line.encode('ascii', 'replace').decode('ascii'))
+
+if WRITE:
+    save_arrays(craft_path, craft_src, craft)
+    save_arrays(gear_path, gear_src, gear)
+    save_arrays(droid_path, droid_src, droids)
+    print('\nDateien geschrieben.')
+else:
+    print('\nProbelauf - mit --write werden die Dateien geaendert.')

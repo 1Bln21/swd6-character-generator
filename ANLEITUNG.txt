@@ -24,7 +24,7 @@ SPEZIES
   Spezies genauso stark sind wie die bisherigen.
 
 WAFFEN FUER SCHIFFE
-  Der Reiter "Waffen" bietet oben einen Katalog: 933 Waffentypen,
+  Der Reiter "Waffen" bietet oben einen Katalog: 820 Waffentypen,
   gesammelt aus den Schiffsbeschreibungen der Sammelbaende, sowie die
   Waffenuebersicht aus "Galaxy Guide 6" (mit Preis und Gewicht, ganz
   oben in der Liste). Jeder Eintrag nennt seine Groessenklasse -
@@ -32,6 +32,13 @@ WAFFEN FUER SCHIFFE
   und Feuerleitsystem. Auswaehlen, "+ Waffe" druecken, fertig; danach
   laesst sich alles frei anpassen. Ueber Suchfeld und Groessenklasse
   laesst sich die Liste eingrenzen.
+
+  Seit 2.4.0 ist der Katalog aufgeraeumt: Die Buecher setzen ihre
+  Waffenlisten zweispaltig, dabei hatte die Texterkennung Zeilen aus
+  dem Statblock der jeweils VORIGEN Waffe als eigene Waffe gelesen -
+  im Katalog standen deshalb Eintraege wie "1.7 km", "(Atmosphere)"
+  oder "Blast Radius". Solche Phantomwaffen sind raus (114 Stueck,
+  auch aus den Schiffsvorlagen selbst), 45 Namen wurden repariert.
 
 SPRACHE
   Die App startet auf ENGLISCH. Das Projekt wird in den
@@ -101,9 +108,9 @@ FRACHTRAUM UND UMBAUTEN
                   Aussenlast-Halterungen o. ae. zulassen
 
 VORLAGEN AUS DEN REGELWERKEN
-  * Schiffe: 1.145 fertige Raumschiffe und Fahrzeuge – auswählen, und
+  * Schiffe: 1.144 fertige Raumschiffe und Fahrzeuge – auswählen, und
     alle Grundwerte samt Bewaffnung sind gefüllt.
-  * Droiden: 518 fertige Droidenmodelle.
+  * Droiden: 519 fertige Droidenmodelle.
   * Waffen und Ausrüstung: durchsuchbarer Zusatzkatalog mit 492
     Waffen und 563 Ausrüstungsgegenständen (Tab "Waffen" bzw.
     "Ausrüstung", Suchbegriff eingeben und übernehmen).

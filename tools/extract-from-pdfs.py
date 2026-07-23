@@ -39,6 +39,12 @@ try:
 except ImportError:
     sys.exit('Bitte zuerst installieren:  pip install pypdf')
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# Waffennamen aus den Statbloecken - dieselben Regeln braucht auch
+# repair-catalogs.py, deshalb liegen sie in einem eigenen Modul.
+from weaponnames import (clean_weapon_name, plausible_weapon_name,   # noqa: E402
+                         weapon_base_name, WEAPON_COUNT_RE, WEAPON_PLURAL)
+
 SRC_DIRS = sys.argv[1:] or ['.']
 
 # ---------------------------------------------------------------- Quellen
@@ -136,12 +142,24 @@ def repair_clipped(name, ref):
        Modellzeile ist - sonst bliebe etwa 'x1 Hyperdrive' nicht erhalten."""
     if not name or not ref or not name[0].islower():
         return name
-    if not ref.lower().endswith(name.lower()) or len(ref) <= len(name):
-        return name
-    start = len(ref) - len(name)
-    while start > 0 and ref[start - 1] not in ' \t-/':
-        start -= 1
-    return ref[start:].strip() or name
+    if ref.lower().endswith(name.lower()) and len(ref) > len(name):
+        start = len(ref) - len(name)
+        while start > 0 and ref[start - 1] not in ' \t-/':
+            start -= 1
+        return ref[start:].strip() or name
+    # Nur ein einzelner Buchstabe fehlt: 'oroSuub "Firelance"' neben
+    # 'SoroSuub "Firelance" Blaster Rifle'
+    if ref[1:].lower().startswith(name.lower()):
+        return (ref[0] + name).strip()
+    # Das erste Wort ist der Rest eines Wortes aus der Modellzeile:
+    # 'ary Load Lifter' + 'Cybot Galactica CLL-6 Binary Load Lifter ...'
+    #   -> 'Binary Load Lifter'
+    first = name.split(' ', 1)[0]
+    if len(first) >= 3:
+        for w in re.findall(r"[A-Za-z][\w'-]*", ref):
+            if len(w) > len(first) and w.lower().endswith(first.lower()):
+                return (w + name[len(first):]).strip()
+    return name
 
 
 def tidy_name(n):
@@ -351,6 +369,12 @@ MAXLEN = {'type': 120, 'scale': 40, 'length': 60, 'crew': 140, 'cargo': 90,
 def plausible_craft(e):
     if damaged(e):
         return False
+    # Ein Schiffsname faengt gross an. Bleibt er nach repair_clipped klein,
+    # ist die Ueberschrift gar keine - beim "Unstable Terrain Artillery
+    # Transport" stand dort der Rest einer Quellenangabe ("ebsite, The Clone
+    # Wars"), und der ganze Eintrag war zeilenweise abgeschnitten.
+    if (e.get('name') or ' ')[0].islower():
+        return False
     for k in ('hull', 'shields', 'maneuver'):
         v = (e.get(k) or '').strip()
         if v and not DICE_LEAD.match(v):
@@ -431,7 +455,10 @@ def clean_weapons(weapons):
        Waffenname im Block landen, gehoeren nicht in die Waffenliste."""
     out = []
     for w in weapons:
-        n = (w.get('name') or '').strip()
+        n = clean_weapon_name(w.get('name') or '')
+        if not plausible_weapon_name(n):
+            continue
+        w['name'] = n
         # Waffennamen tragen oft einen erklaerenden Zusatz in Klammern
         # ("2 Proton Torpedo Launchers (fire separately, 12 torpedoes each)"
         # sind 63 Zeichen). Die Grenze dient nur dazu, ganze Fliesstext-
@@ -910,26 +937,8 @@ for fname, book, era, kinds, ocr, skip in SOURCES:
 # Für die Auswahlliste im Generator werden daraus die Typen gesammelt:
 # gleiche Waffe, gleiche Skala, gleicher Schaden = ein Eintrag. Wie oft ein
 # Typ vorkommt, entscheidet die Reihenfolge – die gängigsten zuerst.
-WEAPON_COUNT_RE = re.compile(r'^\s*(\d+)\s*[x×]?\s+')
-
-WEAPON_PLURAL = {
-    'Cannons': 'Cannon', 'Launchers': 'Launcher', 'Tubes': 'Tube',
-    'Turrets': 'Turret', 'Batteries': 'Battery', 'Projectors': 'Projector',
-    'Emplacements': 'Emplacement', 'Guns': 'Gun', 'Lasers': 'Laser',
-    'Missiles': 'Missile', 'Torpedoes': 'Torpedo', 'Blasters': 'Blaster',
-    'Mounts': 'Mount', 'Racks': 'Rack', 'Bays': 'Bay', 'Bombs': 'Bomb',
-}
-
-
-def weapon_base_name(n):
-    """'2 Pulse Laser Cannons' -> 'Pulse Laser Cannon'
-       Die Stückzahl gehört in das eigene Feld, nicht in den Namen."""
-    n = WEAPON_COUNT_RE.sub('', (n or '').strip())
-    n = re.sub(r'\s*\([^)]*\)\s*$', '', n).strip()      # "(2 fire-linked)" o. ä.
-    # Mehrzahl nur bei den üblichen Waffenwörtern zurücknehmen
-    n = re.sub(r'\b(%s)\b' % '|'.join(WEAPON_PLURAL),
-               lambda m: WEAPON_PLURAL[m.group(1)], n)
-    return n.strip()
+# WEAPON_COUNT_RE, WEAPON_PLURAL und weapon_base_name stehen in
+# weaponnames.py, weil repair-catalogs.py sie ebenfalls braucht.
 
 
 def build_weapon_catalog(craft_items):
