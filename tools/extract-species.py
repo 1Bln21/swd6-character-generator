@@ -79,11 +79,17 @@ ATTR_ALIAS = {'DEX': 'DEXTERITY', 'KNOW': 'KNOWLEDGE', 'KNO': 'KNOWLEDGE',
               'TEC': 'TECHNICAL'}
 
 DICE = r'\d+D(?:\s*\+\s*\d)?'
-ATTR_RE = re.compile(r'^(%s)\s*:?\s+(%s)\s*/\s*(%s)\s*$'
+# Das Leerzeichen zwischen Attributname und Wuerfelcode faellt im Satz
+# gelegentlich weg ("MECHANICAL1D/4D" statt "MECHANICAL 1D/4D"). Fehlte auch
+# nur ein Attribut, wurde der ganze Block als unvollstaendig verworfen - so
+# sind die Togruta durchgerutscht. Deshalb \s* statt \s+; die Alternative ist
+# auf die sechs Attributnamen festgenagelt, ein Fehlgriff also ausgeschlossen.
+ATTR_RE = re.compile(r'^(%s)\s*:?\s*(%s)\s*/\s*(%s)\s*$'
                      % ('|'.join(ATTR_ORDER + list(ATTR_ALIAS)), DICE, DICE), re.I)
 DICE_LINE = re.compile(r'^Attribute Dice\s*:\s*(%s)' % DICE, re.I)
 SECTION_RE = re.compile(r'^(Special Abilities|Story Factors)\s*:?\s*$', re.I)
 ENTRY_RE = re.compile(r'^([A-Z][^:]{1,60}):\s*(.*)$')
+KEY_LINE = re.compile(r"^[A-Za-z][A-Za-z /'-]{1,28}:\s")
 
 
 # Einzelne Eintraege stehen im Buch unter einem Namen, der ausserhalb seines
@@ -156,6 +162,28 @@ def parse_size(text):
     lo = float(nums[0])
     hi = float(nums[1]) if len(nums) > 1 else lo
     return (lo, hi) if hi >= lo else (lo, lo)
+
+
+def starts_new_entry(lines, idx):
+    """Ist lines[idx] die Namenszeile der naechsten Spezies? Erkennbar daran,
+       dass die Zeile selbst wie ein Name aussieht UND kurz darunter
+       "Home Planet:" oder "Attribute Dice:" folgt.
+
+       Die Namenspruefung ist entscheidend: ohne sie gilt auch eine
+       Fortsetzungszeile wie "the Jedi Sourcebook (pages 75-76)" als
+       Namenszeile, nur weil zwei Zeilen weiter der naechste Eintrag
+       beginnt."""
+    if not looks_like_species_name(lines[idx]):
+        return False
+    for look in (1, 2, 3):
+        if idx + look >= len(lines):
+            break
+        ln = lines[idx + look]
+        if DICE_LINE.match(ln) or re.match(r'^Home Planet\s*:', ln, re.I):
+            return True
+        if KEY_LINE.match(ln):        # irgendein anderer Schluessel -> nein
+            return False
+    return False
 
 
 def join_wrapped(a, b):
@@ -253,6 +281,22 @@ def parse(lines, source_label):
             pm = re.match(r'^Source\s*:\s*(.+)$', ln, re.I)
             if pm:
                 src_page = pm.group(1).strip()
+                # Die Quellenangabe bricht oft um ("... Power of" /
+                # "the Jedi Sourcebook (pages 75-76)"). Fortsetzung nur dann
+                # anhaengen, wenn die Zeile erkennbar mittendrin endet und
+                # die naechste klein anfaengt - sonst wuerde der Name der
+                # naechsten Spezies mit hineinrutschen.
+                for _ in range(2):          # hoechstens zwei Fortsetzungszeilen
+                    if j + 1 >= len(lines):
+                        break
+                    nxt = lines[j + 1]
+                    if KEY_LINE.match(nxt) or starts_new_entry(lines, j + 1):
+                        break
+                    # Bereits vollstaendig? Dann nichts anhaengen.
+                    if src_page.endswith((')', '.')) or src_page[-1:].isdigit():
+                        break
+                    j += 1
+                    src_page = join_wrapped(src_page, lines[j])
                 section, cur = None, None
                 j += 1
                 continue

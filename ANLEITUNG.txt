@@ -15,8 +15,8 @@ Rechtsangaben gelten für alle drei Seiten gemeinsam.
 SPEZIES
   Das Dropdown auf dem Charakter-Tab fuehrt zuerst die 60 Spezies aus
   der Excel-Vorlage, darunter unter "Weitere Spezies aus den
-  Regelwerken" 312 zusaetzliche aus dem Alien Compendium - von
-  Adarian bis Zizimaak, inklusive Mirialaner.
+  Regelwerken" 314 zusaetzliche aus dem Alien Compendium - von
+  Adarian bis Zizimaak, inklusive Mirialaner und Togruta.
 
   Hinweis zu den Attributwuerfeln: Die Sammelbaende rechnen nach der
   2. Edition (Basis 12D), die App nach "Revised & Expanded" (Basis
