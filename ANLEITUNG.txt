@@ -76,6 +76,18 @@ ERSATZSYSTEME VS. UMBAUTEN
   Beim Hyperantrieb sind beide Angaben Multiplikatoren; kleiner ist
   schneller, deshalb gilt immer der bessere der beiden Werte.
 
+ATMOSPHAERENGESCHWINDIGKEIT
+  Die Atmosphaerengeschwindigkeit wird seit 2.4.3 aus dem Space-Wert
+  berechnet - nach der Tabelle "Ships in an Atmosphere" aus dem
+  Grundregelwerk (Space 6 -> 330; 950 km/h, Space 7 -> 350; 1.000
+  usw.). So stimmt sie immer und aendert sich mit, wenn ein Antriebs-
+  Umbau den Space erhoeht. Die Buecher tragen bei den Schiffen oft nur
+  grobe oder gar keine Atmosphaerenwerte ein - die spielen fuer die
+  Anzeige keine Rolle mehr.
+  Ein Schiff, dessen Atmosphaeren-Feld ausdruecklich "N/A" enthaelt
+  (Sternenzerstoerer und andere reine Raumschiffe), kann laut Regel gar
+  nicht in eine Atmosphaere - dann steht dort "keine".
+
 FRACHTRAUM UND UMBAUTEN
   Wichtig zuerst: Die prozentualen LEISTUNGS-UMBAUTEN (Antrieb,
   Manoevrierfaehigkeit, Huelle, Schilde, Waffenschaden) kosten

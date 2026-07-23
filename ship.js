@@ -35,7 +35,11 @@ Object.assign(T.de, {
   sh_hyper: 'Hyperantrieb (Multiplikator)', sh_hyperbackup: 'Backup-Hyperantrieb',
   sh_stats: 'Werte', sh_hull: 'Hülle', sh_shields: 'Schilde',
   sh_maneuver: 'Manövrierfähigkeit', sh_space: 'Space (Bewegung)',
-  sh_atmosphere: 'Atmosphäre (z. B. 295; 850 km/h)',
+  sh_atmosphere: 'Atmosphäre – Quellwert (optional)',
+  sh_atmo_eff: 'Atmosphäre (Move; Vollgas)',
+  sh_atmo_none: 'keine (kann keine Atmosphäre)',
+  sh_atmo_derived: 'Aus Space berechnet:',
+  sh_atmo_none_hint: 'Kein Atmosphärenflug (Feld = N/A).',
   sh_costnew: 'Preis (neu)', sh_costused: 'Preis (gebraucht)',
   sh_mishap: 'Pannen-Modifikator (Basis)',
   sh_basehint: 'Die Grundwerte stammen aus dem Quellenbuch des Schiffs – hier eintragen, die Umbauten rechnen darauf auf.',
@@ -154,7 +158,11 @@ Object.assign(T.en, {
   sh_hyper: 'Hyperdrive (multiplier)', sh_hyperbackup: 'Backup hyperdrive',
   sh_stats: 'Stats', sh_hull: 'Hull', sh_shields: 'Shields',
   sh_maneuver: 'Maneuverability', sh_space: 'Space (movement)',
-  sh_atmosphere: 'Atmosphere (e.g. 295; 850 km/h)',
+  sh_atmosphere: 'Atmosphere – source value (optional)',
+  sh_atmo_eff: 'Atmosphere (move; all-out)',
+  sh_atmo_none: 'none (cannot enter atmosphere)',
+  sh_atmo_derived: 'Derived from Space:',
+  sh_atmo_none_hint: 'No atmospheric flight (field = N/A).',
   sh_costnew: 'Cost (new)', sh_costused: 'Cost (used)',
   sh_mishap: 'Mishap modifier (base)',
   sh_basehint: 'Enter the base stats from the ship’s sourcebook – the modifications build on them.',
@@ -337,6 +345,40 @@ function modPips(label) {
   const n = /\+(\d+)/.exec(label || '');
   return n ? 0 : 0;
 }
+/* Atmosphärengeschwindigkeit aus dem Space-Wert – die Tabelle steht so im
+   Grundregelwerk ("Ships in an Atmosphere"). Erste Zahl = Move in der
+   Atmosphäre, zweite = Vollgas in km/h. Die Bücher tragen bei den einzelnen
+   Schiffen oft grobe oder gar keine Atmosphärenwerte ein; abgeleitet aus dem
+   (auch modifizierten) Space stimmt es immer und ändert sich mit Umbauten. */
+const ATMO_TABLE = {
+  1: [210, 600], 2: [225, 650], 3: [260, 750], 4: [280, 800],
+  5: [295, 850], 6: [330, 950], 7: [350, 1000], 8: [365, 1050],
+  9: [400, 1150], 10: [415, 1200], 11: [435, 1250], 12: [450, 1300],
+};
+function atmoFromSpace(space) {
+  const s = Math.round(+space || 0);
+  if (s < 1) return null;
+  let row = ATMO_TABLE[s];
+  if (!row) {                        // über die Tabelle hinaus fortschreiben
+    const top = ATMO_TABLE[12];
+    row = [top[0] + (s - 12) * 15, top[1] + (s - 12) * 50];
+  }
+  return { move: row[0], kph: row[1] };
+}
+/* Ein Schiff ohne Atmosphären-Eintrag kann laut Regelwerk gar nicht in eine
+   Atmosphäre – das sagt das Feld aber nur, wenn dort ausdrücklich "N/A" o. ä.
+   steht. Ein leeres Feld ist meist nur eine Lücke der Extraktion (viele Jäger
+   haben Space, aber keinen ausgeschriebenen Atmosphärenwert). */
+function canEnterAtmosphere(atmoField) {
+  return !/^\s*(n\/?a|none|not applicable|keine?|no)\s*$/i.test(atmoField || '');
+}
+function atmoDisplay(space, atmoField) {
+  if (!canEnterAtmosphere(atmoField)) return '';
+  const a = atmoFromSpace(space);
+  if (!a) return '';
+  return a.move + '; ' + a.kph.toLocaleString('en-US') + ' km/h';
+}
+
 function shipDerived() {
   const i = C.info, md = C.mods;
   const cost = +i.costNew || 0;
@@ -394,8 +436,10 @@ function shipDerived() {
     hyper = hyperCandidates.reduce((best, x) => (val(x) < val(best) ? x : best));
   }
   const wdmgPips = modPips(md.wdmg);
+  const atmo = atmoDisplay(space, i.atmosphere);
   return Object.assign(
     { modCost, mishap, weight, hull, shields, maneuver, space, hyper, wdmgPips,
+      atmo, canAtmo: canEnterAtmosphere(i.atmosphere),
       costTotal: cost + modCost },
     cargoStatus(weight));
 }
@@ -636,6 +680,7 @@ function dicePips(s) {
 
 function viewShip() {
   const i = C.info;
+  const der = shipDerived();
   return `
   ${templateCard()}
   ${portraitCardHtml(t('sh_portrait'))}
@@ -671,7 +716,8 @@ function viewShip() {
       <div><label>${t('sh_shields')}</label>${diceCtl('info.shields', i.shields)}</div>
       <div><label>${t('sh_maneuver')}</label>${diceCtl('info.maneuver', i.maneuver)}</div>
       <div><label>${t('sh_space')}</label>${inputN('info.space', i.space, 'style="width:90px"')}</div>
-      <div class="wide"><label>${t('sh_atmosphere')}</label>${inputT('info.atmosphere', i.atmosphere, 'style="width:100%"')}</div>
+      <div class="wide"><label>${t('sh_atmosphere')}</label>${inputT('info.atmosphere', i.atmosphere, 'style="width:100%"')}
+        <div class="hint">${der.atmo ? t('sh_atmo_derived') + ' <b>' + esc(der.atmo) + '</b>' : t('sh_atmo_none_hint')}</div></div>
       <div><label>${t('sh_costnew')}</label>${inputN('info.costNew', i.costNew, 'data-rerender="1"')}</div>
       <div><label>${t('sh_costused')}</label>${inputN('info.costUsed', i.costUsed)}</div>
       <div><label>${t('sh_mishap')}</label>${inputN('info.mishapBase', i.mishapBase, 'data-rerender="1" style="width:90px"')}</div>
@@ -937,6 +983,7 @@ function viewMods() {
       ${t('sh_space')}: <span class="dice">${der.space}</span> &nbsp;
       ${t('sh_hyper')}: <span class="dice">${esc(der.hyper || 'None')}</span>
       ${der.wdmgPips ? ` &nbsp; ${t('sh_mod_wdmg')}: <span class="dice">+${fmtD(der.wdmgPips)}</span>` : ''}
+      <br>${t('sh_atmo_eff')}: <span class="dice">${der.atmo ? esc(der.atmo) : t('sh_atmo_none')}</span>
     </p>
   </div>
   <div class="card"><h2>${t('sh_mods_general')}</h2>
@@ -1021,7 +1068,7 @@ function renderSheet() {
         <div class="sp-stat"><span class="big">${esc(i.hyperBackup || '–')}</span><span class="lbl">${t('sh_hyperbackup')}</span></div>
         <div class="sp-stat"><span class="big">${fmtCr(der.costTotal)}</span><span class="lbl">${t('sh_cost_total')}</span></div>
       </div>
-      <div style="font-size:8pt; margin-top:3px">${t('sh_atmosphere').split('(')[0].trim()}: ${esc(i.atmosphere || '–')}</div>
+      <div style="font-size:8pt; margin-top:3px">${t('sh_atmo_eff')}: ${der.atmo ? esc(der.atmo) : t('sh_atmo_none')}</div>
     </div>
     <div class="sp-box"><h4>${t('tab_weapons')}</h4>
       <table class="sp-table">
