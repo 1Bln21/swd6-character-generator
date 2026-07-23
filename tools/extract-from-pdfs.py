@@ -402,13 +402,41 @@ def better_name(name, craft):
 
 
 # --------------------------------------------------------- Waffennamen
+def looks_like_continuation(prev, ln):
+    """Ist ln die Fortsetzung der vorigen Zeile und keine neue Waffe?
+
+    Im zweispaltigen Satz brechen sowohl Waffennamen als auch lange
+    Wertangaben um:
+
+        Fire Arc: Turret (can
+        be fixed to forward to be fired by the Pilot at only
+        1D fire control)
+
+    Ohne diese Pruefung wuerde jede Folgezeile als naechste Waffe gelten -
+    daher kamen Eintraege wie "gunnery", "km" oder "controlled fire)".
+    """
+    if not ln:
+        return True
+    if ln[0].islower():                       # Satz laeuft weiter
+        return True
+    if ln.count(')') > ln.count('('):         # schliessende Klammer ohne Anfang
+        return True
+    if prev and prev.count('(') > prev.count(')'):   # Klammer noch offen
+        return True
+    return False
+
+
 def clean_weapons(weapons):
     """Bildunterschriften ("PICTURE REMOVED") und Fliesstext-Reste, die als
        Waffenname im Block landen, gehoeren nicht in die Waffenliste."""
     out = []
     for w in weapons:
         n = (w.get('name') or '').strip()
-        if not n or len(n) > 60:
+        # Waffennamen tragen oft einen erklaerenden Zusatz in Klammern
+        # ("2 Proton Torpedo Launchers (fire separately, 12 torpedoes each)"
+        # sind 63 Zeichen). Die Grenze dient nur dazu, ganze Fliesstext-
+        # Absaetze abzuwehren - deshalb grosszuegig.
+        if not n or len(n) > 95:
             continue
         if n.endswith('.') or n.upper() == n and len(n) > 4 and not re.search(r'\d', n):
             # Saetze enden auf Punkt; reine Grossschrift ohne Ziffer ist
@@ -416,6 +444,13 @@ def clean_weapons(weapons):
             if n.endswith('.') or n in ('REMOVED', 'PICTURE REMOVED'):
                 continue
         if not re.search(r'[A-Za-z]', n):
+            continue
+        # Eine Waffe bringt immer Werte mit. Bloecke laufen manchmal weiter,
+        # weil im Buch danach Fliesstext statt eines neuen "Craft:" folgt -
+        # dann landen ganze Absaetze als "Waffen" im Eintrag (der Basilisk
+        # War Droid kam so auf 157). Ohne Schadenswert und ohne Feuerwinkel
+        # ist es keine Waffe.
+        if not re.search(r'\d+\s*D', w.get('damage') or '') and not (w.get('arc') or '').strip():
             continue
         out.append(w)
     return out
@@ -441,6 +476,11 @@ CITATION = re.compile(r'\(page|Campaign Guide|Sourcebook \(', re.I)
 
 def damaged(e):
     text = ' '.join(str(v) for v in e.values() if isinstance(v, str))
+    # Auch die Waffenliste mitpruefen: bei Schiffen steckt der Schaden der
+    # Textebene oft dort ("amage: D/5D/4D/3D" statt "Damage: 6D/5D/4D/3D"),
+    # waehrend die Kopfdaten noch sauber aussehen.
+    for w in e.get('weapons') or []:
+        text += ' ' + ' '.join(str(v) for v in w.values() if isinstance(v, str))
     return bool(TRUNCATED_KEY.search(text)) or bool(CITATION.search(e.get('name', '')))
 
 
@@ -649,11 +689,25 @@ def parse_craft(lines, kind, src):
         d, _ = kv(head)
         sd, _ = kv(sens_lines)
 
-        # Waffen: Blöcke, die mit einer Nicht-Key-Zeile (Waffenname) beginnen
+        # Waffen: Blöcke, die mit einer Nicht-Key-Zeile (Waffenname) beginnen.
+        #
+        # Waffennamen brechen im zweispaltigen Satz häufig um:
+        #     2 Proton Torpedo Launchers (fire separately, 12 torpedoes
+        #     each)
+        #     Fire Arc: Front
+        # Die zweite Zeile ist keine neue Waffe, sondern der Rest des Namens.
+        # Erkennbar daran, dass zum bisherigen Namen noch keine einzige
+        # Kennzeile gesammelt wurde – eine echte Waffe bringt immer welche mit.
         weapons, cur, wname = [], None, None
         for ln in weap_lines:
             m = KEY_RE.match(ln)
             if not m:
+                if wname is not None and not cur:
+                    wname = join_wrapped(wname, ln)      # Fortsetzung des Namens
+                    continue
+                if cur and looks_like_continuation(cur[-1], ln):
+                    cur[-1] = join_wrapped(cur[-1], ln)  # Fortsetzung eines Wertes
+                    continue
                 if cur and wname:
                     weapons.append((wname, cur))
                 wname, cur = ln, []
