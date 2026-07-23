@@ -39,6 +39,7 @@ This project is an HTML port of the Excel workbooks by **Chance Gibboney** — s
 - Replacement drives, hyperdrives, shield generators, cargo conversions
 - Up to six weapons with fire arc, fire control and ranges; sensors and NPC crew skills
 - **Weapon picker**: 933 armament types collected from the ship entries in the compendia, plus the *Galaxy Guide 6* summary with price and weight — filter by scale (Starfighter, Capital, Speeder, Walker, Character), pick one, and every stat is filled in
+- **Cargo space** is tracked against installed replacement systems — in kilograms for fighters, tons for freighters. Percentage upgrades cost no cargo space at all, which is exactly how starfighters get upgraded (see `ANLEITUNG.txt`)
 - **Workshop** with the expanded rules from *Galaxy Guide 6: Tramp Freighters*: a mishap roller covering all five systems and three severities, the repair cost table priced against your ship, spaceport classes with docking fees, the restocking formula, overhaul costs, installation times and the linked-weapons rules
 
 **Everywhere**

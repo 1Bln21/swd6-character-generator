@@ -57,11 +57,35 @@ ERSATZSYSTEME VS. UMBAUTEN
   schneller, deshalb gilt immer der bessere der beiden Werte.
 
 FRACHTRAUM UND UMBAUTEN
-  Eingebaute Ersatzsysteme und Umbauten wiegen etwas, und dieses
-  Gewicht geht vom Frachtraum ab - so sieht es Galaxy Guide 6 vor.
-  Der Reiter "Umbauten" zeigt deshalb "Frachtraum frei: X / Y t",
-  der Schiffsbogen die verbleibende Kapazitaet. Wird der Wert
-  negativ und rot, passt der Umbau nicht mehr ins Schiff.
+  Wichtig zuerst: Die prozentualen LEISTUNGS-UMBAUTEN (Antrieb,
+  Manoevrierfaehigkeit, Huelle, Schilde, Waffenschaden) kosten
+  KEINEN Laderaum. Galaxy Guide 6 sagt das ausdruecklich: "as long
+  as the characters are modifying an existing system, the ship's
+  cargo capacity is unaffected." Nur ERSATZSYSTEME und Einbauten
+  wiegen etwas.
+
+  Der Reiter "Umbauten" zeigt "Frachtraum frei: X / Y". Jaeger
+  fuehren ihren Stauraum in Kilogramm - die App rechnet und zeigt
+  dann auch in Kilogramm.
+
+  JAEGER AUFRUESTEN
+  Ein Jaeger hat oft nur 60 bis 110 kg Laderaum. Ein Ersatzantrieb
+  wiegt 10 bis 24 Tonnen und passt da nie hinein. Das ist kein
+  Fehler der App: Galaxy Guide 6 schreibt zu seinem gesamten
+  Kapitel Acht, die Regeln seien "designed for light freighters ...
+  They should not be used for starfighters or capital combat ships."
+
+  Fuer Jaeger bleiben also die Leistungs-Umbauten - und die reichen
+  weit: Antrieb bis +4 Space, Manoevrierfaehigkeit bis +1D+2, Huelle
+  und Schilde bis +1D+1 (bzw. +1D+2 als Hausregel), Waffenschaden
+  bis +1D+2. Alles ohne einen Gramm Laderaum.
+
+  Der Umschalter "Frachtraum-Abzug" bietet drei Einstellungen:
+    Automatisch - rechnet mit, erklaert bei Kleinschiffen ruhig
+                  statt rot zu warnen (Standard)
+    Streng      - jede Ueberladung wird rot markiert
+    Ignorieren  - Gewicht wird gar nicht abgezogen, fuer Runden die
+                  Aussenlast-Halterungen o. ae. zulassen
 
 VORLAGEN AUS DEN REGELWERKEN
   * Schiffe: 1.145 fertige Raumschiffe und Fahrzeuge – auswählen, und

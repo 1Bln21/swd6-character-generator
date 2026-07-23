@@ -59,6 +59,12 @@ Object.assign(T.de, {
   sh_mods_general: 'Ausrüstungs-Umbauten',
   sh_cargo_mods: 'Fracht-Umbauten',
   sh_cargo_left: 'Frachtraum frei',
+  sh_cargo_rule: 'Frachtraum-Abzug',
+  sh_cargo_auto: 'Automatisch (Standard)',
+  sh_cargo_strict: 'Streng – Überladung als Fehler',
+  sh_cargo_offopt: 'Ignorieren – Gewicht nicht abziehen',
+  sh_cargo_off_short: 'Abzug aus',
+  sh_cargo_small_note: 'Dieses Schiff hat weniger als eine Tonne Laderaum – typisch für Jäger. Galaxy Guide 6 schreibt dazu ausdrücklich: „All the modifications and replacements listed below were designed for light freighters … They should not be used for starfighters or capital combat ships.“ Ein Ersatzsystem passt hier also schlicht nicht hinein; das ist keine Fehlrechnung, sondern liegt außerhalb der Regeln. Für Jäger bleiben die Leistungs-Umbauten oben – die kosten laut Buch keinen Laderaum. Wer es trotzdem zulassen will, stellt den Abzug auf „Ignorieren“.',
   sh_houserule: 'Hausregel',
   sh_houserule_hint: 'Die Stufe +1D+2 bei Rumpf und Schilden geht über Galaxy Guide 6 hinaus: Das Buch deckelt den Rumpf ausdrücklich bei +1D+1 und nennt für Schilde gar keine Verbesserungstabelle. Sie ist als Hausregel ergänzt und folgt der Manövrierfähigkeit.',
   sh_wpn_catalog: 'Waffe aus den Regelwerken übernehmen',
@@ -73,7 +79,7 @@ Object.assign(T.de, {
   sh_wpn_blank: 'Leere Waffe hinzufügen',
   sh_wpn_full: 'Mehr als {n} Waffen sieht der Generator nicht vor – erst eine entfernen.',
   sh_cargo_of: 'von', sh_cargo_used: 'belegt durch Umbauten:',
-  sh_cargo_hint: 'Eingebaute Ersatzsysteme und Umbauten gehen vom Frachtraum ab – so sieht die Quelle es vor. Wird der Wert negativ, passt der Umbau nicht ins Schiff.',
+  sh_cargo_hint: 'Nur Ersatzsysteme und Einbauten wiegen etwas und gehen vom Frachtraum ab. Die prozentualen Leistungs-Umbauten oben kosten laut Galaxy Guide 6 keinen Laderaum: „as long as the characters are modifying an existing system, the ship’s cargo capacity is unaffected.“',
   sh_custom_mods: 'Eigene Umbauten',
   sh_weight: 'Gewicht (t)', sh_effect: 'Effekt',
   sh_summary: 'Zusammenfassung',
@@ -172,6 +178,12 @@ Object.assign(T.en, {
   sh_mods_general: 'Equipment modifications',
   sh_cargo_mods: 'Cargo modifications',
   sh_cargo_left: 'Cargo space free',
+  sh_cargo_rule: 'Cargo deduction',
+  sh_cargo_auto: 'Automatic (default)',
+  sh_cargo_strict: 'Strict – flag overload as an error',
+  sh_cargo_offopt: 'Ignore – do not deduct weight',
+  sh_cargo_off_short: 'deduction off',
+  sh_cargo_small_note: 'This craft has less than a ton of cargo space – typical for a starfighter. Galaxy Guide 6 says so explicitly: "All the modifications and replacements listed below were designed for light freighters … They should not be used for starfighters or capital combat ships." A replacement system simply does not fit here; that is not a miscalculation, it is outside the rules. For fighters the percentage modifications above remain – by the book those cost no cargo space at all. To allow it anyway, set the deduction to "Ignore".',
   sh_houserule: 'house rule',
   sh_houserule_hint: 'The +1D+2 step for hull and shields goes beyond Galaxy Guide 6: the book explicitly caps the hull at +1D+1 and gives no improvement table for shields at all. It is included as a house rule, mirroring maneuverability.',
   sh_wpn_catalog: 'Add a weapon from the sourcebooks',
@@ -186,7 +198,7 @@ Object.assign(T.en, {
   sh_wpn_blank: 'Add a blank weapon',
   sh_wpn_full: 'The generator does not go beyond {n} weapons – remove one first.',
   sh_cargo_of: 'of', sh_cargo_used: 'taken by modifications:',
-  sh_cargo_hint: 'Replacement systems and modifications are subtracted from cargo capacity, as the source requires. A negative value means the refit does not fit into the ship.',
+  sh_cargo_hint: 'Only replacement systems and installed gear have weight and come off the cargo capacity. The percentage modifications above cost no cargo space at all, per Galaxy Guide 6: “as long as the characters are modifying an existing system, the ship’s cargo capacity is unaffected.”',
   sh_custom_mods: 'Custom modifications',
   sh_weight: 'Weight (t)', sh_effect: 'Effect',
   sh_summary: 'Summary',
@@ -249,6 +261,7 @@ function emptyDoc() {
       altitude: '', nav: true, hyper: 'x2', hyperBackup: 'None',
       hull: 12, shields: 3, maneuver: 3, space: 4, atmosphere: '',
       costNew: 0, costUsed: 0, mishapBase: 0, portrait: '', notes: '',
+      cargoRule: 'auto',            // auto | strict | off – siehe cargoStatus()
     },
     weapons: [],
     sensors: {
@@ -381,10 +394,67 @@ function shipDerived() {
     hyper = hyperCandidates.reduce((best, x) => (val(x) < val(best) ? x : best));
   }
   const wdmgPips = modPips(md.wdmg);
-  const cargoBase = cargoTons();
-  return { modCost, mishap, weight, hull, shields, maneuver, space, hyper, wdmgPips,
-           costTotal: cost + modCost,
-           cargoBase, cargoLeft: Math.round((cargoBase - weight) * 100) / 100 };
+  return Object.assign(
+    { modCost, mishap, weight, hull, shields, maneuver, space, hyper, wdmgPips,
+      costTotal: cost + modCost },
+    cargoStatus(weight));
+}
+
+/* --------------------------------------------------------------------------
+   Frachtraum und Umbauten
+
+   Galaxy Guide 6 unterscheidet klar zwischen zwei Wegen:
+
+     "Modified systems have one tremendous advantage over replaced systems:
+      they do not take up extra space. In game terms, as long as the
+      characters are modifying an existing system, the ship's cargo capacity
+      is unaffected."                                              (Kapitel 8)
+
+   Die prozentualen Leistungs-Umbauten kosten also KEINEN Frachtraum – nur
+   Ersatzsysteme und Einbauten wiegen etwas. Genau deshalb lässt sich auch
+   ein Jäger aufrüsten, obwohl er kaum Laderaum hat.
+
+   Dazu kommt der ausdrückliche Geltungsbereich des Kapitels:
+
+     "All the modifications and replacements listed below were designed for
+      light freighters (and other related ships). They should not be used for
+      starfighters or capital combat ships."
+
+   Ein Jäger mit 110 kg Laderaum, in den jemand einen 18-Tonnen-Ersatzantrieb
+   einbaut, ist deshalb kein Rechenfehler der App, sondern ein Fall, den das
+   Buch gar nicht vorsieht. Statt einer roten Fehlermeldung erklärt die App
+   das – und überlässt der Spielleitung die Entscheidung:
+
+     auto   – Standard: rechnet mit, meldet aber bei Kleinschiffen ruhig
+              statt alarmierend, weil die Regeln dort nicht greifen
+     strict – rechnet mit und markiert jede Überladung rot
+     off    – Gewicht wird gar nicht gegen den Laderaum gerechnet
+   -------------------------------------------------------------------------- */
+function cargoStatus(weight) {
+  const base = cargoTons();
+  const rule = C.info.cargoRule || 'auto';
+  const round = v => Math.round(v * 1000) / 1000;
+  /* Kleinschiff: weniger als eine Tonne Laderaum. Das trifft Jäger, deren
+     Stauraum die Bücher in Kilogramm angeben. */
+  const small = base > 0 && base < 1;
+  const left = round(base - (rule === 'off' ? 0 : weight));
+  return {
+    cargoBase: round(base),
+    cargoLeft: left,
+    cargoUnit: small ? 'kg' : 't',
+    cargoSmall: small,
+    cargoRule: rule,
+    /* Rot nur, wenn die Überladung wirklich als Fehler gelten soll */
+    cargoOver: left < 0 && rule !== 'off' && !(rule === 'auto' && small),
+    cargoNote: left < 0 && rule === 'auto' && small,
+  };
+}
+
+/* Zahl in der Einheit ausgeben, die zum Schiff passt: Jäger führen ihren
+   Stauraum in Kilogramm, Frachter in Tonnen. */
+function fmtCargo(tons, unit) {
+  if (unit === 'kg') return fmtCr(Math.round(tons * 1000)) + ' kg';
+  return fmtCr(Math.round(tons * 100) / 100) + ' t';
 }
 
 /* Die Frachtkapazität steht als Freitext im Quellenbuch
@@ -792,6 +862,7 @@ function viewCrew() {
 
 function viewMods() {
   const md = C.mods;
+  const i2 = C.info;
   const der = shipDerived();
   const pctSel = (key, list, label) => {
     const opts = [`<option value="">${t('sh_mod_none')}</option>`]
@@ -826,7 +897,7 @@ function viewMods() {
     <span>${t('sh_cost_mods')}: <b>${fmtCr(der.modCost)}</b> Cr.</span>
     <span>${t('sh_cost_total')}: <b>${fmtCr(der.costTotal)}</b> Cr.</span>
     <span>${t('sh_weight_total')}: <b>${der.weight}</b> t</span>
-    ${der.cargoBase ? `<span>${t('sh_cargo_left')}: <b class="${der.cargoLeft < 0 ? 'warn' : ''}">${fmtCr(der.cargoLeft)}</b> / ${fmtCr(der.cargoBase)} t</span>` : ''}
+    ${der.cargoBase ? `<span>${t('sh_cargo_left')}: <b class="${der.cargoOver ? 'warn' : ''}">${fmtCargo(der.cargoLeft, der.cargoUnit)}</b> / ${fmtCargo(der.cargoBase, der.cargoUnit)}${der.cargoRule === 'off' ? ' · ' + t('sh_cargo_off_short') : ''}</span>` : ''}
     <span>${t('sh_mishap_total')}: <b>${der.mishap}</b></span>
   </div>
   <div class="card"><h2>${t('sh_mods_pct')}</h2>
@@ -840,6 +911,15 @@ function viewMods() {
     </div>
     <p class="hint">${t('sh_mishap_hint')}</p>
     <p class="hint">${t('sh_cargo_hint')}</p>
+    <div class="formgrid">
+      <div><label>${t('sh_cargo_rule')}</label>
+        <select data-bind="info.cargoRule" data-rerender="1">
+          <option value="auto" ${(i2.cargoRule || 'auto') === 'auto' ? 'selected' : ''}>${t('sh_cargo_auto')}</option>
+          <option value="strict" ${i2.cargoRule === 'strict' ? 'selected' : ''}>${t('sh_cargo_strict')}</option>
+          <option value="off" ${i2.cargoRule === 'off' ? 'selected' : ''}>${t('sh_cargo_offopt')}</option>
+        </select></div>
+    </div>
+    ${der.cargoNote ? `<p class="hint warnbox">${t('sh_cargo_small_note')}</p>` : ''}
     <p class="hint">${t('sh_houserule_hint')}</p>
   </div>
   <div class="card"><h2>${t('sh_parts')}</h2>
@@ -918,8 +998,8 @@ function renderSheet() {
       ${sheetField(t('sh_skill'), i.skill + (i.skillSpec ? ': ' + i.skillSpec : ''), 6)}
       ${sheetField(t('sh_crew'), i.crew, 3)}
       ${sheetField(t('sh_passengers'), i.passengers, 3)}
-      ${sheetField(t('sh_cargo'), der.cargoBase && der.weight
-        ? `${fmtCr(der.cargoLeft)} t ${t('sh_cargo_of')} ${fmtCr(der.cargoBase)} t (${t('sh_cargo_used')} ${der.weight} t)`
+      ${sheetField(t('sh_cargo'), der.cargoBase && der.weight && der.cargoRule !== 'off'
+        ? `${fmtCargo(der.cargoLeft, der.cargoUnit)} ${t('sh_cargo_of')} ${fmtCargo(der.cargoBase, der.cargoUnit)} (${t('sh_cargo_used')} ${der.weight} t)`
         : i.cargo, 3)}
       ${sheetField(t('sh_consumables'), i.consumables, 3)}
       ${sheetField(t('sh_nav'), i.nav ? t('yes') : t('no'), 3)}
