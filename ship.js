@@ -59,6 +59,17 @@ Object.assign(T.de, {
   sh_mods_general: 'Ausrüstungs-Umbauten',
   sh_cargo_mods: 'Fracht-Umbauten',
   sh_cargo_left: 'Frachtraum frei',
+  sh_wpn_catalog: 'Waffe aus den Regelwerken übernehmen',
+  sh_wpn_hint: 'Die Bewaffnung stammt aus den Schiffsbeschreibungen der Sammelbände; die Übersicht aus „Galaxy Guide 6“ steht mit Preis und Gewicht voran. Auswählen und übernehmen – danach lässt sich alles frei anpassen.',
+  sh_wpn_search: 'Suchen', sh_wpn_pick: '– Waffe wählen –',
+  sh_wpn_allscales: 'Alle Größenklassen',
+  sh_wpn_gg6: 'Galaxy Guide 6 – Frachter-Bewaffnung (mit Preis)',
+  sh_wpn_books: 'Aus den Schiffsbeschreibungen der Sammelbände',
+  sh_wpn_count: '{n} Waffen zur Auswahl',
+  sh_wpn_cut: '{n} weitere nicht angezeigt – über Suche oder Größenklasse eingrenzen',
+  sh_wpn_added: '✔ „{name}“ übernommen',
+  sh_wpn_blank: 'Leere Waffe hinzufügen',
+  sh_wpn_full: 'Mehr als {n} Waffen sieht der Generator nicht vor – erst eine entfernen.',
   sh_cargo_of: 'von', sh_cargo_used: 'belegt durch Umbauten:',
   sh_cargo_hint: 'Eingebaute Ersatzsysteme und Umbauten gehen vom Frachtraum ab – so sieht die Quelle es vor. Wird der Wert negativ, passt der Umbau nicht ins Schiff.',
   sh_custom_mods: 'Eigene Umbauten',
@@ -159,6 +170,17 @@ Object.assign(T.en, {
   sh_mods_general: 'Equipment modifications',
   sh_cargo_mods: 'Cargo modifications',
   sh_cargo_left: 'Cargo space free',
+  sh_wpn_catalog: 'Add a weapon from the sourcebooks',
+  sh_wpn_hint: 'These weapons are taken from the ship entries in the compendia; the summary from "Galaxy Guide 6" comes first, with price and weight. Pick one and add it – everything stays editable afterwards.',
+  sh_wpn_search: 'Search', sh_wpn_pick: '– pick a weapon –',
+  sh_wpn_allscales: 'All scales',
+  sh_wpn_gg6: 'Galaxy Guide 6 – freighter armament (with price)',
+  sh_wpn_books: 'From the ship entries in the compendia',
+  sh_wpn_count: '{n} weapons to choose from',
+  sh_wpn_cut: '{n} more not shown – narrow it down with the search or scale',
+  sh_wpn_added: '✔ Added "{name}"',
+  sh_wpn_blank: 'Add a blank weapon',
+  sh_wpn_full: 'The generator does not go beyond {n} weapons – remove one first.',
   sh_cargo_of: 'of', sh_cargo_used: 'taken by modifications:',
   sh_cargo_hint: 'Replacement systems and modifications are subtracted from cargo capacity, as the source requires. A negative value means the refit does not fit into the ship.',
   sh_custom_mods: 'Custom modifications',
@@ -248,6 +270,8 @@ function migrate(obj) {
   m.sensors = Object.assign(emptyDoc().sensors, obj.sensors || {});
   m.mods = Object.assign(emptyDoc().mods, obj.mods || {});
   if (!Array.isArray(m.weapons)) m.weapons = [];
+  /* Bis v2.2.1 konnte "Starship" in gespeicherten Schiffen stehen. */
+  m.weapons.forEach(w => { w.scale = normScale(w.scale); });
   if (!Array.isArray(m.mods.custom)) m.mods.custom = [];
   m.kind = 'ship';
   return m;
@@ -256,6 +280,19 @@ function emptyWeapon() {
   return { name: '', scale: 'Starfighter', arc: 'Front', skill: 'Starship Gunnery',
            linked: false, fireControl: 0, damage: 12, number: 1, crew: '',
            spaceRange: '', atmRange: '' };
+}
+
+/* Das Excel führt die Waffen-Größenklassen als "Starship", die des Schiffs
+   als "Starfighter" – dieselbe Skala unter zwei Namen. Dadurch fand die
+   Auswahlliste den voreingestellten Wert nicht und fiel auf die erste
+   Option ("Character") zurück. Hier auf die Schreibweise des Regelwerks
+   vereinheitlicht; gendata.js bleibt unangetastet, weil es aus dem Excel
+   erzeugt wird. */
+function weaponScaleList() {
+  return SHIP_DATA.weaponScales.map(s => (s === 'Starship' ? 'Starfighter' : s));
+}
+function normScale(s) {
+  return s === 'Starship' ? 'Starfighter' : (s || '');
 }
 
 /* ---------------- Berechnungen ---------------- */
@@ -476,7 +513,7 @@ function applyTemplate() {
   C.weapons = (src.weapons || []).slice(0, SHIP_DATA.maxWeapons).map(w => {
     const nw = emptyWeapon();
     nw.name = w.name || '';
-    if (w.scale && SHIP_DATA.weaponScales.includes(w.scale)) nw.scale = w.scale;
+    if (w.scale && weaponScaleList().includes(normScale(w.scale))) nw.scale = normScale(w.scale);
     const arc = (w.arc || '').split(/[,\/]/)[0].trim();
     if (SHIP_DATA.fireArcs.includes(arc)) nw.arc = arc;
     const gs = SHIP_DATA.gunSkills.find(g => (w.skill || '').toLowerCase().startsWith(g.toLowerCase()));
@@ -546,13 +583,134 @@ function viewShip() {
   </div>`;
 }
 
+/* ---------------- Waffen-Auswahl aus den Regelwerken ----------------
+   Die Bewaffnung steht in den Büchern nur innerhalb der Schiffs-Statblöcke.
+   tools/extract-from-pdfs.py sammelt daraus die Typen (PDF_SHIP_WEAPONS,
+   nach Häufigkeit sortiert), dazu kommt die Waffenübersicht aus
+   Galaxy Guide 6. Auswählen füllt eine neue Waffe mit allen Werten. */
+let wpnFilter = '';
+let wpnScale = '';
+
+function weaponCatalog() {
+  const out = [];
+  /* Galaxy Guide 6 zuerst: eine überschaubare, vom Buch kuratierte Liste
+     mit Preis und Gewicht – für Frachterausbauten die erste Wahl. */
+  if (typeof TRAMP_RULES !== 'undefined' && TRAMP_RULES.weapons) {
+    TRAMP_RULES.weapons.forEach(w => out.push({
+      name: w.name, scale: w.scale, damage: w.damage, fireControl: w.fireControl,
+      arc: '', skill: '', crew: '', spaceRange: '', atmRange: '',
+      cost: w.cost, weight: w.weight, note: w.note || '',
+      book: 'GG6 Tramp Freighters', group: 'gg6',
+    }));
+  }
+  if (typeof PDF_SHIP_WEAPONS !== 'undefined') {
+    PDF_SHIP_WEAPONS.forEach(w => out.push(Object.assign({ group: 'pdf' }, w)));
+  }
+  return out;
+}
+
+function weaponCard() {
+  const cat = weaponCatalog();
+  if (!cat.length) return '';
+  const f = wpnFilter.toLowerCase().trim();
+  const hits = cat.filter(w =>
+    (!wpnScale || w.scale === wpnScale) &&
+    (!f || w.name.toLowerCase().includes(f)));
+  const CAP = 300;
+  /* Manche Bücher hängen an den Schadenswert eine Erläuterung
+     ("6D against planetary shields, 3D otherwise"). In der Auswahlzeile
+     zählt nur der Würfelcode – der ganze Text steht danach im Feld. */
+  const shortDice = s => {
+    const m = /^\s*(\d+\s*D(?:\s*\+\s*\d)?)/.exec(String(s || ''));
+    return m ? m[1].replace(/\s+/g, '') : '';
+  };
+  const label = w => {
+    const bits = [w.name];
+    if (w.scale) bits.push(w.scale);                    // Starfighter / Capital …
+    const dmg = shortDice(w.damage);
+    if (dmg) bits.push(t('damage') + ' ' + dmg);
+    const fc = shortDice(w.fireControl);
+    if (fc) bits.push('FC ' + fc);
+    if (w.cost) bits.push(fmtCr(w.cost) + ' Cr.');
+    return bits.join(' · ');
+  };
+  const opt = (w, i) => `<option value="${i}">${esc(label(w))}</option>`;
+  const gg6 = hits.map((w, i) => [w, i]).filter(([w]) => w.group === 'gg6');
+  const pdf = hits.map((w, i) => [w, i]).filter(([w]) => w.group === 'pdf').slice(0, CAP);
+  const scaleOpts = [`<option value="">${t('sh_wpn_allscales')}</option>`].concat(
+    ['Starfighter', 'Capital', 'Speeder', 'Walker', 'Character'].map(s =>
+      `<option ${wpnScale === s ? 'selected' : ''} value="${s}">${esc(s)}</option>`)).join('');
+  const rest = hits.filter(w => w.group === 'pdf').length - pdf.length;
+
+  return `
+  <div class="card"><h2>${t('sh_wpn_catalog')}</h2>
+    <p class="hint">${t('sh_wpn_hint')}</p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end">
+      <div style="flex:0 0 190px">
+        <label>${t('sh_wpn_search')}</label>
+        <input type="text" id="wpnSearch" value="${esc(wpnFilter)}" placeholder="Laser, Ion, Torpedo …">
+      </div>
+      <div style="flex:0 0 170px">
+        <label>${t('sh_scale')}</label>
+        <select id="wpnScale">${scaleOpts}</select>
+      </div>
+      <div style="flex:1 1 240px; min-width:200px">
+        <label>${t('sh_wpn_pick')}</label>
+        <select id="wpnSelect">
+          ${gg6.length ? `<optgroup label="${esc(t('sh_wpn_gg6'))}">${gg6.map(([w, i]) => opt(w, i)).join('')}</optgroup>` : ''}
+          ${pdf.length ? `<optgroup label="${esc(t('sh_wpn_books'))}">${pdf.map(([w, i]) => opt(w, i)).join('')}</optgroup>` : ''}
+        </select>
+      </div>
+      <div><button class="accent" data-act="addFromCatalog">+ ${t('sh_weapon')}</button></div>
+    </div>
+    <p class="hint">${t('sh_wpn_count').replace('{n}', hits.length)}${rest > 0 ? ' · ' + t('sh_wpn_cut').replace('{n}', rest) : ''}</p>
+    ${wpnMsg ? `<p class="ok">${esc(wpnMsg)}</p>` : ''}
+  </div>`;
+}
+let wpnMsg = '';
+
+function addWeaponFromCatalog() {
+  if (C.weapons.length >= SHIP_DATA.maxWeapons) return;
+  const sel = document.getElementById('wpnSelect');
+  if (!sel || sel.value === '') return;
+  const cat = weaponCatalog();
+  const f = wpnFilter.toLowerCase().trim();
+  const hits = cat.filter(w =>
+    (!wpnScale || w.scale === wpnScale) &&
+    (!f || w.name.toLowerCase().includes(f)));
+  const src = hits[+sel.value];
+  if (!src) return;
+  const nw = emptyWeapon();
+  nw.name = src.name;
+  if (src.scale && weaponScaleList().includes(src.scale)) nw.scale = src.scale;
+  if (src.arc && SHIP_DATA.fireArcs.includes(src.arc)) nw.arc = src.arc;
+  const sk = (src.skill || '').split(':')[0].trim();
+  const hitSkill = SHIP_DATA.gunSkills.find(g => g.toLowerCase() === sk.toLowerCase());
+  if (hitSkill) nw.skill = hitSkill;
+  else if (src.scale === 'Capital') nw.skill = 'Capital Ship Gunnery';
+  nw.damage = dicePips(src.damage);
+  nw.fireControl = dicePips(src.fireControl);
+  nw.crew = src.crew || '';
+  nw.spaceRange = src.spaceRange || '';
+  nw.atmRange = src.atmRange || '';
+  C.weapons.push(nw);
+  wpnMsg = t('sh_wpn_added').replace('{name}', src.name);
+  update();
+}
+
+/* '4D+2' -> 14 Pips. Die Kataloge liefern Würfelcodes als Text. */
+function dicePips(s) {
+  const m = /(\d+)\s*D(?:\s*\+\s*(\d))?/.exec(String(s || ''));
+  return m ? (+m[1]) * 3 + (+(m[2] || 0)) : 0;
+}
+
 function viewWeapons() {
   const rows = C.weapons.map((w, wi) => `
     <div class="card"><h2>${t('sh_weapon')} ${wi + 1}
       <button class="mini danger" style="float:right" data-act="delWeapon" data-idx="${wi}">× ${t('remove')}</button></h2>
       <div class="formgrid">
         <div><label>${t('name')}</label>${inputT('weapons.' + wi + '.name', w.name)}</div>
-        <div><label>${t('sh_scale')}</label><select data-bind="weapons.${wi}.scale">${selOpts(SHIP_DATA.weaponScales, w.scale)}</select></div>
+        <div><label>${t('sh_scale')}</label><select data-bind="weapons.${wi}.scale">${selOpts(weaponScaleList(), normScale(w.scale))}</select></div>
         <div><label>${t('sh_firearc')}</label><select data-bind="weapons.${wi}.arc">${selOpts(SHIP_DATA.fireArcs, w.arc)}</select></div>
         <div><label>${t('skill')}</label><select data-bind="weapons.${wi}.skill">${selOpts(SHIP_DATA.gunSkills, w.skill)}</select></div>
         <div><label>${t('sh_firelinked')}</label>
@@ -568,9 +726,11 @@ function viewWeapons() {
         <div><label>${t('sh_atmrange')}</label>${inputT('weapons.' + wi + '.atmRange', w.atmRange, 'placeholder="100-300/1.2/2.5 km"')}</div>
       </div>
     </div>`).join('');
-  return `${rows || `<p class="hint">${t('none_dash')}</p>`}
+  return `${C.weapons.length < SHIP_DATA.maxWeapons ? weaponCard()
+            : `<p class="hint">${t('sh_wpn_full').replace('{n}', SHIP_DATA.maxWeapons)}</p>`}
+    ${rows || `<p class="hint">${t('none_dash')}</p>`}
     ${C.weapons.length < SHIP_DATA.maxWeapons
-      ? `<p><button class="accent" data-act="addWeapon">+ ${t('sh_weapon')}</button></p>` : ''}`;
+      ? `<p><button data-act="addWeapon">+ ${t('sh_wpn_blank')}</button></p>` : ''}`;
 }
 
 function viewCrew() {
@@ -962,7 +1122,9 @@ function pageAction(el) {
     case 'applyTemplate': applyTemplate(); break;
     case 'addWeapon':
       if (C.weapons.length < SHIP_DATA.maxWeapons) C.weapons.push(emptyWeapon());
+      wpnMsg = '';
       update(); break;
+    case 'addFromCatalog': addWeaponFromCatalog(); break;
     case 'delWeapon':
       C.weapons.splice(+el.dataset.idx, 1);
       update(); break;
@@ -985,6 +1147,17 @@ function pageChange(el) {
     update('shop');
     const again = document.querySelector(`[data-ws="${k}"]`);
     if (again && el.type === 'number') { again.focus(); again.select(); }
+    return true;
+  }
+  if (el.id === 'wpnSearch' || el.id === 'wpnScale') {
+    if (el.id === 'wpnSearch') wpnFilter = el.value; else wpnScale = el.value;
+    wpnMsg = '';
+    update('weapons');
+    const again = document.getElementById(el.id);
+    if (again && el.id === 'wpnSearch') {
+      again.focus();
+      again.setSelectionRange(again.value.length, again.value.length);
+    }
     return true;
   }
   if (el.id === 'tplEra') {

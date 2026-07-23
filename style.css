@@ -442,3 +442,11 @@ table.sp-table td.num { text-align: right; white-space: nowrap; }
 .ws-minor        { border-left-color: var(--green); }
 .ws-moderate     { border-left-color: var(--accent); }
 .ws-catastrophic { border-left-color: var(--red); }
+
+/* Auswahllisten mit sehr langen Einträgen (Schiffs- und Waffenkatalog)
+   sonst so breit machen wie ihr längster Eintrag – sie sprengen dann ihren
+   Platz und schieben die Schaltfläche daneben unter sich. */
+#tplSelect, #wpnSelect, #tplEra, #wpnScale {
+  width: 100%;
+  max-width: 100%;
+}

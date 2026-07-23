@@ -23,6 +23,16 @@ SPEZIES
   18D). Beim Import werden die Werte umgerechnet, damit die neuen
   Spezies genauso stark sind wie die bisherigen.
 
+WAFFEN FUER SCHIFFE
+  Der Reiter "Waffen" bietet oben einen Katalog: 933 Waffentypen,
+  gesammelt aus den Schiffsbeschreibungen der Sammelbaende, sowie die
+  Waffenuebersicht aus "Galaxy Guide 6" (mit Preis und Gewicht, ganz
+  oben in der Liste). Jeder Eintrag nennt seine Groessenklasse -
+  Starfighter, Capital, Speeder, Walker oder Character - dazu Schaden
+  und Feuerleitsystem. Auswaehlen, "+ Waffe" druecken, fertig; danach
+  laesst sich alles frei anpassen. Ueber Suchfeld und Groessenklasse
+  laesst sich die Liste eingrenzen.
+
 FRACHTRAUM UND UMBAUTEN
   Eingebaute Ersatzsysteme und Umbauten wiegen etwas, und dieses
   Gewicht geht vom Frachtraum ab - so sieht es Galaxy Guide 6 vor.

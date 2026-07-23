@@ -434,6 +434,30 @@ def money(s):
     return val
 
 
+# Die Bücher schreiben die Größenklasse uneinheitlich, und der Zeilenumbruch
+# schneidet sie gern ab: "Starfigh", "Starfghter", "Chara",
+# "Capital (due to power output)". Ältere Bände sagen "Starship", wo die
+# 2. Edition "Starfighter" sagt. Auf die sechs Klassen des Regelwerks bringen.
+SCALE_PREFIX = (('char', 'Character'), ('spee', 'Speeder'), ('sped', 'Speeder'),
+                ('airspee', 'Speeder'), ('walk', 'Walker'),
+                ('vehic', 'Speeder'),          # "Vehicle scale" = Speeder-Skala
+                ('starf', 'Starfighter'), ('stars', 'Starfighter'),
+                ('strafi', 'Starfighter'),     # Buchstabendreher im Satz
+                ('fight', 'Starfighter'),
+                ('capit', 'Capital'), ('cpit', 'Capital'),
+                ('death', 'Death Star'))
+
+
+def norm_scale(s):
+    low = re.sub(r'[^a-z]', '', (s or '').lower())
+    if not low:
+        return ''
+    for pre, val in SCALE_PREFIX:
+        if low.startswith(pre):
+            return val
+    return (s or '').strip()
+
+
 def dice_pips(s):
     """'4D+2' -> 14 Pips; '2D' -> 6"""
     if not s:
@@ -501,7 +525,7 @@ def parse_weapons(lines, src):
             'name': tidy_name(repair_clipped(name, d.get('Model', ''))),
             'model': d.get('Model', ''),
             'type': typ,
-            'scale': d.get('Scale', 'Character'),
+            'scale': norm_scale(d.get('Scale', '')) or 'Character',
             'skill': d.get('Skill', ''),
             'cost': money(d.get('Cost', '')),
             'costText': d.get('Cost', ''),
@@ -609,7 +633,7 @@ def parse_craft(lines, kind, src):
                 'name': wn, 'arc': wd.get('Fire Arc', ''), 'skill': wd.get('Skill', ''),
                 'crew': wd.get('Crew', ''), 'fireControl': wd.get('Fire Control', ''),
                 'spaceRange': wd.get('Space Range', ''), 'atmRange': wd.get('Atmosphere Range', ''),
-                'damage': wd.get('Damage', ''), 'scale': wd.get('Scale', ''),
+                'damage': wd.get('Damage', ''), 'scale': norm_scale(wd.get('Scale', '')),
             })
 
         entry = {
@@ -617,7 +641,7 @@ def parse_craft(lines, kind, src):
                                           d.get('Craft', ''))),
             'craft': d.get('Craft', ''),
             'type': d.get('Type', ''),
-            'scale': d.get('Scale', ''),
+            'scale': norm_scale(d.get('Scale', '')),
             'length': d.get('Length', ''),
             'skill': d.get('Skill', ''),
             'crew': d.get('Crew', ''),
@@ -792,6 +816,67 @@ for fname, book, era, kinds, ocr, skip in SOURCES:
     used.append((book, counts))
 
 
+# ------------------------------------------- Waffen-Katalog für Schiffe
+# Die Bewaffnung steht in den Büchern nur innerhalb der Schiffs-Statblöcke.
+# Für die Auswahlliste im Generator werden daraus die Typen gesammelt:
+# gleiche Waffe, gleiche Skala, gleicher Schaden = ein Eintrag. Wie oft ein
+# Typ vorkommt, entscheidet die Reihenfolge – die gängigsten zuerst.
+WEAPON_COUNT_RE = re.compile(r'^\s*(\d+)\s*[x×]?\s+')
+
+WEAPON_PLURAL = {
+    'Cannons': 'Cannon', 'Launchers': 'Launcher', 'Tubes': 'Tube',
+    'Turrets': 'Turret', 'Batteries': 'Battery', 'Projectors': 'Projector',
+    'Emplacements': 'Emplacement', 'Guns': 'Gun', 'Lasers': 'Laser',
+    'Missiles': 'Missile', 'Torpedoes': 'Torpedo', 'Blasters': 'Blaster',
+    'Mounts': 'Mount', 'Racks': 'Rack', 'Bays': 'Bay', 'Bombs': 'Bomb',
+}
+
+
+def weapon_base_name(n):
+    """'2 Pulse Laser Cannons' -> 'Pulse Laser Cannon'
+       Die Stückzahl gehört in das eigene Feld, nicht in den Namen."""
+    n = WEAPON_COUNT_RE.sub('', (n or '').strip())
+    n = re.sub(r'\s*\([^)]*\)\s*$', '', n).strip()      # "(2 fire-linked)" o. ä.
+    # Mehrzahl nur bei den üblichen Waffenwörtern zurücknehmen
+    n = re.sub(r'\b(%s)\b' % '|'.join(WEAPON_PLURAL),
+               lambda m: WEAPON_PLURAL[m.group(1)], n)
+    return n.strip()
+
+
+def build_weapon_catalog(craft_items):
+    """Aus allen Schiffs- und Fahrzeugblöcken einen Waffenkatalog bilden."""
+    seen = {}
+    for e in craft_items:
+        for w in e.get('weapons', []):
+            name = weapon_base_name(w.get('name', ''))
+            dmg = (w.get('damage') or '').strip()
+            scale = norm_scale(w.get('scale') or '') or norm_scale(e.get('scale') or '')
+            if not name or len(name) < 4 or not dmg:
+                continue
+            if not re.match(r'^\d{1,2}D', dmg):        # kein sauberer Schadenswert
+                continue
+            key = (re.sub(r'[^a-z0-9]', '', name.lower()), scale, dmg)
+            hit = seen.get(key)
+            if hit:
+                hit['count'] += 1
+                continue
+            seen[key] = {
+                'name': name,
+                'scale': scale,
+                'damage': dmg,
+                'fireControl': (w.get('fireControl') or '').strip(),
+                'arc': (w.get('arc') or '').strip(),
+                'skill': (w.get('skill') or '').strip(),
+                'crew': (w.get('crew') or '').strip(),
+                'spaceRange': (w.get('spaceRange') or '').strip(),
+                'atmRange': (w.get('atmRange') or '').strip(),
+                'book': e.get('book', ''),
+                'count': 1,
+            }
+    out = sorted(seen.values(), key=lambda x: (-x['count'], x['name'].lower()))
+    return out
+
+
 def dedupe(items, by_craft=False):
     """Erster Treffer gewinnt. Die Sammelbände stehen in SOURCES vorn, weil
        ihre Textebene am saubersten ist; die Spezialbücher ergänzen nur.
@@ -850,7 +935,9 @@ def write_file(fname, pairs):
 kb_gear = write_file('pdfdata-gear.js', [('PDF_WEAPONS_MELEE', melee),
                                          ('PDF_WEAPONS_RANGED', ranged),
                                          ('PDF_EQUIPMENT', equipment)])
-kb_craft = write_file('pdfdata-craft.js', [('PDF_SHIPS', ships), ('PDF_VEHICLES', vehicles)])
+ship_weapons = build_weapon_catalog(ships + vehicles)
+kb_craft = write_file('pdfdata-craft.js', [('PDF_SHIPS', ships), ('PDF_VEHICLES', vehicles),
+                                           ('PDF_SHIP_WEAPONS', ship_weapons)])
 kb_droid = write_file('pdfdata-droids.js', [('PDF_DROIDS', droids)])
 
 print('--- Gelesene Buecher ---')
@@ -867,6 +954,7 @@ if missing:
         print(f'  {m}')
 
 print('--- Zusammenfassung (nach Dubletten-Abgleich) ---')
+print(f'  Schiffswaffen:   {len(ship_weapons):>5}   (Typen aus allen Statbloecken)')
 print(f'  Nahkampfwaffen:  {len(melee):>5}   (Dubletten {d1})')
 print(f'  Fernkampfwaffen: {len(ranged):>5}   (Dubletten {d2})')
 print(f'  Ausruestung:     {len(equipment):>5}   (Dubletten {d3})')

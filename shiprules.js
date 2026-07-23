@@ -107,6 +107,46 @@ const TRAMP_RULES = {
     { label: 'x3', diff: 'Easy', costPct: 0.10, mishap: 1 },
   ],
 
+  /* --------------------------------------------------------------------
+     Waffenübersicht aus Kapitel Acht ("Weapon Summary")
+     Die Preise gelten für den Einbau in einen leichten Frachter; das
+     Gewicht geht vom Frachtraum ab. Für eine legale Bewaffnung verlangt
+     das Imperium eine Genehmigung – 30 % des Kaufpreises, je Waffe
+     einzeln zu erwürfeln.
+
+     Alle Angaben in Starfighter-Skala. Von Hand übertragen, weil das
+     Buch nur als Scan vorliegt (siehe Kopf dieser Datei).
+     -------------------------------------------------------------------- */
+  weapons: [
+    { name: 'Taim & Bak KX-3 Light Blaster Cannon', scale: 'Starfighter',
+      fireControl: '1D', damage: '1D', cost: 1000, weight: 1 },
+    { name: 'Kuat Vonak Light Laser Cannon', scale: 'Starfighter',
+      fireControl: '2D', damage: '2D', cost: 1500, weight: 2 },
+    { name: 'Arakyd Tomral Heavy Laser Cannon', scale: 'Starfighter',
+      fireControl: '2D', damage: '5D', cost: 3000, weight: 4 },
+    { name: 'Incom W-34t Turbolaser', scale: 'Starfighter',
+      fireControl: '3D', damage: '7D', cost: 9000, weight: 5,
+      note: 'Illegal on a private vessel. Can only fire every other round, being jury-rigged to a freighter.' },
+    { name: 'Comar f-2 Light Ion Cannon', scale: 'Starfighter',
+      fireControl: '1D', damage: '2D', cost: 1000, weight: 0.5,
+      note: 'Ionizes rather than destroys – disables the target\'s electronics.' },
+    { name: 'Comar f-4 Medium Ion Cannon', scale: 'Starfighter',
+      fireControl: '2D', damage: '3D', cost: 1500, weight: 1,
+      note: 'Ionizes rather than destroys – disables the target\'s electronics.' },
+    { name: 'Comar f-9 Heavy Ion Cannon', scale: 'Starfighter',
+      fireControl: '4D', damage: '4D', cost: 3000, weight: 2,
+      note: 'Ionizes rather than destroys – disables the target\'s electronics.' },
+    { name: 'Arakyd Hi-fex Proton Torpedo Launcher', scale: 'Starfighter',
+      fireControl: '2D', damage: '9D', cost: 2500, weight: 2,
+      note: 'Includes a 12-torpedo rack. Replacement torpedo: 800 credits.' },
+    { name: 'Arakyd Morne-3 Concussion Missile Launcher', scale: 'Starfighter',
+      fireControl: '1D', damage: '8D', cost: 3500, weight: 3,
+      note: 'Includes a 10-missile rack. Replacement missile: 500 credits.' },
+    { name: 'Tractor Beam Projector', scale: 'Starfighter',
+      fireControl: '2D', damage: '2D', cost: 8000, weight: 15,
+      note: 'Pulls a smaller vessel closer; against a larger ship the freighter is drawn in instead.' },
+  ],
+
   /* Bis zu drei baugleiche Waffen lassen sich koppeln. Sie müssen denselben
      Schadenswert haben. Auch eine zweite Feuerstelle für dieselbe Waffe
      kostet 100 Credits und zählt als +1 auf den Pannen-Tabellen. */

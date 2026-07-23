@@ -315,7 +315,9 @@ function wireCommonEvents() {
   content.addEventListener('input', e => {
     const el = e.target;
     /* Suchfelder sollen schon beim Tippen filtern, nicht erst beim Verlassen */
-    if ((el.dataset.pdfsearch != null || el.id === 'tplSearch') && typeof pageChange === 'function') {
+    const SEARCH_IDS = ['tplSearch', 'wpnSearch', 'pdfsearch'];
+    if ((el.dataset.pdfsearch != null || SEARCH_IDS.includes(el.id)) &&
+        typeof pageChange === 'function') {
       pageChange(el);
       return;
     }
