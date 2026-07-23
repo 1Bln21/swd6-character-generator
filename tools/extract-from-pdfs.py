@@ -43,7 +43,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # Waffennamen aus den Statbloecken - dieselben Regeln braucht auch
 # repair-catalogs.py, deshalb liegen sie in einem eigenen Modul.
 from weaponnames import (clean_weapon_name, plausible_weapon_name,   # noqa: E402
-                         weapon_base_name, WEAPON_COUNT_RE, WEAPON_PLURAL)
+                         weapon_base_name, fix_apostrophes,
+                         WEAPON_COUNT_RE, WEAPON_PLURAL)
 
 SRC_DIRS = sys.argv[1:] or ['.']
 
@@ -169,10 +170,12 @@ def tidy_name(n):
        wie 'YT-1300' oder 'TIE/ln' erhalten bleiben."""
     letters = [c for c in n if c.isalpha()]
     if letters and all(c.islower() for c in letters):
-        return n.title()
-    if letters and all(c.isupper() for c in letters) and len(n) > 5:
-        return n.title()
-    return n
+        n = n.title()
+    elif letters and all(c.isupper() for c in letters) and len(n) > 5:
+        n = n.title()
+    # .title() zieht den Buchstaben hinter dem Apostroph mit hoch:
+    # "HOUND'S TOOTH" -> "Hound'S Tooth"
+    return fix_apostrophes(n)
 
 
 # --------------------------------------------------------- OCR-Korrektur
@@ -417,7 +420,13 @@ def better_name(name, craft):
     rest = craft.strip()
     for m in MAKERS:
         if rest.lower().startswith(m.lower()):
-            rest = rest[len(m):].strip(' -–')
+            # Trennzeichen inkl. "/" abraeumen - manche Schiffe nennen zwei
+            # Hersteller ("... Corporation/Wereling Spaceworks' Corvette").
+            rest = rest[len(m):].strip(" -–/")
+            # Der Hersteller steht oft im Genitiv: "Corellian Engineering
+            # Corporation's Patrol Cruiser". Ohne diese Zeile bliebe ein
+            # "'s Patrol Cruiser" in der Auswahlliste stehen.
+            rest = re.sub(r"^['’]s\b\s*", '', rest).strip(" -–/")
             break
     # "Modified ..." bleibt aussagekraeftiger als die blosse Gattung
     if not rest or GENRE_ONLY.match(rest):

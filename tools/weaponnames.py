@@ -128,6 +128,31 @@ def plausible_weapon_name(n):
     return True
 
 
+# --------------------------------------------------------- Apostrophe
+# Die Textebene setzt hinter dem Apostroph gern ein Leerzeichen
+# ("Toth' s Starfighter", "Warrior' s Armor", "Vua' spar Interdictor"), und
+# .title() macht aus "HOUND'S TOOTH" ein "Hound'S Tooth".
+#
+# Ein Apostroph am WORTENDE ist dagegen richtig - der Genitiv im Plural:
+# "Kuat Drive Yards' Escort Carrier", "Boss Nass' Custom Bongo". Deshalb
+# wird nur zusammengezogen, wenn hinter dem Leerzeichen ein KLEIN
+# geschriebenes Wort folgt.
+APOS_SPLIT = re.compile(r"([A-Za-z])['’]\s+([a-z])")
+APOS_TITLE = re.compile(r"([a-z])['’]S\b")
+
+
+def fix_apostrophes(n):
+    n = APOS_SPLIT.sub(r"\1'\2", n or '')
+    return APOS_TITLE.sub(r"\1's", n)
+
+
+# Trennzeichen, die vorne stehen bleiben, wenn better_name() einen von zwei
+# per "/" oder "-" verbundenen Herstellern abschneidet
+# ("Corellian Engineering Corporation/Wereling Spaceworks' Corvette").
+def strip_lead_punct(n):
+    return (n or '').lstrip("/-–— \t").strip()
+
+
 def weapon_base_name(n):
     """'2 Pulse Laser Cannons' -> 'Pulse Laser Cannon'
        Die Stueckzahl gehoert in das eigene Feld, nicht in den Namen."""

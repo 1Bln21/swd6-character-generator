@@ -30,7 +30,11 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from weaponnames import (clean_weapon_name, plausible_weapon_name,
-                         weapon_base_name)
+                         weapon_base_name, fix_apostrophes, strip_lead_punct)
+
+# Hersteller, die better_name() aus der "Craft:"-Zeile abschneidet. Steht der
+# Name dort im Genitiv, blieb ein "'s Patrol Cruiser" uebrig.
+LEAD_POSSESSIVE = re.compile(r"^['’]s\b\s*")
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WRITE = '--write' in sys.argv
@@ -75,6 +79,13 @@ def repair_clipped(name, ref):
             if len(w) > len(first) and w.lower().endswith(first.lower()):
                 return (w + name[len(first):]).strip()
     return name
+
+
+def tidy_entry_name(n):
+    """Apostroph-Schaeden, ein fuehrendes Trennzeichen und den vom
+       Hersteller uebrig gebliebenen Genitiv aus einem Eintragsnamen nehmen."""
+    n = strip_lead_punct((n or '').strip())
+    return fix_apostrophes(LEAD_POSSESSIVE.sub('', n)).strip()
 
 
 def build_weapon_catalog(craft_items):
@@ -126,13 +137,15 @@ def fix_craft(items, ref_key):
             if not plausible_weapon_name(n):
                 report['weapons_dropped'].append('%s: %s' % (e.get('name'), raw))
                 continue
+            n = fix_apostrophes(n)
             if n != raw:
                 report['weapons_repaired'].append('%s  ->  %s' % (raw, n))
             w['name'] = n
             kept.append(w)
         if 'weapons' in e:
             e['weapons'] = kept
-        fixed = repair_clipped(e.get('name') or '', e.get(ref_key) or '')
+        fixed = tidy_entry_name(repair_clipped(e.get('name') or '',
+                                               e.get(ref_key) or ''))
         if fixed != e.get('name'):
             report['names_repaired'].append('%s  ->  %s' % (e['name'], fixed))
             e['name'] = fixed
@@ -160,7 +173,8 @@ gear_path = os.path.join(ROOT, 'pdfdata-gear.js')
 gear_src, gear = load_arrays(gear_path)
 for key in ('PDF_WEAPONS_MELEE', 'PDF_WEAPONS_RANGED', 'PDF_EQUIPMENT'):
     for e in gear[key]:
-        fixed = repair_clipped(e.get('name') or '', e.get('model') or '')
+        fixed = tidy_entry_name(repair_clipped(e.get('name') or '',
+                                               e.get('model') or ''))
         if fixed != e.get('name'):
             report['names_repaired'].append('%s  ->  %s' % (e['name'], fixed))
             e['name'] = fixed
@@ -168,7 +182,8 @@ for key in ('PDF_WEAPONS_MELEE', 'PDF_WEAPONS_RANGED', 'PDF_EQUIPMENT'):
 droid_path = os.path.join(ROOT, 'pdfdata-droids.js')
 droid_src, droids = load_arrays(droid_path)
 for e in droids['PDF_DROIDS']:
-    fixed = repair_clipped(e.get('name') or '', e.get('type') or '')
+    fixed = tidy_entry_name(repair_clipped(e.get('name') or '',
+                                           e.get('type') or ''))
     if fixed != e.get('name'):
         report['names_repaired'].append('%s  ->  %s' % (e['name'], fixed))
         e['name'] = fixed
