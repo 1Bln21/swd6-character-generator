@@ -743,7 +743,8 @@ function weaponCatalog() {
   if (typeof TRAMP_RULES !== 'undefined' && TRAMP_RULES.weapons) {
     TRAMP_RULES.weapons.forEach(w => out.push({
       name: w.name, scale: w.scale, damage: w.damage, fireControl: w.fireControl,
-      arc: '', skill: '', crew: '', spaceRange: '', atmRange: '',
+      arc: '', skill: '', crew: '',
+      spaceRange: w.spaceRange || '', atmRange: w.atmRange || '',
       cost: w.cost, weight: w.weight, note: w.note || '',
       book: 'GG6 Tramp Freighters', group: 'gg6',
     }));

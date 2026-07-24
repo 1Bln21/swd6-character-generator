@@ -136,33 +136,47 @@ const TRAMP_RULES = {
      Alle Angaben in Starfighter-Skala. Von Hand übertragen, weil das
      Buch nur als Scan vorliegt (siehe Kopf dieser Datei).
      -------------------------------------------------------------------- */
+  /* Die GG6-Tabelle nennt keine Reichweiten. Sie sind hier aus den gaengigen
+     Werten baugleicher Starfighter-Waffen des Katalogs ergaenzt (die haeufigsten
+     Space-/Atmosphaeren-Reichweiten je Waffentyp), damit ein aus GG6 uebernommenes
+     Geschuetz nicht ohne Reichweite dasteht. */
   weapons: [
     { name: 'Taim & Bak KX-3 Light Blaster Cannon', scale: 'Starfighter',
-      fireControl: '1D', damage: '1D', cost: 1000, weight: 1 },
+      fireControl: '1D', damage: '1D', cost: 1000, weight: 1,
+      spaceRange: '1-3/12/25', atmRange: '100-300/1.2/2.5 km' },
     { name: 'Kuat Vonak Light Laser Cannon', scale: 'Starfighter',
-      fireControl: '2D', damage: '2D', cost: 1500, weight: 2 },
+      fireControl: '2D', damage: '2D', cost: 1500, weight: 2,
+      spaceRange: '1-3/12/25', atmRange: '100-300/1.2/2.5 km' },
     { name: 'Arakyd Tomral Heavy Laser Cannon', scale: 'Starfighter',
-      fireControl: '2D', damage: '5D', cost: 3000, weight: 4 },
+      fireControl: '2D', damage: '5D', cost: 3000, weight: 4,
+      spaceRange: '1-3/12/25', atmRange: '100-300/1.2/2.5 km' },
     { name: 'Incom W-34t Turbolaser', scale: 'Starfighter',
       fireControl: '3D', damage: '7D', cost: 9000, weight: 5,
+      spaceRange: '3-15/35/75', atmRange: '6-30/70/150 km',
       note: 'Illegal on a private vessel. Can only fire every other round, being jury-rigged to a freighter.' },
     { name: 'Comar f-2 Light Ion Cannon', scale: 'Starfighter',
       fireControl: '1D', damage: '2D', cost: 1000, weight: 0.5,
+      spaceRange: '1-3/12/25', atmRange: '100-300/1.2/2.5 km',
       note: 'Ionizes rather than destroys – disables the target\'s electronics.' },
     { name: 'Comar f-4 Medium Ion Cannon', scale: 'Starfighter',
       fireControl: '2D', damage: '3D', cost: 1500, weight: 1,
+      spaceRange: '1-3/12/25', atmRange: '100-300/1.2/2.5 km',
       note: 'Ionizes rather than destroys – disables the target\'s electronics.' },
     { name: 'Comar f-9 Heavy Ion Cannon', scale: 'Starfighter',
       fireControl: '4D', damage: '4D', cost: 3000, weight: 2,
+      spaceRange: '1-3/12/25', atmRange: '100-300/1.2/2.5 km',
       note: 'Ionizes rather than destroys – disables the target\'s electronics.' },
     { name: 'Arakyd Hi-fex Proton Torpedo Launcher', scale: 'Starfighter',
       fireControl: '2D', damage: '9D', cost: 2500, weight: 2,
+      spaceRange: '1/3/7', atmRange: '100/300/700',
       note: 'Includes a 12-torpedo rack. Replacement torpedo: 800 credits.' },
     { name: 'Arakyd Morne-3 Concussion Missile Launcher', scale: 'Starfighter',
       fireControl: '1D', damage: '8D', cost: 3500, weight: 3,
+      spaceRange: '1/3/7', atmRange: '50-100/300/700',
       note: 'Includes a 10-missile rack. Replacement missile: 500 credits.' },
     { name: 'Tractor Beam Projector', scale: 'Starfighter',
       fireControl: '2D', damage: '2D', cost: 8000, weight: 15,
+      spaceRange: '1-5/15/30', atmRange: '100-500/1.5/3 km',
       note: 'Pulls a smaller vessel closer; against a larger ship the freighter is drawn in instead.' },
   ],
 
