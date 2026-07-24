@@ -52,6 +52,13 @@ def norm_scale(s):
     for pre, val in table.items():
         if low.startswith(pre):
             return val
+    # Quellen aus Copy-&-Paste verlieren manchmal den ersten Buchstaben
+    # ("tarfighter" statt "Starfighter") – daher auch per Teilwort erkennen.
+    for part, val in (('fighter', 'Starfighter'), ('capital', 'Capital'),
+                      ('speeder', 'Speeder'), ('walker', 'Walker'),
+                      ('deathstar', 'Death Star'), ('character', 'Character')):
+        if part in low:
+            return val
     return (s or '').strip()
 
 
@@ -64,8 +71,13 @@ def money(s):
     m = re.search(r'([\d][\d,\.]*)', s or '')
     if not m:
         return 0
+    num = m.group(1)
+    # Tausender-Trennzeichen entfernen – Komma ODER Punkt, wenn ihm genau drei
+    # Ziffern folgen ("320.000" europaeisch = 320000, "1,500" = 1500). Ein
+    # verbleibender Punkt (echte Dezimalstelle) wird danach abgeschnitten.
+    num = re.sub(r'[.,](?=\d{3}(?:\D|$))', '', num)
     try:
-        return int(m.group(1).replace(',', '').split('.')[0])
+        return int(num.replace(',', '').split('.')[0])
     except ValueError:
         return 0
 
@@ -315,30 +327,58 @@ def key(s):
 
 
 src, arr = load_craft()
-# Gegen vorhandene Schiffe wird ueber Name UND Craft-Zeile abgeglichen, damit
-# schon enthaltene Schiffe (MC75, Quasar Fire, Gozanti ...) nicht doppelt
-# landen. Unter den Neuzugaengen zaehlt nur der Name: die beiden Sphyrna-
-# Varianten teilen sich dieselbe Craft-Zeile, sind aber verschiedene Schiffe.
-existing = set()
-for e in arr['PDF_SHIPS']:
-    existing.add(key(e.get('name')))
-    existing.add(key(e.get('craft')))
-added_names, added, skipped = set(), [], []
+# Ein Schiff aus der Markdown-Datei ist entweder eine KORREKTUR (dann steht es
+# schon im Katalog – erkannt an Name oder Craft-Zeile) oder ein NEUZUGANG.
+# Korrekturen ueberschreiben die Werte des vorhandenen Eintrags, bleiben aber
+# in dessen Buch/Aera stehen. Neuzugaenge landen unter "Community Additions".
+# Der Abgleich laeuft nur gegen den URSPRUENGLICHEN Katalog, damit zwei neue
+# Varianten mit gleicher Craft-Zeile (Sphyrna) sich nicht gegenseitig treffen.
+orig_name, orig_craft = {}, {}
+for i, e in enumerate(arr['PDF_SHIPS']):
+    orig_name.setdefault(key(e.get('name')), i)
+    if e.get('craft'):
+        orig_craft.setdefault(key(e.get('craft')), i)
+
+added_names, added, updated, skipped = set(), [], [], []
 for e in parsed:
     nk, ck = key(e['name']), key(e['craft'])
-    if nk in existing or ck in existing or nk in added_names:
+    idx = orig_name.get(nk, orig_craft.get(ck, -1))
+    if idx >= 0:
+        old = arr['PDF_SHIPS'][idx]
+        e['book'] = old.get('book') or e['book']     # bleibt im urspruenglichen Buch
+        e['era'] = e['era'] or old.get('era', '')
+        arr['PDF_SHIPS'][idx] = e
+        updated.append(e['name'])
+    elif nk in added_names:
         skipped.append(e['name'])
-        continue
-    added_names.add(nk)
-    arr['PDF_SHIPS'].append(e)
-    added.append(e)
+    else:
+        added_names.add(nk)
+        arr['PDF_SHIPS'].append(e)
+        added.append(e)
 
 print('Bloecke gelesen:      %d' % len(parsed))
+print('Korrigiert:           %d  %s' % (len(updated), updated))
 print('Neu hinzugefuegt:     %d' % len(added))
 print('Uebersprungen (schon da): %d  %s' % (len(skipped), skipped))
 for e in added:
     print('  + %-32s Scale %-11s Waffen %d'
           % (e['name'][:32], e['scale'], len(e['weapons'])))
+
+# --------------------------- Einzelkorrekturen aus den Regelwerken ---------
+# Statbloecke, die in den PDFs ueber einen Seitenumbruch laufen, werden vom
+# Extraktor gelegentlich unvollstaendig gelesen. Hier gezielt nachtragen.
+#   Corellia Stardrive TT-17R NovaDive Scout (GG16, S. 271/272): der ersten
+#   Waffe fehlten Reichweiten und Schaden (standen hinter dem Seitenkopf).
+fixed_weapons = 0
+for e in arr['PDF_SHIPS']:
+    if e.get('name') == 'NovaDive' and e.get('weapons'):
+        w = e['weapons'][0]
+        if not (w.get('damage') or '').strip():
+            w['spaceRange'] = '1-5/10/17'
+            w['atmRange'] = '100-500/1/1.7 km'
+            w['damage'] = '3D'
+            fixed_weapons += 1
+print('Einzelkorrekturen (Waffen): %d' % fixed_weapons)
 
 before = len(arr['PDF_SHIP_WEAPONS'])
 arr['PDF_SHIP_WEAPONS'] = build_weapon_catalog(
