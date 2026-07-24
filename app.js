@@ -152,6 +152,7 @@ de: {
   armor_hint: 'Rüstungsboni werden auf den Stärke-Wurf gegen Schaden addiert.',
   my_armor: 'Meine Rüstung', custom_armor: 'Eigene Rüstung', cat_armor: 'Katalog: Rüstungen',
   armor: 'Rüstung', physical: 'Physisch', energy: 'Energie', coverage: 'Abdeckung', dex_pen: 'DEX-Malus',
+  armor_bonus: 'Rüstungsbonus gesamt', armor_total: 'Widerstand mit Rüstung',
   /* Credits */
   spent_misc: 'Ausgegeben (Sonstiges)', spent_ship: 'Ausgegeben (Schiff)',
   equipment: 'Ausrüstung', melee_w: 'Nahkampfwaffen (inkl. Lichtschwert-Mods)',
@@ -168,7 +169,7 @@ de: {
   attrs_skills: 'Attribute & Fertigkeiten', game_stats: 'Spielwerte',
   fp: 'Machtpunkte', dark_side: 'Dunkle Seite',
   resist_p: 'Widerstand phys.*', resist_e: 'Widerstand energ.*',
-  resist_note: '* Stärke inkl. natürlicher Panzerung, ohne getragene Rüstung.',
+  resist_note: '* Stärke inkl. aller Rüstung (natürlich, getragen, eigene).',
   sprint: 'Sprint', all_out: 'Vollgas',
   wounds: 'Verwundungen', dmg_gt_str: 'Schaden > STR', condition: 'Zustand', effect: 'Auswirkung',
   woundRows: [
@@ -315,6 +316,7 @@ en: {
   armor_hint: 'Armor bonuses are added to the Strength roll to resist damage.',
   my_armor: 'My Armor', custom_armor: 'Custom Armor', cat_armor: 'Catalog: Armor',
   armor: 'Armor', physical: 'Physical', energy: 'Energy', coverage: 'Coverage', dex_pen: 'DEX Penalty',
+  armor_bonus: 'Total armor bonus', armor_total: 'Resistance with armor',
   /* Credits */
   spent_misc: 'Spent (Misc.)', spent_ship: 'Spent (Ship)',
   equipment: 'Equipment', melee_w: 'Melee weapons (incl. lightsaber mods)',
@@ -331,7 +333,7 @@ en: {
   attrs_skills: 'Attributes & Skills', game_stats: 'Game Stats',
   fp: 'Force Points', dark_side: 'Dark Side',
   resist_p: 'Resist phys.*', resist_e: 'Resist energy*',
-  resist_note: '* Strength incl. natural armor, without worn armor.',
+  resist_note: '* Strength incl. all armor (natural, worn, custom).',
   sprint: 'High Spd', all_out: 'All Out',
   wounds: 'Wound Chart', dmg_gt_str: 'Damage > STR', condition: 'Wound Type', effect: 'Wound Effect',
   woundRows: [
@@ -1399,6 +1401,38 @@ function viewWeapons() {
   </div>${body}`;
 }
 
+/* Rüstungswerte kommen im Katalog als Pips (2D = 6), in der eigenen Rüstung
+   dagegen als frei getippter Würfeltext ("+1D", "+1", "1D+2"). Beides auf
+   Pips bringen, damit sich alles addieren lässt. */
+function armorPips(v) {
+  if (typeof v === 'number') return v || 0;
+  const s = String(v || '').trim();
+  if (!s) return 0;
+  const m = /^([+-]?)\s*(?:(\d+)\s*D)?\s*\+?\s*(\d+)?/i.exec(s);
+  if (!m) return 0;
+  const sign = m[1] === '-' ? -1 : 1;
+  return sign * ((+(m[2] || 0)) * 3 + (+(m[3] || 0)));
+}
+
+/* Gesamter Schadenswiderstand: Stärke plus ALLE Rüstungsboni – natürliche
+   Panzerung der Spezies, getragene Katalog-Rüstung und eigene Rüstung.
+   Genau das fehlte bisher: eigene und zusätzliche Rüstung wurden nirgends
+   aufaddiert, der Bogen zeigte nur Stärke + natürliche Panzerung. */
+function armorTotals() {
+  const sp = speciesData();
+  let physBonus = (sp.armorP || 0), enerBonus = (sp.armorE || 0);
+  C.armor.forEach(n => {
+    const a = catByName(DATA.armor, n);
+    if (a) { physBonus += (+a.phys || 0); enerBonus += (+a.energy || 0); }
+  });
+  C.customArmor.forEach(a => {
+    physBonus += armorPips(a.phys); enerBonus += armorPips(a.energy);
+  });
+  const str = attrTotal('str');
+  return { str, physBonus, enerBonus,
+           physTotal: str + physBonus, enerTotal: str + enerBonus };
+}
+
 /* ---------------- Tab: Rüstung ---------------- */
 function viewArmor() {
   const owned = C.armor.map((n, i) => {
@@ -1423,12 +1457,14 @@ function viewArmor() {
     <td class="num">${fmtCr(a.cost)}</td><td>${esc(a.avail)}</td>
     <td>${a.abilities.map(x => esc(x)).join('<br>')}</td>
     <td><button class="mini" data-act="addOwn" data-list="armor" data-i="${i}">+</button></td></tr>`).join('');
-  const sp = speciesData();
-  const strP = attrTotal('str');
+  const at = armorTotals();
+  // Stärke ist die Grund-Panzerung (jeder wehrt Schaden mit STR ab); die
+  // natürliche Panzerung der Spezies steckt als Bonus im "Rüstungsbonus".
   return `
   <div class="pool-banner">
-    <span>${t('str_resist')}: <b>${fmtD(strP)}</b></span>
-    ${(sp.armorP || sp.armorE) ? `<span>${t('natural_armor')}: <b>+${fmtD(sp.armorP)} ${t('phys_short')} / +${fmtD(sp.armorE)} ${t('ener_short')}</b></span>` : ''}
+    <span>${t('str_resist')}: <b>${fmtD(at.str)}</b></span>
+    <span>${t('armor_bonus')}: <b>+${fmtD(at.physBonus)} ${t('phys_short')} / +${fmtD(at.enerBonus)} ${t('ener_short')}</b></span>
+    <span>${t('armor_total')}: <b>${fmtD(at.physTotal)} ${t('phys_short')} / ${fmtD(at.enerTotal)} ${t('ener_short')}</b></span>
     <span class="hint">${t('armor_hint')}</span>
   </div>
   <div class="card"><h2>${t('my_armor')}</h2><div class="table-scroll">
@@ -1556,8 +1592,8 @@ function renderSheet() {
         <div class="sp-stat"><span class="big">${fp}</span><span class="lbl">${t('fp')}</span></div>
         <div class="sp-stat"><span class="big">${C.points.dsp || 0}</span><span class="lbl">${t('dark_side')}</span></div>
         <div class="sp-stat"><span class="big">${move}</span><span class="lbl">${t('move')}</span></div>
-        <div class="sp-stat"><span class="big">${fmtD(attrTotal('str') + (sp.armorP || 0))}</span><span class="lbl">${t('resist_p')}</span></div>
-        <div class="sp-stat"><span class="big">${fmtD(attrTotal('str') + (sp.armorE || 0))}</span><span class="lbl">${t('resist_e')}</span></div>
+        <div class="sp-stat"><span class="big">${fmtD(armorTotals().physTotal)}</span><span class="lbl">${t('resist_p')}</span></div>
+        <div class="sp-stat"><span class="big">${fmtD(armorTotals().enerTotal)}</span><span class="lbl">${t('resist_e')}</span></div>
         <div class="sp-stat"><span class="big">${fmtCr(tt.left)}</span><span class="lbl">Credits</span></div>
       </div>
       <div style="font-size:7pt; margin-top:2px">${t('resist_note')}</div>
