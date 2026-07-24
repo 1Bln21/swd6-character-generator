@@ -51,6 +51,9 @@ Object.assign(T.de, {
   online_pending_title: 'Registrierung eingegangen',
   online_pending_text: 'Dein Konto muss noch von einem Administrator freigegeben werden. Sobald das erledigt ist, kannst du dich anmelden.',
   online_admin: 'Verwaltung',
+  online_admin_open: '⚙ Benutzerverwaltung öffnen',
+  online_admin_search: 'Benutzer suchen …',
+  online_loading: 'Lädt …',
   online_admin_mode: 'Registrierung',
   online_mode_open: 'Offen – jeder kann sich sofort anmelden',
   online_mode_approval: 'Mit Freigabe – Konten müssen bestätigt werden',
@@ -129,6 +132,9 @@ Object.assign(T.en, {
   online_pending_title: 'Registration received',
   online_pending_text: 'Your account still needs to be approved by an administrator. Once that is done you can sign in.',
   online_admin: 'Administration',
+  online_admin_open: '⚙ Open user management',
+  online_admin_search: 'Search users …',
+  online_loading: 'Loading …',
   online_admin_mode: 'Registration',
   online_mode_open: 'Open – anyone can sign up immediately',
   online_mode_approval: 'Approval required – accounts must be confirmed',
@@ -235,6 +241,7 @@ function setOnlineAuth(o) {
   try { if (typeof cloudSpecies !== 'undefined') cloudSpecies = null; } catch (e) {}
 }
 function updateOnlineButton() {
+  updateAdminButton();
   const b = document.getElementById('btnOnline');
   if (!b) return;
   b.style.display = onlineAvailable ? 'inline-block' : 'none';
@@ -282,48 +289,118 @@ function fmtDate(ts) {
     { dateStyle: 'short', timeStyle: 'short' });
 }
 
-/* Verwaltungsbereich (nur für Administratoren) */
-function adminSection() {
-  if (!adminData) return '';
+/* ================= Verwaltung: eigenes Fenster (nur für Administratoren) ==
+   Früher hing die Benutzerverwaltung im Online-Konto-Fenster. Bei vielen
+   Nutzern wird das unübersichtlich – deshalb ein eigenes Fenster mit Suche,
+   das Admins über das ⚙-Menü öffnen. */
+let adminFilter = '';
+let adminMsg = '';
+
+function adminModal() {
+  let m = document.getElementById('adminModal');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'adminModal';
+    m.className = 'modal-overlay no-print hidden';
+    m.innerHTML = '<div class="modal-box admin-box" id="adminBox"></div>';
+    document.body.appendChild(m);
+    m.addEventListener('click', e => { if (e.target === m) closeAdmin(); });
+  }
+  return m;
+}
+async function openAdmin() {
+  adminMsg = ''; adminFilter = '';
+  adminModal().classList.remove('hidden');
+  renderAdmin();                                   // sofort (evtl. „lädt…“)
+  try { adminData = await api('admin_users'); }
+  catch (e) { adminMsg = t('online_error') + e.message; }
+  renderAdmin();
+}
+function closeAdmin() { adminModal().classList.add('hidden'); }
+
+/* ⚙-Menü-Knopf nur für Admins zeigen. */
+function updateAdminButton() {
+  const b = document.getElementById('btnAdmin');
+  if (b) b.classList.toggle('hidden', !(ONLINE && ONLINE.isAdmin));
+}
+
+function adminUserRow(u) {
+  const self = u.username === ONLINE.username;
+  const badges = (u.isAdmin ? `<span class="badge gold">${t('online_badge_admin')}</span>` : '')
+               + (u.mfaEnabled ? `<span class="badge">${t('online_badge_mfa')}</span>` : '');
+  const b = (cls, what, extra) => `<button class="mini ${cls}" data-aact="user" data-what="${what}" data-id="${u.id}" data-name="${esc(u.username)}">${extra}</button>`;
+  const acts = [];
+  if (!u.approved) acts.push(b('', 'approve', t('online_act_approve')));
+  if (u.approved && !self) acts.push(b('', 'block', t('online_act_block')));
+  if (!u.isAdmin) acts.push(b('', 'promote', t('online_act_promote')));
+  else if (!self && u.id !== 1) acts.push(b('', 'demote', t('online_act_demote')));
+  if (!self) acts.push(b('', 'reset_password', t('online_act_resetpw')));
+  if (u.mfaEnabled) acts.push(b('', 'reset_mfa', t('online_act_resetmfa')));
+  if (!self) acts.push(b('danger', 'delete', t('online_act_delete')));
+  return `<tr>
+    <td>${esc(u.username)}${self ? ` <span class="hint">(${t('online_you')})</span>` : ''}<br>${badges}</td>
+    <td class="hint">${u.created ? fmtDate(u.created) : ''}</td>
+    <td>${u.approved ? `<span class="ok">${t('online_status_ok')}</span>`
+                     : `<span class="warn">${t('online_status_pending')}</span>`}</td>
+    <td class="num">${u.chars}</td>
+    <td class="nowrap">${acts.join(' ')}</td>
+  </tr>`;
+}
+function adminBody() {
+  if (!adminData) return `<p class="hint">${t('online_loading')}</p>`;
   const mode = adminData.registerMode || 'open';
   const modeOpt = (v, label) =>
     `<option value="${v}" ${mode === v ? 'selected' : ''}>${label}</option>`;
-  const rows = (adminData.users || []).map(u => {
-    const self = u.username === ONLINE.username;
-    const badges = (u.isAdmin ? `<span class="badge gold">${t('online_badge_admin')}</span>` : '')
-                 + (u.mfaEnabled ? `<span class="badge">${t('online_badge_mfa')}</span>` : '');
-    const acts = [];
-    if (!u.approved) acts.push(`<button class="mini" data-oact="adm" data-what="approve" data-id="${u.id}">${t('online_act_approve')}</button>`);
-    if (u.approved && !self) acts.push(`<button class="mini" data-oact="adm" data-what="block" data-id="${u.id}">${t('online_act_block')}</button>`);
-    if (!u.isAdmin) acts.push(`<button class="mini" data-oact="adm" data-what="promote" data-id="${u.id}">${t('online_act_promote')}</button>`);
-    else if (!self && u.id !== 1) acts.push(`<button class="mini" data-oact="adm" data-what="demote" data-id="${u.id}" data-name="${esc(u.username)}">${t('online_act_demote')}</button>`);
-    if (!self) acts.push(`<button class="mini" data-oact="adm" data-what="reset_password" data-id="${u.id}" data-name="${esc(u.username)}">${t('online_act_resetpw')}</button>`);
-    if (u.mfaEnabled) acts.push(`<button class="mini" data-oact="adm" data-what="reset_mfa" data-id="${u.id}" data-name="${esc(u.username)}">${t('online_act_resetmfa')}</button>`);
-    if (!self) acts.push(`<button class="mini danger" data-oact="adm" data-what="delete" data-id="${u.id}" data-name="${esc(u.username)}">${t('online_act_delete')}</button>`);
-    return `<tr>
-      <td>${esc(u.username)}${self ? ` <span class="hint">(${t('online_you')})</span>` : ''}<br>${badges}</td>
-      <td class="hint">${u.created ? fmtDate(u.created) : ''}</td>
-      <td>${u.approved ? `<span class="ok">${t('online_status_ok')}</span>`
-                       : `<span class="warn">${t('online_status_pending')}</span>`}</td>
-      <td class="num">${u.chars}</td>
-      <td class="nowrap">${acts.join(' ')}</td>
-    </tr>`;
-  }).join('');
-  const pending = (adminData.users || []).filter(u => !u.approved).length;
+  const all = adminData.users || [];
+  const pending = all.filter(u => !u.approved).length;
+  const f = adminFilter.trim().toLowerCase();
+  // Freigabe-Wartende zuerst, dann alphabetisch – so springt Wichtiges nach oben.
+  const users = all.slice()
+    .sort((a, b) => (a.approved - b.approved) || a.username.localeCompare(b.username))
+    .filter(u => !f || u.username.toLowerCase().includes(f));
+  const rows = users.map(adminUserRow).join('');
   return `
-    <h3>${t('online_admin')}</h3>
     <label>${t('online_admin_mode')}</label>
-    <select data-oact="mode">
+    <select data-aact="mode">
       ${modeOpt('open', t('online_mode_open'))}
       ${modeOpt('approval', t('online_mode_approval'))}
       ${modeOpt('closed', t('online_mode_closed'))}
     </select>
-    <h3>${t('online_admin_users')} (${(adminData.users || []).length})${pending ? ` – <span class="warn">${pending} ⏳</span>` : ''}</h3>
+    <h3>${t('online_admin_users')} (${all.length})${pending ? ` – <span class="warn">${pending} ⏳</span>` : ''}</h3>
+    <input type="text" id="adminSearch" data-aact="search" value="${esc(adminFilter)}"
+           placeholder="${t('online_admin_search')}" style="width:100%; margin-bottom:8px">
     <div class="table-scroll"><table class="list">
       <tr><th>${t('online_col_user')}</th><th>${t('online_col_since')}</th><th>${t('online_col_status')}</th>
           <th class="num">${t('online_col_chars')}</th><th>${t('online_col_actions')}</th></tr>
-      ${rows}
+      ${rows || `<tr><td colspan="5" class="hint">${t('none_dash')}</td></tr>`}
     </table></div>`;
+}
+function renderAdmin() {
+  const box = document.getElementById('adminBox');
+  if (!box) return;
+  box.innerHTML = `<div class="modal-head"><h2>${t('online_admin')}</h2>
+      <button class="mini" data-aact="close">✕</button></div>`
+    + (adminMsg ? `<p class="modal-msg">${esc(adminMsg)}</p>` : '')
+    + adminBody();
+}
+async function adminClick(el) {
+  const act = el.dataset.aact;
+  adminMsg = '';
+  try {
+    if (act === 'close') { closeAdmin(); return; }
+    if (act === 'user') {
+      const what = el.dataset.what, name = el.dataset.name || '';
+      if (what === 'delete' && !confirm(t('online_confirm_delete_user').replace('{name}', name))) return;
+      if (what === 'reset_mfa' && !confirm(t('online_confirm_resetmfa').replace('{name}', name))) return;
+      if (what === 'demote' && !confirm(t('online_confirm_demote').replace('{name}', name))) return;
+      if (what === 'reset_password' && !confirm(t('online_confirm_resetpw').replace('{name}', name))) return;
+      const res = await api('admin_user_action', { id: +el.dataset.id, what });
+      if (res.resetCode)
+        adminMsg = t('online_resetcode_for').replace('{name}', res.username) + ' ' + res.resetCode;
+      adminData = await api('admin_users');
+    }
+  } catch (e) { adminMsg = t('online_error') + e.message; }
+  renderAdmin();
 }
 
 function renderOnline() {
@@ -414,7 +491,7 @@ function renderOnline() {
     <h3>${t('online_shared_chars')}</h3>
     <table class="list">${shared || `<tr><td class="hint">${t('online_none')}</td></tr>`}</table>
     <p class="hint">${t('online_readonly_hint')}</p>
-    ${ONLINE.isAdmin ? adminSection() : ''}
+    ${ONLINE.isAdmin ? `<p><button data-oact="openAdmin">${t('online_admin_open')}</button></p>` : ''}
     <h3>${t('online_pw_change')}</h3>
     <label>${t('online_pw_old')}</label><input type="password" id="pwOld" autocomplete="current-password">
     <label>${t('online_new_password')}</label><input type="password" id="pwNew" autocomplete="new-password">
@@ -515,6 +592,10 @@ async function onlineAction(el) {
         await refreshCloud();
         return;
       }
+      case 'openAdmin':
+        closeOnline();
+        openAdmin();
+        return;
       case 'logout':
         try { await api('logout', {}); } catch (e) {}
         setOnlineAuth({ token: '', username: '', mfaEnabled: false, isAdmin: false });
@@ -685,7 +766,7 @@ document.addEventListener('change', async e => {
   renderOnline();
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeOnline();
+  if (e.key === 'Escape') { closeOnline(); closeAdmin(); }
   if (e.key === 'Enter' && e.target.closest && e.target.closest('#onlineModal')) {
     const box = document.getElementById('onlineBox');
     const primary = box && box.querySelector('button.accent[data-oact]');
@@ -693,12 +774,55 @@ document.addEventListener('keydown', e => {
   }
 });
 
-/* Sprachwechsel: Online-UI mit übersetzen */
+/* ---- Verwaltungsfenster: eigene Handler (nur innerhalb #adminModal) ---- */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-aact]');
+  if (!el || !el.closest('#adminModal')) return;
+  if (el.tagName === 'SELECT') return;
+  e.preventDefault();
+  adminClick(el);
+});
+document.addEventListener('change', async e => {
+  const el = e.target;
+  if (!el.dataset || el.dataset.aact !== 'mode' || !el.closest('#adminModal')) return;
+  adminMsg = '';
+  try {
+    await api('admin_settings', { registerMode: el.value });
+    adminData = await api('admin_users');
+    regInfo.registerMode = el.value;
+    regInfo.register = el.value !== 'closed';
+  } catch (err) { adminMsg = t('online_error') + err.message; }
+  renderAdmin();
+});
+document.addEventListener('input', e => {
+  const el = e.target;
+  if (!el.dataset || el.dataset.aact !== 'search' || !el.closest('#adminModal')) return;
+  adminFilter = el.value;
+  const pos = el.selectionStart;
+  renderAdmin();
+  const again = document.getElementById('adminSearch');
+  if (again) { again.focus(); again.setSelectionRange(pos, pos); }
+});
+/* ⚙-Menü: Verwaltung öffnen (Knopf steht in allen drei Seiten, nur für
+   Admins sichtbar – updateAdminButton() blendet ihn ein/aus). */
+(function wireAdminButton() {
+  const b = document.getElementById('btnAdmin');
+  if (b) b.addEventListener('click', () => {
+    const om = document.getElementById('optionsMenu');
+    if (om) om.classList.add('hidden');
+    openAdmin();
+  });
+  updateAdminButton();
+})();
+
+/* Sprachwechsel: Online- und Verwaltungs-UI mit übersetzen */
 const _setLangOrig = setLang;
 setLang = function (l) {
   _setLangOrig(l);
   updateOnlineButton();
   renderOnline();
+  const am = document.getElementById('adminModal');
+  if (am && !am.classList.contains('hidden')) renderAdmin();
 };
 
 /* Server-Erkennung beim Start */
