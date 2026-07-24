@@ -17,6 +17,16 @@
   <FilesMatch "\.(html|js|css)$">
     Header set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>
+
+  # Sicherheits-Header / security headers.
+  # Schuetzen vor Clickjacking (Einbetten der Login-Seite in fremde iframes),
+  # MIME-Sniffing und dem Verraten der Herkunfts-URL an fremde Seiten.
+  # Kein CSP-Header: die App nutzt bewusst Inline-Skripte/-Styles und Data-URIs,
+  # ein striktes CSP wuerde sie lahmlegen.
+  Header set X-Frame-Options "SAMEORIGIN"
+  Header set X-Content-Type-Options "nosniff"
+  Header set Referrer-Policy "no-referrer"
+  Header set Permissions-Policy "geolocation=(), microphone=(), camera=()"
 </IfModule>
 
 # Die Kataloge aus den Regelwerken sind gross (pdfdata-craft.js allein rund

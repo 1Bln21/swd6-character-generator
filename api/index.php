@@ -486,6 +486,7 @@ case 'register': {
   if (!preg_match('/^[A-Za-z0-9_\-]{3,32}$/', $username))
     fail('Username: 3-32 characters, letters/digits/-/_ only');
   if (strlen($password) < 8) fail('Password must be at least 8 characters');
+  if (strlen($password) > 1024) fail('Password too long (max 1024 characters)');
   $st = $db->prepare('SELECT id FROM users WHERE username = ?');
   $st->execute([$username]);
   if ($st->fetch()) fail('Username already taken', 409);
@@ -543,6 +544,7 @@ case 'password_change': {
     rate_fail($user['id']); fail('Current password is wrong', 401);
   }
   if (strlen($new) < 8) fail('Password must be at least 8 characters');
+  if (strlen($new) > 1024) fail('Password too long (max 1024 characters)');
   rate_ok($user['id']);
   $db->prepare('UPDATE users SET pass_hash = ? WHERE id = ?')
      ->execute([password_hash($new, PASSWORD_DEFAULT), $user['id']]);
@@ -567,6 +569,7 @@ case 'password_reset': {
   if (!$user) { usleep(400000); fail('Wrong user name or code', 401); }
   rate_check($user);
   if (strlen($new) < 8) fail('Password must be at least 8 characters');
+  if (strlen($new) > 1024) fail('Password too long (max 1024 characters)');
   $h = code_hash($code);
   $viaRecovery = !empty($user['recovery_hash']) && hash_equals($user['recovery_hash'], $h);
   $viaAdmin    = !empty($user['reset_hash']) && hash_equals($user['reset_hash'], $h)

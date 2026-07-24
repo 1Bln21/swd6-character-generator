@@ -478,7 +478,10 @@ function speciesData() {
     const cs = C.customSpecies;
     return {
       name: cs.name || 'Custom', min: cs.mins.slice(), max: cs.maxs.slice(),
-      move: cs.move || 10, free: 54 - cs.mins.reduce((a, b) => a + (+b || 0), 0), offset: 0,
+      /* move stammt bei Cloud-Spezies aus fremden, ungeprüften Daten – strikt
+         auf eine Zahl zwingen, sonst könnte ein String beim Anzeigen HTML
+         einschleusen (die Zahl wird an mehreren Stellen ohne esc() gerendert). */
+      move: (+cs.move || 10), free: 54 - cs.mins.reduce((a, b) => a + (+b || 0), 0), offset: 0,
       hMin: 0, hMax: 0, planet: '', page: 'Custom',
       abilities: cs.abilities.filter(x => x), story: cs.story.filter(x => x),
       skillImprove: [], bonusSkills: [], armorP: 0, armorE: 0, custom: true,
