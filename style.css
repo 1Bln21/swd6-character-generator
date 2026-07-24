@@ -459,3 +459,5 @@ table.sp-table td.num { text-align: right; white-space: nowrap; }
   border-left: 4px solid var(--accent); border-radius: 6px;
   line-height: 1.5;
 }
+/* Getragene Rüstung hervorheben, damit auf einen Blick klar ist, was zählt. */
+table.list tr.worn > td { background: color-mix(in srgb, var(--accent) 12%, transparent); }

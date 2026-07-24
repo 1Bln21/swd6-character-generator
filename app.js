@@ -153,6 +153,9 @@ de: {
   my_armor: 'Meine Rüstung', custom_armor: 'Eigene Rüstung', cat_armor: 'Katalog: Rüstungen',
   armor: 'Rüstung', physical: 'Physisch', energy: 'Energie', coverage: 'Abdeckung', dex_pen: 'DEX-Malus',
   armor_bonus: 'Rüstungsbonus gesamt', armor_total: 'Widerstand mit Rüstung',
+  armor_worn: 'Getragen', armor_worn_hint: 'Nur angehakte Rüstung zählt zum Widerstand. Zwei Rüstungen, die denselben Körperbereich abdecken, lassen sich nicht gleichzeitig tragen.',
+  armor_conflict: 'Passt nicht: Ein anderes getragenes Rüstungsstück deckt bereits {loc} ab.',
+  loc_head: 'Kopf', loc_torso: 'Torso', loc_arms: 'Arme', loc_hands: 'Hände', loc_legs: 'Beine',
   /* Credits */
   spent_misc: 'Ausgegeben (Sonstiges)', spent_ship: 'Ausgegeben (Schiff)',
   equipment: 'Ausrüstung', melee_w: 'Nahkampfwaffen (inkl. Lichtschwert-Mods)',
@@ -317,6 +320,9 @@ en: {
   my_armor: 'My Armor', custom_armor: 'Custom Armor', cat_armor: 'Catalog: Armor',
   armor: 'Armor', physical: 'Physical', energy: 'Energy', coverage: 'Coverage', dex_pen: 'DEX Penalty',
   armor_bonus: 'Total armor bonus', armor_total: 'Resistance with armor',
+  armor_worn: 'Worn', armor_worn_hint: 'Only ticked armor counts toward resistance. Two armors covering the same body area cannot be worn at once.',
+  armor_conflict: 'Does not fit: another worn armor already covers {loc}.',
+  loc_head: 'head', loc_torso: 'torso', loc_arms: 'arms', loc_hands: 'hands', loc_legs: 'legs',
   /* Credits */
   spent_misc: 'Spent (Misc.)', spent_ship: 'Spent (Ship)',
   equipment: 'Equipment', melee_w: 'Melee weapons (incl. lightsaber mods)',
@@ -435,7 +441,7 @@ function emptyChar() {
       loans: [ { to: '', amount: 0, interest: 0 }, { to: '', amount: 0, interest: 0 } ],
     },
     equipment: {}, customEquipment: [],
-    armor: [], customArmor: [],
+    armor: [], armorWorn: [], customArmor: [],
     melee: [], customMelee: [],
     ranged: [], customRanged: [],
     explosives: {}, customExplosives: [],
@@ -1414,19 +1420,105 @@ function armorPips(v) {
   return sign * ((+(m[2] || 0)) * 3 + (+(m[3] || 0)));
 }
 
-/* Gesamter Schadenswiderstand: Stärke plus ALLE Rüstungsboni – natürliche
-   Panzerung der Spezies, getragene Katalog-Rüstung und eigene Rüstung.
-   Genau das fehlte bisher: eigene und zusätzliche Rüstung wurden nirgends
-   aufaddiert, der Bogen zeigte nur Stärke + natürliche Panzerung. */
+/* Abdeckung ("Torso", "Head, Torso, Arms", "Full") in Körperbereiche
+   zerlegen. Zwei getragene Rüstungen dürfen sich nicht überschneiden – man
+   kann nicht Brustpanzer UND eine Vollrüstung gleichzeitig am Torso tragen. */
+const ARMOR_LOCS = ['head', 'torso', 'arms', 'hands', 'legs'];
+function parseArmorLoc(str) {
+  const s = String(str || '').toLowerCase();
+  if (!s.trim()) return new Set();                 // unbekannt: keine Sperre
+  if (/\b(full|all)\b|full body/.test(s)) return new Set(ARMOR_LOCS);
+  const set = new Set();
+  s.split(/[,/.;&]+/).forEach(p => {
+    p = p.trim(); if (!p) return;
+    if (/head|helmet|face/.test(p)) set.add('head');
+    if (/torso|chest|vest|body|back/.test(p)) set.add('torso');
+    if (/\barm/.test(p)) set.add('arms');
+    if (/hand|glove|gauntlet/.test(p)) set.add('hands');
+    if (/\bleg|boot|greave|shin/.test(p)) set.add('legs');
+  });
+  return set;
+}
+
+/* Alle Rüstungsstücke des Charakters in einheitlicher Form – Katalog wie
+   eigene, mit Abdeckung, Werten (in Pips) und ob sie gerade getragen wird. */
+function armorEntries() {
+  const out = [];
+  C.armor.forEach((n, i) => {
+    const a = catByName(DATA.armor, n);
+    if (a) out.push({ kind: 'armor', idx: i, name: a.name,
+      loc: parseArmorLoc(a.loc), phys: +a.phys || 0, energy: +a.energy || 0,
+      worn: !!(C.armorWorn && C.armorWorn[i]) });
+  });
+  (C.customArmor || []).forEach((a, i) => out.push({ kind: 'custom', idx: i,
+    name: a.name || '#' + (i + 1), loc: parseArmorLoc(a.loc),
+    phys: armorPips(a.phys), energy: armorPips(a.energy), worn: !!a.active }));
+  return out;
+}
+
+/* Überschneidet die Abdeckung mit den bereits getragenen Rüstungen?
+   Gibt den betroffenen Körperbereich zurück, sonst null. */
+function armorClash(loc, exKind, exIdx) {
+  const worn = new Set();
+  armorEntries().forEach(e => {
+    if (!e.worn || (e.kind === exKind && e.idx === exIdx)) return;
+    e.loc.forEach(l => worn.add(l));
+  });
+  for (const l of loc) if (worn.has(l)) return l;
+  return null;
+}
+
+let armorMsg = '';
+function setArmorWorn(kind, idx, on) {
+  armorMsg = '';
+  const e = armorEntries().find(x => x.kind === kind && x.idx === idx);
+  if (on && e) {
+    const clash = armorClash(e.loc, kind, idx);
+    if (clash) {
+      armorMsg = t('armor_conflict').replace('{loc}', t('loc_' + clash));
+      on = false;
+    }
+  }
+  if (kind === 'armor') { (C.armorWorn = C.armorWorn || [])[idx] = on; }
+  else if (C.customArmor[idx]) C.customArmor[idx].active = on;
+}
+
+/* Beim Hinzufügen automatisch tragen, sofern nichts kollidiert – so zählt
+   eine einzelne Rüstung sofort, ohne dass man erst ein Häkchen setzen muss.
+   Dient auch dazu, ältere Charaktere ohne "getragen"-Angabe sinnvoll zu
+   belegen (erste passende Rüstung an, überlappende bleiben aus). */
+function autoWear(kind, idx) {
+  const e = armorEntries().find(x => x.kind === kind && x.idx === idx);
+  if (e && !armorClash(e.loc, kind, idx)) {
+    if (kind === 'armor') (C.armorWorn = C.armorWorn || [])[idx] = true;
+    else C.customArmor[idx].active = true;
+  }
+}
+function normalizeArmorWorn() {
+  // Alte Charaktere tragen keine "getragen"-Angabe: dann ist C.armorWorn
+  // kürzer als die Rüstungsliste bzw. eine eigene Rüstung hat kein active.
+  // Für solche Einträge wird greedy die erste passende Rüstung angelegt.
+  if (!Array.isArray(C.armorWorn)) C.armorWorn = [];
+  const needOwned = C.armorWorn.length < C.armor.length;
+  C.armorWorn.length = C.armor.length;              // auf Länge bringen
+  let needCustom = false;
+  (C.customArmor || []).forEach(a => {
+    if (a.active === undefined) { a.active = false; needCustom = true; }
+  });
+  if (needOwned) C.armor.forEach((_, i) => {
+    if (C.armorWorn[i] === undefined) autoWear('armor', i);
+  });
+  if (needCustom) (C.customArmor || []).forEach((_, i) => autoWear('custom', i));
+}
+
+/* Gesamter Schadenswiderstand: Stärke plus die Boni der GETRAGENEN Rüstung
+   (natürliche Panzerung der Spezies zählt immer, sie ist angeboren). */
 function armorTotals() {
+  normalizeArmorWorn();
   const sp = speciesData();
   let physBonus = (sp.armorP || 0), enerBonus = (sp.armorE || 0);
-  C.armor.forEach(n => {
-    const a = catByName(DATA.armor, n);
-    if (a) { physBonus += (+a.phys || 0); enerBonus += (+a.energy || 0); }
-  });
-  C.customArmor.forEach(a => {
-    physBonus += armorPips(a.phys); enerBonus += armorPips(a.energy);
+  armorEntries().forEach(e => {
+    if (e.worn) { physBonus += e.phys; enerBonus += e.energy; }
   });
   const str = attrTotal('str');
   return { str, physBonus, enerBonus,
@@ -1435,18 +1527,23 @@ function armorTotals() {
 
 /* ---------------- Tab: Rüstung ---------------- */
 function viewArmor() {
+  const wornBox = (kind, i, on) =>
+    `<input type="checkbox" data-act="wearArmor" data-kind="${kind}" data-idx="${i}" ${on ? 'checked' : ''} title="${t('armor_worn')}">`;
   const owned = C.armor.map((n, i) => {
     const a = catByName(DATA.armor, n); if (!a) return '';
-    return `<tr><td>${esc(a.name)}</td><td>+${fmtD(a.phys)}</td><td>+${fmtD(a.energy)}</td>
+    return `<tr class="${C.armorWorn && C.armorWorn[i] ? 'worn' : ''}">
+      <td>${wornBox('armor', i, C.armorWorn && C.armorWorn[i])}</td>
+      <td>${esc(a.name)}</td><td>+${fmtD(a.phys)}</td><td>+${fmtD(a.energy)}</td>
       <td>${esc(a.loc)}</td><td>${a.dexPen ? '−' + fmtD(a.dexPen) : '–'}</td><td class="num">${fmtCr(a.cost)}</td>
       <td>${a.abilities.map(x => esc(x)).join('<br>')}</td>
       <td><button class="mini danger" data-act="delOwn" data-list="armor" data-idx="${i}">×</button></td></tr>`;
   }).join('');
-  const customRows = C.customArmor.map((a, i) => `<tr>
+  const customRows = C.customArmor.map((a, i) => `<tr class="${a.active ? 'worn' : ''}">
+    <td>${wornBox('custom', i, a.active)}</td>
     <td>${inputT('customArmor.' + i + '.name', a.name)}</td>
     <td>${inputT('customArmor.' + i + '.phys', a.phys, 'style="width:80px" placeholder="+1D"')}</td>
     <td>${inputT('customArmor.' + i + '.energy', a.energy, 'style="width:80px" placeholder="+1"')}</td>
-    <td>${inputT('customArmor.' + i + '.loc', a.loc, 'style="width:110px"')}</td>
+    <td>${inputT('customArmor.' + i + '.loc', a.loc, 'style="width:110px" placeholder="Torso"')}</td>
     <td>${inputT('customArmor.' + i + '.dexPen', a.dexPen, 'style="width:80px"')}</td>
     <td class="num">${inputN('customArmor.' + i + '.cost', a.cost, 'data-rerender="1" style="width:90px"')}</td>
     <td>${inputT('customArmor.' + i + '.note', a.note)}</td>
@@ -1458,6 +1555,7 @@ function viewArmor() {
     <td>${a.abilities.map(x => esc(x)).join('<br>')}</td>
     <td><button class="mini" data-act="addOwn" data-list="armor" data-i="${i}">+</button></td></tr>`).join('');
   const at = armorTotals();
+  const msg = armorMsg; armorMsg = '';   // Konfliktmeldung nur einmal zeigen
   // Stärke ist die Grund-Panzerung (jeder wehrt Schaden mit STR ab); die
   // natürliche Panzerung der Spezies steckt als Bonus im "Rüstungsbonus".
   return `
@@ -1467,11 +1565,13 @@ function viewArmor() {
     <span>${t('armor_total')}: <b>${fmtD(at.physTotal)} ${t('phys_short')} / ${fmtD(at.enerTotal)} ${t('ener_short')}</b></span>
     <span class="hint">${t('armor_hint')}</span>
   </div>
-  <div class="card"><h2>${t('my_armor')}</h2><div class="table-scroll">
-    <table class="list"><tr><th>${t('armor')}</th><th>${t('physical')}</th><th>${t('energy')}</th><th>${t('coverage')}</th><th>${t('dex_pen')}</th><th class="num">${t('cost')}</th><th>${t('special')}</th><th></th></tr>
-    ${owned || `<tr><td colspan="8" class="hint">${t('none_dash')}</td></tr>`}</table></div>
+  ${msg ? `<div class="hint warnbox">${esc(msg)}</div>` : ''}
+  <div class="card"><h2>${t('my_armor')}</h2>
+    <p class="hint">${t('armor_worn_hint')}</p><div class="table-scroll">
+    <table class="list"><tr><th>${t('armor_worn')}</th><th>${t('armor')}</th><th>${t('physical')}</th><th>${t('energy')}</th><th>${t('coverage')}</th><th>${t('dex_pen')}</th><th class="num">${t('cost')}</th><th>${t('special')}</th><th></th></tr>
+    ${owned || `<tr><td colspan="9" class="hint">${t('none_dash')}</td></tr>`}</table></div>
     <h3>${t('custom_armor')}</h3><div class="table-scroll">
-    <table class="list"><tr><th>${t('name')}</th><th>${t('physical')}</th><th>${t('energy')}</th><th>${t('coverage')}</th><th>${t('dex_pen')}</th><th class="num">${t('cost')}</th><th>${t('note')}</th><th></th></tr>${customRows}</table></div>
+    <table class="list"><tr><th>${t('armor_worn')}</th><th>${t('name')}</th><th>${t('physical')}</th><th>${t('energy')}</th><th>${t('coverage')}</th><th>${t('dex_pen')}</th><th class="num">${t('cost')}</th><th>${t('note')}</th><th></th></tr>${customRows}</table></div>
     <p><button class="mini" data-act="addCustom" data-list="customArmor">${t('add_entry')}</button></p></div>
   <div class="card"><h2>${t('cat_armor')}</h2><div class="table-scroll">
     <table class="list"><tr><th>${t('armor')}</th><th>${t('physical')}</th><th>${t('energy')}</th><th>${t('coverage')}</th><th>${t('dex_pen')}</th><th class="num">${t('cost')}</th><th>${t('avail')}</th><th>${t('special')}</th><th></th></tr>${cat}</table></div></div>`;
@@ -1917,11 +2017,18 @@ content.addEventListener('click', e => {
       const list = el.dataset.list;
       const cat = { armor: DATA.armor, melee: DATA.melee, ranged: DATA.ranged }[list];
       const item = cat[+el.dataset.i];
-      if (item) { C[list].push(item.name); update(); }
+      if (item) {
+        C[list].push(item.name);
+        // Neue Rüstung gleich tragen, wenn nichts kollidiert.
+        if (list === 'armor') { (C.armorWorn = C.armorWorn || []).push(false); autoWear('armor', C.armor.length - 1); }
+        update();
+      }
       break;
     }
     case 'delOwn': {
-      C[el.dataset.list].splice(+el.dataset.idx, 1);
+      const list = el.dataset.list, idx = +el.dataset.idx;
+      C[list].splice(idx, 1);
+      if (list === 'armor' && Array.isArray(C.armorWorn)) C.armorWorn.splice(idx, 1);
       update(); break;
     }
     case 'addCustom': {
@@ -1930,7 +2037,7 @@ content.addEventListener('click', e => {
         customMelee: { name: '', dmg: '', diff: '', cost: 0, note: '' },
         customRanged: { name: '', skill: '', dmg: '', ranges: '', ammo: '', cost: 0 },
         customExplosives: { name: '', dmg: '', cost: 0, qty: 1, note: '' },
-        customArmor: { name: '', phys: '', energy: '', loc: '', dexPen: '', cost: 0, note: '' },
+        customArmor: { name: '', phys: '', energy: '', loc: '', dexPen: '', cost: 0, note: '', active: true },
       };
       C[el.dataset.list].push(Object.assign({}, defaults[el.dataset.list]));
       update(); break;
@@ -1938,6 +2045,10 @@ content.addEventListener('click', e => {
     case 'delCustom': {
       C[el.dataset.list].splice(+el.dataset.idx, 1);
       update(); break;
+    }
+    case 'wearArmor': {
+      setArmorWorn(el.dataset.kind, +el.dataset.idx, el.checked);
+      update('armor'); break;
     }
     case 'wsub': {
       weaponsSub = el.dataset.sub;
