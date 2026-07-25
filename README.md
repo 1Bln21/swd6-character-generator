@@ -11,6 +11,9 @@ This project is an HTML port of the Excel workbooks by **Chance Gibboney** — s
 | **Characters** | `index.html` — 374 species, all skills, Force powers, equipment, lightsaber workshop |
 | **Droids** | `droid.html` — degrees, 167 modifications, 522 ready-made droid templates |
 | **Ships & Vehicles** | `ship.html` — 1,157 ship/vehicle templates, modification workshop, weapons, sensors |
+| **NPCs** | `npc.html` — generate whole NPC groups with compact stat blocks by species, faction and threat level |
+
+Game masters can also run **game rounds**: invite players by code, let them submit characters, and approve them for the round (the approval is stamped on the sheet). See the ☁ Online window.
 
 ---
 
@@ -186,6 +189,10 @@ Das Projekt ist die HTML-Portierung der Excel-Tabellen von **Chance Gibboney** �
 **Droiden** (`droid.html`) – fünf Degrees mit eigenen Steigerungskosten, gemeinsamer 25D-Startpool für Attribute, Fertigkeiten *und* Modifikationen, 167 Modifikationen in 11 Kategorien, fest verdrahtete Datenbank-Fertigkeiten sowie **350 fertige Droidenmodelle** aus den Regelwerken.
 
 **Schiffe & Fahrzeuge** (`ship.html`) – **1.157 Vorlagen** (834 Raumschiffe + 323 Fahrzeuge): auswählen und alle Grundwerte samt Bewaffnung sind gefüllt. Dazu die Umbau-Werkstatt (Antrieb, Manövrierfähigkeit, Hyperantrieb, Hülle, Schilde, Waffenschaden) mit Einbau-Schwierigkeit, Kosten in Prozent des Schiffswerts und steigendem **Pannen-Modifikator**, Ersatzteile, bis zu sechs Waffen, Sensoren und Crew-Skills. Die Bewaffnung lässt sich aus einem **Waffen-Katalog** übernehmen: 838 Typen aus den Schiffsbeschreibungen der Sammelbände plus die Übersicht aus *Galaxy Guide 6* mit Preis und Gewicht, filterbar nach Größenklasse. Dazu die **Werkstatt** mit den erweiterten Regeln aus *Galaxy Guide 6: Tramp Freighters*: Pannen auswürfeln für alle fünf Systeme und drei Schweregrade, Reparaturkosten-Tabelle auf den eigenen Schiffswert gerechnet, Raumhafen-Klassen mit Liegegebühren, Vorratsformel, Überholungskosten, Einbauzeiten und die Regeln für gekoppelte Waffen.
+
+**NPCs** (`npc.html`) – erzeugt ganze **NPC-Gruppen mit kompakten Statblöcken**: Gruppengröße, Spezies-Modus (nur Menschen / gemischt / eine Spezies / nur Aliens), Fraktion (Imperium, Rebellen, Piraten, CIS, Kopfgeldjäger, Verbrechersyndikat, Söldner, Zivilisten) und Erfahrungsstufe. Bei „gemischt“ stellt der Mensch-Anteil Star-Wars-typisch die Mehrheit. Mehrere Karten pro Druckseite.
+
+**Spielrunden** – Spielleiter können eine Runde eröffnen, Spieler per Einladungscode aufnehmen, deren angemeldete Charaktere ansehen und **für die Runde freigeben** – die Freigabe erscheint als Stempel auf dem Bogen (☁-Online-Fenster).
 
 **Überall** – Bild-Import per Datei oder Drag & Drop, Speichern im Browser plus JSON-Export, Druck-/PDF-Bögen, zweisprachige Oberfläche (Englisch als Standard, Deutsch im ⚙-Menü) samt aller 84 Fertigkeitsnamen nach der deutschen Ausgabe „Krieg der Sterne – Das Rollenspiel“, durchsuchbare **erweiterte Kataloge** mit 492 Waffen und 563 Ausrüstungsgegenständen, nach Ära filterbar sowie optionale **Online-Konten** mit MFA, Cloud-Speicherung und Freigaben.
 
