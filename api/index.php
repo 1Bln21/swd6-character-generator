@@ -960,6 +960,10 @@ case 'round_create': {
   $name = trim((string)inp('name', ''));
   if ($name === '') fail('Round name is required');
   if (strlen($name) > 100) fail('Round name too long (max 100 characters)');
+  /* Obergrenze gegen Spam: ein Nutzer kann nicht beliebig viele Runden anlegen. */
+  $st = $db->prepare('SELECT COUNT(*) FROM rounds WHERE gm_id = ?');
+  $st->execute([$user['id']]);
+  if ((int)$st->fetchColumn() >= 50) fail('You have reached the maximum number of rounds (50)');
   /* eindeutigen Einladungscode erzeugen */
   $code = '';
   for ($i = 0; $i < 20; $i++) {
@@ -984,7 +988,7 @@ case 'round_join': {
   $st = $db->prepare('SELECT * FROM rounds WHERE invite_code = ?');
   $st->execute([strtoupper($code)]);
   $round = $st->fetch(PDO::FETCH_ASSOC);
-  if (!$round) fail('No round found for this code', 404);
+  if (!$round) { usleep(300000); fail('No round found for this code', 404); }  // bremst Code-Brute-Force
   $db->prepare(insert_ignore() . ' round_members (round_id, user_id, role) VALUES (?,?,?)')
      ->execute([$round['id'], $user['id'], 'player']);
   json_out(['ok' => true, 'id' => (int)$round['id'], 'name' => $round['name']]);

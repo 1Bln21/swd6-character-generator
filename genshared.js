@@ -121,10 +121,10 @@ function setPath(obj, path, val) {
   o[parts[parts.length - 1]] = val;
 }
 function inputT(path, val, extra) {
-  return `<input type="text" data-bind="${path}" value="${esc(val)}" ${extra || ''}>`;
+  return `<input type="text" autocomplete="off" data-bind="${path}" value="${esc(val)}" ${extra || ''}>`;
 }
 function inputN(path, val, extra) {
-  return `<input type="number" data-bind="${path}" data-type="num" value="${esc(val == null ? '' : val)}" ${extra || ''}>`;
+  return `<input type="number" autocomplete="off" data-bind="${path}" data-type="num" value="${esc(val == null ? '' : val)}" ${extra || ''}>`;
 }
 function stepper(act, params, minus, plus) {
   return `<span class="stepper">

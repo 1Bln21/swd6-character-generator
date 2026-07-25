@@ -718,10 +718,10 @@ function renderTab(tab) {
 function renderAll() { renderTab(activeTab); refreshSavedList(); }
 
 function inputT(path, val, extra) {
-  return `<input type="text" data-bind="${path}" value="${esc(val)}" ${extra || ''}>`;
+  return `<input type="text" autocomplete="off" data-bind="${path}" value="${esc(val)}" ${extra || ''}>`;
 }
 function inputN(path, val, extra) {
-  return `<input type="number" data-bind="${path}" data-type="num" value="${esc(val == null ? '' : val)}" ${extra || ''}>`;
+  return `<input type="number" autocomplete="off" data-bind="${path}" data-type="num" value="${esc(val == null ? '' : val)}" ${extra || ''}>`;
 }
 function stepper(act, params, minus, plus) {
   return `<span class="stepper">
@@ -874,7 +874,7 @@ function viewInfo() {
               <option value="false" ${!C.info.forceSensitive ? 'selected' : ''}>${t('no')}</option>
               <option value="true" ${C.info.forceSensitive ? 'selected' : ''}>${t('yes')}</option>
             </select></div>
-          <div><label>${t('home_planet')}</label><input type="text" list="planets" data-bind="info.planet" value="${esc(C.info.planet)}"><datalist id="planets">${planetList}</datalist></div>
+          <div><label>${t('home_planet')}</label><input type="text" list="planets" autocomplete="off" data-bind="info.planet" value="${esc(C.info.planet)}"><datalist id="planets">${planetList}</datalist></div>
           <div><label>${t('age')}</label>${inputT('info.age', C.info.age)}</div>
           <div><label>${t('height_m')} ${sp.hMax ? `<span class="hint">[${sp.hMin}–${sp.hMax}]</span>` : ''}</label>${inputT('info.height', C.info.height)}</div>
           <div><label>${t('weight_kg')}</label>${inputT('info.weight', C.info.weight)}</div>
