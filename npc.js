@@ -1,0 +1,442 @@
+/* =====================================================================
+   Star Wars D6 – NSC-/NPC-Gruppengenerator (für Spielleiter)
+   ---------------------------------------------------------------------
+   Erzeugt ganze NPC-Gruppen mit kompakten Statblöcken: Größe, Spezies-
+   Modus (nur Menschen / gemischt / eine Spezies / nur Aliens) und eine
+   Fraktion (Imperium, Rebellen, Piraten, CIS …). Baut auf genshared.js
+   (t, esc, fmtD, C, autosave, renderAll, initPage) und data.js (Spezies).
+   ===================================================================== */
+'use strict';
+
+const PAGE_DOC_KIND = 'npc';
+const LS_CURRENT = 'swd6_npc_current';
+const LS_SAVED   = 'swd6_npc_saved';
+
+/* ---------------- Übersetzungen ---------------- */
+Object.assign(T.de, {
+  title: 'Star Wars D6 – NPC-Generator',
+  subtitle: 'NPC-Gruppengenerator',
+  nav_npc: 'NPCs',
+  doc_one: 'NPC-Gruppe', doc_plural: 'NPC-Gruppen',
+  tab_setup: 'Gruppe', tab_sheet: 'NPC-Bogen',
+  sheet_title_npc: 'NSC-GRUPPE',
+  npc_group_name: 'Gruppenname',
+  npc_count: 'Anzahl NPCs',
+  npc_species_mode: 'Spezies',
+  npc_mode_human: 'Alle Menschen',
+  npc_mode_mixed: 'Gemischt (Mensch-Mehrheit)',
+  npc_mode_single: 'Eine Spezies',
+  npc_mode_aliens: 'Nur Aliens (gemischt)',
+  npc_species_pick: 'Spezies wählen',
+  npc_faction: 'Fraktion / Zuordnung',
+  npc_threat: 'Erfahrung / Gefährlichkeit',
+  npc_threat_green: 'Grün (Kanonenfutter)',
+  npc_threat_average: 'Durchschnitt',
+  npc_threat_veteran: 'Veteran',
+  npc_threat_elite: 'Elite',
+  npc_generate: '🎲 Gruppe erzeugen',
+  npc_add_one: '+ NPC hinzufügen',
+  npc_reroll: 'neu würfeln',
+  npc_remove: 'entfernen',
+  npc_empty: 'Noch keine NPCs. Stelle oben die Gruppe ein und klicke „Gruppe erzeugen“.',
+  npc_move: 'Bew.',
+  npc_weapon: 'Waffe', npc_gear: 'Ausrüstung', npc_armor: 'Panzerung',
+  npc_skills: 'Fertigkeiten',
+  npc_species_col: 'Spezies',
+  npc_count_hint: '1–30 NPCs pro Gruppe.',
+  npc_mixed_note: 'Bei „Gemischt“ stellt Star Wars-typisch der Mensch-Anteil die Mehrheit.',
+  npc_wounds: 'Zustand',
+  npc_w_stun: 'Betäubt', npc_w_wound: 'Verwundet', npc_w_incap: 'Kampfunf.', npc_w_mortal: 'Sterbend',
+  fac_imperial: 'Imperium', fac_rebel: 'Rebellen-Allianz', fac_pirate: 'Piraten',
+  fac_cis: 'CIS / Separatisten', fac_bounty: 'Kopfgeldjäger', fac_crime: 'Verbrechersyndikat',
+  fac_merc: 'Söldner', fac_civilian: 'Zivilisten',
+});
+Object.assign(T.en, {
+  title: 'Star Wars D6 – NPC Generator',
+  subtitle: 'NPC group generator',
+  nav_npc: 'NPCs',
+  doc_one: 'NPC group', doc_plural: 'NPC groups',
+  tab_setup: 'Group', tab_sheet: 'NPC sheet',
+  sheet_title_npc: 'NPC GROUP',
+  npc_group_name: 'Group name',
+  npc_count: 'Number of NPCs',
+  npc_species_mode: 'Species',
+  npc_mode_human: 'All human',
+  npc_mode_mixed: 'Mixed (human majority)',
+  npc_mode_single: 'One species',
+  npc_mode_aliens: 'Aliens only (mixed)',
+  npc_species_pick: 'Choose species',
+  npc_faction: 'Faction / affiliation',
+  npc_threat: 'Experience / threat',
+  npc_threat_green: 'Green (cannon fodder)',
+  npc_threat_average: 'Average',
+  npc_threat_veteran: 'Veteran',
+  npc_threat_elite: 'Elite',
+  npc_generate: '🎲 Generate group',
+  npc_add_one: '+ Add NPC',
+  npc_reroll: 're-roll',
+  npc_remove: 'remove',
+  npc_empty: 'No NPCs yet. Set up the group above and click “Generate group”.',
+  npc_move: 'Move',
+  npc_weapon: 'Weapon', npc_gear: 'Gear', npc_armor: 'Armor',
+  npc_skills: 'Skills',
+  npc_species_col: 'Species',
+  npc_count_hint: '1–30 NPCs per group.',
+  npc_mixed_note: 'With “Mixed”, humans form the majority, as is typical for Star Wars.',
+  npc_wounds: 'Condition',
+  npc_w_stun: 'Stunned', npc_w_wound: 'Wounded', npc_w_incap: 'Incap.', npc_w_mortal: 'Mortally W.',
+  fac_imperial: 'Empire', fac_rebel: 'Rebel Alliance', fac_pirate: 'Pirates',
+  fac_cis: 'CIS / Separatists', fac_bounty: 'Bounty hunters', fac_crime: 'Crime syndicate',
+  fac_merc: 'Mercenaries', fac_civilian: 'Civilians',
+});
+
+/* ---------------- Spielwerte ---------------- */
+/* Attribut-Reihenfolge wie in DATA.species: dex, kno, mec, per, str, tec */
+const NPC_ATTRS = [
+  { key: 'dex', name: 'Dexterity' }, { key: 'kno', name: 'Knowledge' },
+  { key: 'mec', name: 'Mechanical' }, { key: 'per', name: 'Perception' },
+  { key: 'str', name: 'Strength' }, { key: 'tec', name: 'Technical' },
+];
+const AI = { dex: 0, kno: 1, mec: 2, per: 3, str: 4, tec: 5 };
+
+/* Bedrohungsstufen: Ziel-Attributsumme (Pips) + Skill-Bonus-Spanne (Pips) */
+const NPC_THREAT = {
+  green:   { attr: 33, skillMin: 0, skillMax: 3 },
+  average: { attr: 42, skillMin: 3, skillMax: 6 },
+  veteran: { attr: 51, skillMin: 6, skillMax: 10 },
+  elite:   { attr: 60, skillMin: 9, skillMax: 13 },
+};
+
+/* Fraktions-Archetypen. focus = Gewicht je Attribut (dex,kno,mec,per,str,tec)
+   bei der Attributsverteilung. skills: {name(EN, via skillName lokalisiert), attr}.
+   weapon: {name(EN), dmg (Pips) ODER str:+Pips für Nahkampf, rng}. armor = Pips. */
+const NPC_FACTIONS = {
+  imperial: {
+    focus: [3, 1, 1, 2, 2, 1], armor: 3,
+    skills: [['Blaster', 'dex'], ['Dodge', 'dex'], ['Brawling', 'str'], ['Search', 'per']],
+    weapon: { name: 'Blaster Rifle', dmg: 15, rng: '3-30/100/300' },
+    gear: { de: 'Sturmtruppen-Rüstung (+1D), Komlink', en: 'Stormtrooper armor (+1D), comlink' },
+  },
+  rebel: {
+    focus: [3, 1, 2, 2, 2, 1], armor: 0,
+    skills: [['Blaster', 'dex'], ['Dodge', 'dex'], ['Brawling', 'str'], ['First Aid', 'tec']],
+    weapon: { name: 'Blaster Rifle', dmg: 15, rng: '3-30/100/300' },
+    gear: { de: 'Blaster-Gaskartuschen, Komlink', en: 'Power packs, comlink' },
+  },
+  pirate: {
+    focus: [3, 1, 1, 2, 3, 1], armor: 1,
+    skills: [['Blaster', 'dex'], ['Dodge', 'dex'], ['Brawling', 'str'], ['Streetwise', 'kno']],
+    weapon: { name: 'Blaster Pistol', dmg: 12, rng: '3-10/30/120' },
+    gear: { de: 'Vibromesser (STR+1D), Beutetaschen', en: 'Vibroblade (STR+1D), loot pouches' },
+  },
+  cis: {
+    focus: [3, 1, 2, 2, 1, 2], armor: 1,
+    skills: [['Blaster', 'dex'], ['Dodge', 'dex'], ['Search', 'per']],
+    weapon: { name: 'Blaster Pistol', dmg: 12, rng: '3-10/30/120' },
+    gear: { de: 'Komlink, Datenpad', en: 'Comlink, datapad' },
+  },
+  bounty: {
+    focus: [3, 1, 1, 3, 2, 1], armor: 2,
+    skills: [['Blaster', 'dex'], ['Dodge', 'dex'], ['Brawling', 'str'], ['Search', 'per'], ['Streetwise', 'kno']],
+    weapon: { name: 'Blaster Rifle', dmg: 15, rng: '3-30/100/300' },
+    gear: { de: 'Panzerung (+1D), Handfesseln, Betäubungsgranate', en: 'Armor (+1D), binders, stun grenade' },
+  },
+  crime: {
+    focus: [2, 1, 1, 2, 3, 1], armor: 0,
+    skills: [['Brawling', 'str'], ['Blaster', 'dex'], ['Intimidation', 'per'], ['Gambling', 'kno']],
+    weapon: { name: 'Hold-out Blaster', dmg: 9, rng: '3-4/8/12' },
+    gear: { de: 'Knüppel (STR+1D), Credits-Chips', en: 'Club (STR+1D), credit chips' },
+  },
+  merc: {
+    focus: [3, 1, 2, 2, 2, 1], armor: 2,
+    skills: [['Blaster', 'dex'], ['Dodge', 'dex'], ['Grenade', 'dex'], ['Brawling', 'str']],
+    weapon: { name: 'Blaster Rifle', dmg: 15, rng: '3-30/100/300' },
+    gear: { de: 'Panzerweste (+1D), 2 Granaten (5D)', en: 'Armored vest (+1D), 2 grenades (5D)' },
+  },
+  civilian: {
+    focus: [1, 2, 1, 2, 1, 2], armor: 0,
+    skills: [['Dodge', 'dex'], ['Bargain', 'per']],
+    weapon: { name: 'Hold-out Blaster', dmg: 9, rng: '3-4/8/12' },
+    gear: { de: 'Alltagskleidung, Komlink', en: 'Everyday clothing, comlink' },
+  },
+};
+const FACTION_ORDER = ['imperial', 'rebel', 'pirate', 'cis', 'bounty', 'crime', 'merc', 'civilian'];
+
+/* Alien-Pool für „gemischt“ / „nur Aliens“ – zur Laufzeit auf tatsächlich
+   in DATA.species vorhandene Namen gefiltert. */
+const NPC_ALIEN_POOL = ['Rodian', "Twi'lek", 'Duros', 'Bothan', 'Trandoshan', 'Wookiee',
+  'Sullustan', 'Gran', 'Quarren', 'Zabrak', 'Gamorrean', 'Devaronian', 'Ithorian', 'Aqualish'];
+
+/* Namensbausteine */
+const NPC_HUMAN_FIRST = ['Kael', 'Drenn', 'Mara', 'Jorin', 'Talon', 'Vesa', 'Cade', 'Nyla',
+  'Rurik', 'Sella', 'Bran', 'Ione', 'Garr', 'Lenn', 'Tavi', 'Marek', 'Dessa', 'Corlan'];
+const NPC_HUMAN_LAST = ['Vane', 'Korr', 'Halcyon', 'Detta', 'Ryland', 'Sunder', 'Mott',
+  'Kryze', 'Valen', 'Fenn', 'Brint', 'Solace', 'Wren', 'Antilles', 'Vos', 'Terrik'];
+const NPC_ALIEN_SYL = ['va', 'to', 'ka', 'ru', 'zi', 'na', 'do', 'sh', 'ee', 'ba', 'qu', 'ok',
+  'ta', 'mo', 'lu', 'gi', 'ce', 'ro', 'wa', 'th'];
+
+/* ---------------- Zufall (deterministisch pro Wurf) ---------------- */
+function rngInt(n) { return Math.floor(Math.random() * n); }
+function rngPick(arr) { return arr[rngInt(arr.length)]; }
+function rngRange(a, b) { return a + rngInt(b - a + 1); }
+function shuffled(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = rngInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+/* ---------------- Spezies-Zugriff ---------------- */
+function npcSpecies(name) {
+  const sp = (DATA.species || []).find(s => s.name === name);
+  if (sp) return sp;
+  /* Fallback Mensch */
+  return { name: name || 'Human', min: [6, 6, 6, 6, 6, 6], max: [12, 12, 12, 12, 12, 12], move: 10 };
+}
+function npcAlienPool() {
+  const have = new Set((DATA.species || []).map(s => s.name));
+  return NPC_ALIEN_POOL.filter(n => have.has(n));
+}
+function allSpeciesNames() {
+  return (DATA.species || []).map(s => s.name).sort((a, b) => a.localeCompare(b));
+}
+
+/* ---------------- Namensgenerator ---------------- */
+function npcName(speciesName) {
+  if (speciesName === 'Human') return rngPick(NPC_HUMAN_FIRST) + ' ' + rngPick(NPC_HUMAN_LAST);
+  const parts = rngRange(2, 3);
+  let s = '';
+  for (let i = 0; i < parts; i++) s += rngPick(NPC_ALIEN_SYL);
+  s = s.charAt(0).toUpperCase() + s.slice(1);
+  if (rngInt(2)) s += "'" + rngPick(NPC_ALIEN_SYL);
+  return s;
+}
+
+/* ---------------- Speziesverteilung ---------------- */
+function roundRobin(n, arr) {
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(arr[i % arr.length]);
+  return out;
+}
+function buildSpeciesList(count, mode, single) {
+  if (mode === 'human') return Array(count).fill('Human');
+  if (mode === 'single') return Array(count).fill(single || 'Human');
+  const pool = npcAlienPool();
+  if (!pool.length) return Array(count).fill('Human');
+  if (mode === 'aliens') {
+    const k = Math.min(pool.length, Math.max(1, Math.min(4, count)));
+    return shuffled(roundRobin(count, shuffled(pool).slice(0, k)));
+  }
+  /* mixed: Menschen bilden die Mehrheit (leicht größer als jede Alien-Gruppe) */
+  const k = Math.min(pool.length, count <= 2 ? 1 : rngRange(2, 3));
+  const aliens = shuffled(pool).slice(0, Math.max(1, k));
+  let humans = Math.max(1, Math.round(count * (0.4 + Math.random() * 0.15)));
+  let rest = count - humans;
+  let maxAlien = Math.ceil(rest / aliens.length);
+  while (humans <= maxAlien && humans < count) {
+    humans++; rest = count - humans; maxAlien = Math.ceil(rest / aliens.length);
+  }
+  const list = Array(humans).fill('Human').concat(roundRobin(rest, aliens));
+  return shuffled(list);
+}
+
+/* ---------------- Ein NPC ---------------- */
+function genAttrs(sp, targetPips, focus) {
+  const pips = sp.min.slice();
+  const cap = sp.max.slice();
+  const floor = pips.reduce((a, b) => a + b, 0);
+  const ceil = cap.reduce((a, b) => a + b, 0);
+  let target = Math.max(floor, Math.min(targetPips, ceil));
+  let cur = floor, guard = 0;
+  while (cur < target && guard++ < 2000) {
+    /* gewichtete Auswahl eines noch nicht gedeckelten Attributs */
+    const avail = [];
+    for (let i = 0; i < 6; i++) if (pips[i] < cap[i]) for (let w = 0; w < focus[i]; w++) avail.push(i);
+    if (!avail.length) break;
+    pips[rngPick(avail)]++; cur++;
+  }
+  return pips;
+}
+function genNPC(speciesName, factionId, threatId) {
+  const sp = npcSpecies(speciesName);
+  const fac = NPC_FACTIONS[factionId] || NPC_FACTIONS.imperial;
+  const th = NPC_THREAT[threatId] || NPC_THREAT.average;
+  const attrs = genAttrs(sp, th.attr, fac.focus);
+  const skills = fac.skills.map(([name, attr]) => ({
+    name, attr, pips: attrs[AI[attr]] + rngRange(th.skillMin, th.skillMax),
+  }));
+  const weapon = Object.assign({}, fac.weapon);
+  if (weapon.str != null) weapon.dmg = attrs[AI.str] + weapon.str;   // Nahkampf: STR + Bonus
+  return {
+    name: npcName(speciesName),
+    species: speciesName,
+    attrs, skills, weapon,
+    move: sp.move || 10,
+    armor: fac.armor || 0,
+    gearDe: fac.gear.de, gearEn: fac.gear.en,
+  };
+}
+
+/* ---------------- Dokument ---------------- */
+function emptyDoc() {
+  return {
+    version: 1, kind: 'npc',
+    info: { name: '' },
+    setup: { count: 6, mode: 'mixed', species: 'Human', faction: 'imperial', threat: 'average' },
+    npcs: [],
+  };
+}
+let C = emptyDoc();
+function migrate(obj) {
+  const d = emptyDoc();
+  if (obj && typeof obj === 'object') {
+    if (obj.info) d.info.name = obj.info.name || '';
+    if (obj.setup) Object.assign(d.setup, obj.setup);
+    if (Array.isArray(obj.npcs)) d.npcs = obj.npcs;
+    if (obj._cloudId) d._cloudId = obj._cloudId;
+  }
+  return d;
+}
+
+function generateGroup() {
+  const s = C.setup;
+  const n = Math.max(1, Math.min(30, +s.count || 1));
+  s.count = n;
+  const speciesList = buildSpeciesList(n, s.mode, s.species);
+  C.npcs = speciesList.map(sp => genNPC(sp, s.faction, s.threat));
+  autosave();
+}
+
+/* ---------------- Rendering: Setup + Liste ---------------- */
+function factionOpts(sel) {
+  return FACTION_ORDER.map(f =>
+    `<option value="${f}" ${sel === f ? 'selected' : ''}>${t('fac_' + f)}</option>`).join('');
+}
+function speciesOpts(sel) {
+  return allSpeciesNames().map(n =>
+    `<option value="${esc(n)}" ${sel === n ? 'selected' : ''}>${esc(n)}</option>`).join('');
+}
+function attrChips(npc) {
+  return NPC_ATTRS.map(a =>
+    `<span class="npc-attr"><b>${a.name.slice(0, 3).toUpperCase()}</b> ${fmtD(npc.attrs[AI[a.key]])}</span>`).join('');
+}
+function skillsText(npc) {
+  return npc.skills.map(sk => `${esc(skillName(sk.name))} ${fmtD(sk.pips)}`).join(' · ');
+}
+function weaponText(npc) {
+  const w = npc.weapon;
+  return `${esc(skillName ? skillName(w.name) : w.name)} (${fmtD(w.dmg)}${w.rng ? ', ' + esc(w.rng) : ''})`;
+}
+function npcCard(npc, i, editable) {
+  return `<div class="npc-card">
+    <div class="npc-head">
+      ${editable
+        ? `<input type="text" class="npc-name-in" data-npcname="${i}" value="${esc(npc.name)}">`
+        : `<span class="npc-name">${esc(npc.name)}</span>`}
+      <span class="npc-sub">${esc(npc.species)} · ${t('fac_' + C.setup.faction)}</span>
+      ${editable ? `<span class="npc-actions">
+        <button class="mini" data-act="reroll" data-idx="${i}">${t('npc_reroll')}</button>
+        <button class="mini danger" data-act="removeNpc" data-idx="${i}">×</button></span>` : ''}
+    </div>
+    <div class="npc-attrs">${attrChips(npc)}<span class="npc-attr"><b>${t('npc_move')}</b> ${npc.move}</span></div>
+    <div class="npc-line"><b>${t('npc_skills')}:</b> ${skillsText(npc)}</div>
+    <div class="npc-line"><b>${t('npc_weapon')}:</b> ${weaponText(npc)}${npc.armor ? ` · <b>${t('npc_armor')}:</b> +${fmtD(npc.armor)}` : ''}</div>
+    <div class="npc-line"><b>${t('npc_gear')}:</b> ${esc(LANG === 'de' ? npc.gearDe : npc.gearEn)}</div>
+  </div>`;
+}
+
+function renderTab(tab) {
+  activeTab = tab || 'setup';
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === activeTab));
+  document.querySelectorAll('.tab').forEach(tb => tb.classList.toggle('active', tb.id === 'tab-' + activeTab));
+  if (activeTab === 'sheet') { renderSheet(); return; }
+  const s = C.setup;
+  const el = document.getElementById('tab-setup');
+  if (!el) return;
+  const list = C.npcs.length
+    ? `<div class="npc-grid">${C.npcs.map((n, i) => npcCard(n, i, true)).join('')}</div>`
+    : `<p class="hint">${t('npc_empty')}</p>`;
+  el.innerHTML = `
+    <div class="card">
+      <h2>${t('doc_one')}</h2>
+      <div class="formgrid">
+        <div><label>${t('npc_group_name')}</label>${inputT('info.name', C.info.name)}</div>
+        <div><label>${t('npc_count')}</label>${inputN('setup.count', s.count, 'min="1" max="30"')}
+          <span class="hint">${t('npc_count_hint')}</span></div>
+        <div><label>${t('npc_species_mode')}</label>
+          <select data-bind="setup.mode" data-rerender="1">
+            <option value="human" ${s.mode === 'human' ? 'selected' : ''}>${t('npc_mode_human')}</option>
+            <option value="mixed" ${s.mode === 'mixed' ? 'selected' : ''}>${t('npc_mode_mixed')}</option>
+            <option value="single" ${s.mode === 'single' ? 'selected' : ''}>${t('npc_mode_single')}</option>
+            <option value="aliens" ${s.mode === 'aliens' ? 'selected' : ''}>${t('npc_mode_aliens')}</option>
+          </select></div>
+        ${s.mode === 'single'
+          ? `<div><label>${t('npc_species_pick')}</label>
+             <select data-bind="setup.species">${speciesOpts(s.species)}</select></div>` : ''}
+        <div><label>${t('npc_faction')}</label>
+          <select data-bind="setup.faction" data-rerender="1">${factionOpts(s.faction)}</select></div>
+        <div><label>${t('npc_threat')}</label>
+          <select data-bind="setup.threat">
+            <option value="green" ${s.threat === 'green' ? 'selected' : ''}>${t('npc_threat_green')}</option>
+            <option value="average" ${s.threat === 'average' ? 'selected' : ''}>${t('npc_threat_average')}</option>
+            <option value="veteran" ${s.threat === 'veteran' ? 'selected' : ''}>${t('npc_threat_veteran')}</option>
+            <option value="elite" ${s.threat === 'elite' ? 'selected' : ''}>${t('npc_threat_elite')}</option>
+          </select></div>
+      </div>
+      <p class="hint">${t('npc_mixed_note')}</p>
+      <p><button class="accent" data-act="generate">${t('npc_generate')}</button>
+         ${C.npcs.length ? `<button data-act="addNpc">${t('npc_add_one')}</button>` : ''}</p>
+    </div>
+    ${list}`;
+}
+
+/* ---------------- Aktionen ---------------- */
+function pageAction(el) {
+  const act = el.dataset.act;
+  if (act === 'generate') { generateGroup(); renderTab('setup'); return; }
+  if (act === 'addNpc') {
+    const sp = buildSpeciesList(1, C.setup.mode, C.setup.species)[0];
+    C.npcs.push(genNPC(sp, C.setup.faction, C.setup.threat));
+    autosave(); renderTab('setup'); return;
+  }
+  if (act === 'reroll') {
+    const i = +el.dataset.idx;
+    if (C.npcs[i]) { C.npcs[i] = genNPC(C.npcs[i].species, C.setup.faction, C.setup.threat); autosave(); renderTab('setup'); }
+    return;
+  }
+  if (act === 'removeNpc') {
+    const i = +el.dataset.idx;
+    C.npcs.splice(i, 1); autosave(); renderTab('setup'); return;
+  }
+}
+/* Namensfeld eines NPC (nicht an C gebunden – eigenes data-npcname) */
+function pageChange(el) {
+  if (el.dataset.npcname != null) {
+    const i = +el.dataset.npcname;
+    if (C.npcs[i]) { C.npcs[i].name = el.value; autosave(); }
+    return true;
+  }
+  return false;
+}
+
+/* ---------------- Kompakter Bogen ---------------- */
+function renderSheet() {
+  const cards = C.npcs.map((n, i) => npcCard(n, i, false)).join('');
+  const html = `
+  <div class="sheet-page npc-sheet">
+    <div class="sp-header"><div class="sw">STAR WARS</div><div class="st">${t('sheet_title_npc')}</div></div>
+    ${typeof roundStampHtml === 'function' ? roundStampHtml() : ''}
+    <div class="npc-sheet-title">${esc(C.info.name || t('doc_one'))} · ${t('fac_' + C.setup.faction)} · ${C.npcs.length} NPCs</div>
+    <div class="npc-grid print">${cards || `<p class="hint">${t('npc_empty')}</p>`}</div>
+    <div class="sp-footer"><span>${t('sheet_footer')}</span></div>
+  </div>`;
+  document.getElementById('sheet-print').innerHTML = html;
+  const tabEl = document.getElementById('tab-sheet');
+  if (tabEl) tabEl.innerHTML = `
+    <div class="card no-print"><h2>${t('tab_sheet')}</h2>
+      <p>${t('sheet_preview')}</p>
+      <p><button class="accent" data-act="print">${t('print_pdf')}</button></p>
+    </div>${html}`;
+}
+
+/* ---------------- Start ---------------- */
+initPage('setup');

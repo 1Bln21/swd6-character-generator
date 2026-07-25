@@ -29,7 +29,7 @@ de: {
   subtitle: 'Charaktergenerator · 2nd Edition (Revised & Expanded)',
   footer: 'Basiert auf „Character Generator v2-5“ (Excel) · Star Wars: The Roleplaying Game, 2nd Edition – West End Games D6-System',
   options: 'Optionen', opt_language: 'Sprache / Language',
-  nav_char: 'Charaktere', nav_droid: 'Droiden', nav_ship: 'Schiffe / Fahrzeuge',
+  nav_char: 'Charaktere', nav_droid: 'Droiden', nav_ship: 'Schiffe / Fahrzeuge', nav_npc: 'NPCs',
   doc_one: 'Charakter', doc_plural: 'Charaktere',
   pdf_catalog: 'Erweiterter Katalog aus den Regelwerken',
   pdf_search: 'Suchen', pdf_add: '+ Übernehmen',
@@ -196,7 +196,7 @@ en: {
   subtitle: 'Character Generator · 2nd Edition (Revised & Expanded)',
   footer: 'Based on "Character Generator v2-5" (Excel) · Star Wars: The Roleplaying Game, 2nd Edition – West End Games D6 System',
   options: 'Options', opt_language: 'Sprache / Language',
-  nav_char: 'Characters', nav_droid: 'Droids', nav_ship: 'Ships / Vehicles',
+  nav_char: 'Characters', nav_droid: 'Droids', nav_ship: 'Ships / Vehicles', nav_npc: 'NPCs',
   doc_one: 'character', doc_plural: 'characters',
   pdf_catalog: 'Extended catalog from the sourcebooks',
   pdf_search: 'Search', pdf_add: '+ Add',
@@ -1659,6 +1659,7 @@ function renderSheet() {
   const page1 = `
   <div class="sheet-page">
     <div class="sp-header"><div class="sw">STAR WARS</div><div class="st">${t('sheet_title')}</div></div>
+    ${typeof roundStampHtml === 'function' ? roundStampHtml() : ''}
     <div style="display:flex; gap:3mm; align-items:stretch">
     <div class="sp-grid" style="flex:1; align-content:start">
       ${sheetField(t('char_name'), C.info.name, 4)}

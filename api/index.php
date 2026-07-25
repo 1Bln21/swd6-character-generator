@@ -219,6 +219,29 @@ $db->exec("CREATE TABLE IF NOT EXISTS settings (
   k VARCHAR(64) PRIMARY KEY,
   v $TXT
 )$SUF");
+/* Spielrunden: ein GM lädt Spieler per Code ein, Spieler melden Chars an,
+   der GM gibt sie für die Runde frei (Live-Status, siehe char_get). */
+$db->exec("CREATE TABLE IF NOT EXISTS rounds (
+  id $PK,
+  name $STR NOT NULL,
+  gm_id INT NOT NULL,
+  invite_code VARCHAR(32) UNIQUE NOT NULL,
+  created BIGINT
+)$SUF");
+$db->exec("CREATE TABLE IF NOT EXISTS round_members (
+  round_id INT NOT NULL,
+  user_id INT NOT NULL,
+  role VARCHAR(8) DEFAULT 'player',
+  UNIQUE(round_id, user_id)
+)$SUF");
+$db->exec("CREATE TABLE IF NOT EXISTS round_chars (
+  round_id INT NOT NULL,
+  char_id INT NOT NULL,
+  approved INT DEFAULT 0,
+  approved_by INT DEFAULT 0,
+  approved_at BIGINT DEFAULT 0,
+  UNIQUE(round_id, char_id)
+)$SUF");
 
 /* Spalten einer Tabelle ermitteln (für Migration und Selbstprüfung) */
 function table_columns($table) {
@@ -256,7 +279,7 @@ if (!in_array('kind', table_columns('chars'), true)) {
 }
 
 /* Erlaubte Dokumenttypen: Charaktere, Droiden, Schiffe, eigene Spezies */
-$KINDS = ['char', 'droid', 'ship', 'species'];
+$KINDS = ['char', 'droid', 'ship', 'species', 'npc'];
 function req_kind() {
   global $KINDS;
   $k = (string)inp('kind', 'char');
@@ -673,11 +696,29 @@ case 'char_get': {
   if (!$isOwner) {
     $st = $db->prepare('SELECT 1 FROM shares WHERE char_id = ? AND to_user_id = ?');
     $st->execute([$id, $user['id']]);
-    if (!$st->fetch()) fail('No access to this character', 403);
+    $ok = (bool)$st->fetch();
+    if (!$ok) {
+      /* GM einer Runde darf angemeldete Chars ansehen (read-only). */
+      $st = $db->prepare('SELECT 1 FROM round_chars rc JOIN rounds r ON r.id = rc.round_id
+                          WHERE rc.char_id = ? AND r.gm_id = ?');
+      $st->execute([$id, $user['id']]);
+      $ok = (bool)$st->fetch();
+    }
+    if (!$ok) fail('No access to this character', 403);
   }
+  /* Live-Freigaben für den Bogen: in welchen Runden ist dieser Char freigegeben? */
+  $st = $db->prepare('SELECT r.name, u.username AS gm, rc.approved_at
+                      FROM round_chars rc JOIN rounds r ON r.id = rc.round_id
+                      JOIN users u ON u.id = r.gm_id
+                      WHERE rc.char_id = ? AND rc.approved = 1 ORDER BY rc.approved_at');
+  $st->execute([$id]);
+  $approvals = [];
+  foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $a)
+    $approvals[] = ['round' => $a['name'], 'gm' => $a['gm'], 'at' => (int)$a['approved_at']];
   json_out(['id' => (int)$char['id'], 'name' => $char['name'], 'owner' => $char['owner'],
             'kind' => $char['kind'] ? $char['kind'] : 'char',
             'readonly' => !$isOwner, 'updated' => (int)$char['updated'],
+            'roundApprovals' => $approvals,
             'data' => json_decode($char['data'], true)]);
 }
 
@@ -749,6 +790,7 @@ case 'char_delete': {
   if ((int)$row['user_id'] !== (int)$user['id']) fail('Only the owner can delete this character', 403);
   $db->prepare('DELETE FROM chars WHERE id = ?')->execute([$id]);
   $db->prepare('DELETE FROM shares WHERE char_id = ?')->execute([$id]);
+  $db->prepare('DELETE FROM round_chars WHERE char_id = ?')->execute([$id]);
   json_out(['ok' => true]);
 }
 
@@ -845,7 +887,14 @@ case 'admin_user_action': {
       if ($self) fail('You cannot delete your own account here');
       if (is_admin($target) && admin_count() <= 1) fail('The last administrator cannot be deleted');
       $db->prepare('DELETE FROM shares WHERE to_user_id = ? OR owner_id = ?')->execute([$id, $id]);
+      /* Anmeldungen der Chars dieses Users aus allen Runden entfernen */
+      $db->prepare('DELETE FROM round_chars WHERE char_id IN (SELECT id FROM chars WHERE user_id = ?)')->execute([$id]);
       $db->prepare('DELETE FROM chars  WHERE user_id = ?')->execute([$id]);
+      /* Runden, in denen der User Mitglied/GM war */
+      $db->prepare('DELETE FROM round_members WHERE user_id = ?')->execute([$id]);
+      $db->prepare('DELETE FROM round_chars WHERE round_id IN (SELECT id FROM rounds WHERE gm_id = ?)')->execute([$id]);
+      $db->prepare('DELETE FROM round_members WHERE round_id IN (SELECT id FROM rounds WHERE gm_id = ?)')->execute([$id]);
+      $db->prepare('DELETE FROM rounds WHERE gm_id = ?')->execute([$id]);
       $db->prepare('DELETE FROM tokens WHERE user_id = ?')->execute([$id]);
       $db->prepare('DELETE FROM users  WHERE id = ?')->execute([$id]);
       break;
@@ -903,6 +952,208 @@ case 'legal_save': {
   $out['updated'] = time();
   setting_set('legal', $out);
   json_out(['ok' => true, 'legal' => $out]);
+}
+
+/* ===================== Spielrunden (GM + Freigabe) ===================== */
+case 'round_create': {
+  $user = auth();
+  $name = trim((string)inp('name', ''));
+  if ($name === '') fail('Round name is required');
+  if (strlen($name) > 100) fail('Round name too long (max 100 characters)');
+  /* eindeutigen Einladungscode erzeugen */
+  $code = '';
+  for ($i = 0; $i < 20; $i++) {
+    $try = strtoupper(bin2hex(random_bytes(4)));   // 8 Hex-Zeichen
+    $st = $db->prepare('SELECT 1 FROM rounds WHERE invite_code = ?');
+    $st->execute([$try]);
+    if (!$st->fetch()) { $code = $try; break; }
+  }
+  if ($code === '') $code = strtoupper(bin2hex(random_bytes(8)));
+  $db->prepare('INSERT INTO rounds (name, gm_id, invite_code, created) VALUES (?,?,?,?)')
+     ->execute([$name, $user['id'], $code, time()]);
+  $rid = (int)$db->lastInsertId();
+  $db->prepare(insert_ignore() . ' round_members (round_id, user_id, role) VALUES (?,?,?)')
+     ->execute([$rid, $user['id'], 'gm']);
+  json_out(['id' => $rid, 'name' => $name, 'inviteCode' => $code, 'role' => 'gm']);
+}
+
+case 'round_join': {
+  $user = auth();
+  $code = preg_replace('/[^A-Fa-f0-9]/', '', (string)inp('code', ''));
+  if ($code === '') fail('Invitation code required');
+  $st = $db->prepare('SELECT * FROM rounds WHERE invite_code = ?');
+  $st->execute([strtoupper($code)]);
+  $round = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$round) fail('No round found for this code', 404);
+  $db->prepare(insert_ignore() . ' round_members (round_id, user_id, role) VALUES (?,?,?)')
+     ->execute([$round['id'], $user['id'], 'player']);
+  json_out(['ok' => true, 'id' => (int)$round['id'], 'name' => $round['name']]);
+}
+
+case 'round_list': {
+  $user = auth();
+  $st = $db->prepare("SELECT r.id, r.name, r.invite_code, r.gm_id, m.role, gu.username AS gm,
+                      (SELECT COUNT(*) FROM round_members mm WHERE mm.round_id = r.id) AS members
+                      FROM round_members m JOIN rounds r ON r.id = m.round_id
+                      JOIN users gu ON gu.id = r.gm_id
+                      WHERE m.user_id = ? ORDER BY " . ci('r.name'));
+  $st->execute([$user['id']]);
+  $out = [];
+  foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+    $isGm = $r['role'] === 'gm';
+    $out[] = ['id' => (int)$r['id'], 'name' => $r['name'], 'role' => $r['role'],
+              'gm' => $r['gm'], 'members' => (int)$r['members'],
+              'inviteCode' => $isGm ? $r['invite_code'] : null];
+  }
+  json_out(['rounds' => $out]);
+}
+
+case 'round_members': {
+  $user = auth();
+  $id = (int)inp('id', 0);
+  $st = $db->prepare('SELECT role FROM round_members WHERE round_id = ? AND user_id = ?');
+  $st->execute([$id, $user['id']]);
+  if (!$st->fetch()) fail('Not a member of this round', 403);
+  $st = $db->prepare("SELECT u.username, m.role FROM round_members m JOIN users u ON u.id = m.user_id
+                      WHERE m.round_id = ? ORDER BY m.role DESC, " . ci('u.username'));
+  $st->execute([$id]);
+  json_out(['members' => $st->fetchAll(PDO::FETCH_ASSOC)]);
+}
+
+case 'round_leave': {
+  $user = auth();
+  $id = (int)inp('id', 0);
+  $st = $db->prepare('SELECT gm_id FROM rounds WHERE id = ?');
+  $st->execute([$id]);
+  $round = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$round) fail('Round not found', 404);
+  if ((int)$round['gm_id'] === (int)$user['id'])
+    fail('As GM, delete the round instead of leaving it');
+  $db->prepare('DELETE FROM round_members WHERE round_id = ? AND user_id = ?')->execute([$id, $user['id']]);
+  $db->prepare('DELETE FROM round_chars WHERE round_id = ? AND char_id IN (SELECT id FROM chars WHERE user_id = ?)')
+     ->execute([$id, $user['id']]);
+  json_out(['ok' => true]);
+}
+
+case 'round_delete': {
+  $user = auth();
+  $id = (int)inp('id', 0);
+  $st = $db->prepare('SELECT gm_id FROM rounds WHERE id = ?');
+  $st->execute([$id]);
+  $round = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$round) fail('Round not found', 404);
+  if ((int)$round['gm_id'] !== (int)$user['id'] && !is_admin($user))
+    fail('Only the GM can delete this round', 403);
+  $db->prepare('DELETE FROM round_chars WHERE round_id = ?')->execute([$id]);
+  $db->prepare('DELETE FROM round_members WHERE round_id = ?')->execute([$id]);
+  $db->prepare('DELETE FROM rounds WHERE id = ?')->execute([$id]);
+  json_out(['ok' => true]);
+}
+
+case 'round_remove_member': {
+  $user = auth();
+  $id = (int)inp('id', 0);
+  $st = $db->prepare('SELECT gm_id FROM rounds WHERE id = ?');
+  $st->execute([$id]);
+  $round = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$round) fail('Round not found', 404);
+  if ((int)$round['gm_id'] !== (int)$user['id']) fail('Only the GM can remove members', 403);
+  $target = trim((string)inp('username', ''));
+  $st = $db->prepare('SELECT id FROM users WHERE username = ?');
+  $st->execute([$target]);
+  $tu = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$tu) fail('User not found', 404);
+  if ((int)$tu['id'] === (int)$round['gm_id']) fail('The GM cannot be removed');
+  $db->prepare('DELETE FROM round_members WHERE round_id = ? AND user_id = ?')->execute([$id, $tu['id']]);
+  $db->prepare('DELETE FROM round_chars WHERE round_id = ? AND char_id IN (SELECT id FROM chars WHERE user_id = ?)')
+     ->execute([$id, $tu['id']]);
+  json_out(['ok' => true]);
+}
+
+case 'round_assign': case 'round_unassign': {
+  $user = auth();
+  $id = (int)inp('id', 0);
+  $charId = (int)inp('charId', 0);
+  $st = $db->prepare('SELECT 1 FROM round_members WHERE round_id = ? AND user_id = ?');
+  $st->execute([$id, $user['id']]);
+  if (!$st->fetch()) fail('Not a member of this round', 403);
+  $st = $db->prepare('SELECT user_id FROM chars WHERE id = ?');
+  $st->execute([$charId]);
+  $row = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$row) fail('Character not found', 404);
+  if ((int)$row['user_id'] !== (int)$user['id']) fail('Only the owner can assign this character', 403);
+  if ($action === 'round_assign') {
+    $db->prepare(insert_ignore() . ' round_chars (round_id, char_id, approved) VALUES (?,?,0)')
+       ->execute([$id, $charId]);
+  } else {
+    $db->prepare('DELETE FROM round_chars WHERE round_id = ? AND char_id = ?')->execute([$id, $charId]);
+  }
+  json_out(['ok' => true]);
+}
+
+case 'round_approve': {
+  $user = auth();
+  $id = (int)inp('id', 0);
+  $charId = (int)inp('charId', 0);
+  $st = $db->prepare('SELECT gm_id FROM rounds WHERE id = ?');
+  $st->execute([$id]);
+  $round = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$round) fail('Round not found', 404);
+  if ((int)$round['gm_id'] !== (int)$user['id']) fail('Only the GM can approve characters', 403);
+  $st = $db->prepare('SELECT 1 FROM round_chars WHERE round_id = ? AND char_id = ?');
+  $st->execute([$id, $charId]);
+  if (!$st->fetch()) fail('Character is not assigned to this round', 404);
+  $a = inp('approved', true);
+  $approve = ($a === true || $a === 1 || $a === '1' || $a === 'true');
+  if ($approve) {
+    $db->prepare('UPDATE round_chars SET approved = 1, approved_by = ?, approved_at = ? WHERE round_id = ? AND char_id = ?')
+       ->execute([$user['id'], time(), $id, $charId]);
+  } else {
+    $db->prepare('UPDATE round_chars SET approved = 0, approved_by = 0, approved_at = 0 WHERE round_id = ? AND char_id = ?')
+       ->execute([$id, $charId]);
+  }
+  json_out(['ok' => true, 'approved' => $approve]);
+}
+
+case 'round_chars': {
+  $user = auth();
+  $id = (int)inp('id', 0);
+  $st = $db->prepare('SELECT gm_id FROM rounds WHERE id = ?');
+  $st->execute([$id]);
+  $round = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$round) fail('Round not found', 404);
+  if ((int)$round['gm_id'] !== (int)$user['id']) fail('Only the GM can view round characters', 403);
+  $st = $db->prepare("SELECT c.id, c.name, c.kind, c.updated, u.username AS owner,
+                      rc.approved, rc.approved_at
+                      FROM round_chars rc JOIN chars c ON c.id = rc.char_id
+                      JOIN users u ON u.id = c.user_id
+                      WHERE rc.round_id = ? ORDER BY " . ci('u.username') . ", " . ci('c.name'));
+  $st->execute([$id]);
+  $out = [];
+  foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+    $out[] = ['id' => (int)$r['id'], 'name' => $r['name'], 'kind' => $r['kind'] ? $r['kind'] : 'char',
+              'owner' => $r['owner'], 'updated' => (int)$r['updated'],
+              'approved' => (int)$r['approved'] === 1, 'approvedAt' => (int)$r['approved_at']];
+  }
+  json_out(['chars' => $out]);
+}
+
+/* Für den Spieler: welche EIGENEN Chars sind in dieser Runde angemeldet/frei? */
+case 'round_my_chars': {
+  $user = auth();
+  $id = (int)inp('id', 0);
+  $st = $db->prepare('SELECT 1 FROM round_members WHERE round_id = ? AND user_id = ?');
+  $st->execute([$id, $user['id']]);
+  if (!$st->fetch()) fail('Not a member of this round', 403);
+  $st = $db->prepare("SELECT c.id, c.name, c.kind, rc.approved FROM round_chars rc
+                      JOIN chars c ON c.id = rc.char_id
+                      WHERE rc.round_id = ? AND c.user_id = ? ORDER BY " . ci('c.name'));
+  $st->execute([$id, $user['id']]);
+  $out = [];
+  foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r)
+    $out[] = ['id' => (int)$r['id'], 'name' => $r['name'], 'kind' => $r['kind'] ? $r['kind'] : 'char',
+              'approved' => (int)$r['approved'] === 1];
+  json_out(['chars' => $out]);
 }
 
 default:

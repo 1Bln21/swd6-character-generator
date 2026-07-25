@@ -1035,6 +1035,7 @@ function renderSheet() {
   const html = `
   <div class="sheet-page">
     <div class="sp-header"><div class="sw">STAR WARS</div><div class="st">${t('sheet_title_ship')}</div></div>
+    ${typeof roundStampHtml === 'function' ? roundStampHtml() : ''}
     <div style="display:flex; gap:3mm; align-items:stretch">
     <div class="sp-grid" style="flex:1; align-content:start">
       ${sheetField(t('sh_shipname'), i.name, 6)}

@@ -169,6 +169,84 @@ Object.assign(T.en, {
   online_resetcode_for: 'One-time code for “{name}” (valid 24 h) – hand it over personally:',
 });
 
+/* ---- Spielrunden (GM + Gruppen-Freigabe) ---- */
+Object.assign(T.de, {
+  online_rounds: 'Spielrunden',
+  rounds_open: '🎲 Spielrunden öffnen',
+  rounds_title: 'Spielrunden',
+  rounds_create: 'Neue Runde anlegen',
+  rounds_name: 'Name der Runde',
+  rounds_create_btn: 'Runde anlegen',
+  rounds_join: 'Einer Runde beitreten',
+  rounds_code: 'Einladungscode',
+  rounds_join_btn: 'Beitreten',
+  rounds_mine: 'Meine Runden',
+  rounds_gm: 'GM',
+  rounds_members: 'Mitglieder',
+  rounds_role_gm: 'GM', rounds_role_player: 'Spieler',
+  rounds_back: 'zurück',
+  rounds_invite: 'Einladungscode',
+  rounds_invite_hint: 'Diesen Code an deine Spieler weitergeben – damit treten sie der Runde bei.',
+  rounds_kick: 'entfernen',
+  rounds_kick_confirm: '„{name}“ aus der Runde entfernen?',
+  rounds_my_chars: 'Meine angemeldeten Charaktere',
+  rounds_assign: 'Anmelden',
+  rounds_unassign: 'abmelden',
+  rounds_approved: 'freigegeben',
+  rounds_pending: 'wartet auf Freigabe',
+  rounds_party: 'Charaktere der Runde',
+  rounds_approve: 'Freigeben',
+  rounds_revoke: 'Freigabe zurücknehmen',
+  rounds_delete: 'Runde löschen',
+  rounds_delete_confirm: 'Runde „{name}“ mit allen Freigaben wirklich löschen?',
+  rounds_leave: 'Runde verlassen',
+  rounds_leave_confirm: 'Runde „{name}“ wirklich verlassen?',
+  rounds_need_name: 'Bitte einen Namen für die Runde eingeben.',
+  rounds_need_code: 'Bitte den Einladungscode eingeben.',
+  rounds_none: 'Noch keine Runden. Lege eine an oder tritt mit einem Code bei.',
+  rounds_wrong_page: 'In der passenden Generator-Seite öffnen ({kind}).',
+  rounds_kind_char: 'Charakter', rounds_kind_droid: 'Droide', rounds_kind_ship: 'Schiff',
+  sheet_round_stamp: 'Für Runde „{round}“ freigegeben — GM {gm}',
+});
+Object.assign(T.en, {
+  online_rounds: 'Game rounds',
+  rounds_open: '🎲 Open game rounds',
+  rounds_title: 'Game rounds',
+  rounds_create: 'Create a new round',
+  rounds_name: 'Round name',
+  rounds_create_btn: 'Create round',
+  rounds_join: 'Join a round',
+  rounds_code: 'Invitation code',
+  rounds_join_btn: 'Join',
+  rounds_mine: 'My rounds',
+  rounds_gm: 'GM',
+  rounds_members: 'Members',
+  rounds_role_gm: 'GM', rounds_role_player: 'Player',
+  rounds_back: 'back',
+  rounds_invite: 'Invitation code',
+  rounds_invite_hint: 'Give this code to your players so they can join the round.',
+  rounds_kick: 'remove',
+  rounds_kick_confirm: 'Remove “{name}” from the round?',
+  rounds_my_chars: 'My submitted characters',
+  rounds_assign: 'Submit',
+  rounds_unassign: 'withdraw',
+  rounds_approved: 'approved',
+  rounds_pending: 'awaiting approval',
+  rounds_party: 'Round characters',
+  rounds_approve: 'Approve',
+  rounds_revoke: 'Revoke approval',
+  rounds_delete: 'Delete round',
+  rounds_delete_confirm: 'Really delete round “{name}” and all its approvals?',
+  rounds_leave: 'Leave round',
+  rounds_leave_confirm: 'Really leave round “{name}”?',
+  rounds_need_name: 'Please enter a name for the round.',
+  rounds_need_code: 'Please enter the invitation code.',
+  rounds_none: 'No rounds yet. Create one or join with a code.',
+  rounds_wrong_page: 'Open it in the matching generator page ({kind}).',
+  rounds_kind_char: 'character', rounds_kind_droid: 'droid', rounds_kind_ship: 'ship',
+  sheet_round_stamp: 'Approved for round “{round}” — GM {gm}',
+});
+
 /* ---------------- Zustand & API ---------------- */
 const LS_ONLINE = 'swd6_online';
 /* Dokumenttyp dieser Seite: 'char' (index), 'droid' oder 'ship'.
@@ -403,6 +481,234 @@ async function adminClick(el) {
   renderAdmin();
 }
 
+/* ================= Spielrunden: eigenes Fenster =======================
+   Jeder angemeldete Nutzer kann eine Runde anlegen (wird deren GM) oder per
+   Einladungscode beitreten. Spieler melden ihre Charaktere zur Runde an, der
+   GM sieht sie und gibt sie frei – die Freigabe erscheint als Live-Vermerk
+   auf dem Charakterbogen (siehe char_get → roundApprovals). */
+let roundsData = null;     // { rounds: [...] }
+let roundsMsg = '';
+let roundSel = null;       // ausgewählte Runde (Detailansicht) oder null (Liste)
+let roundDetail = null;    // { round, members, gmChars, myChars, myDocs }
+
+function roundsModal() {
+  let m = document.getElementById('roundsModal');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'roundsModal';
+    m.className = 'modal-overlay no-print hidden';
+    m.innerHTML = '<div class="modal-box admin-box" id="roundsBox"></div>';
+    document.body.appendChild(m);
+    m.addEventListener('click', e => { if (e.target === m) closeRounds(); });
+  }
+  return m;
+}
+async function openRounds() {
+  roundsMsg = ''; roundSel = null; roundDetail = null;
+  roundsModal().classList.remove('hidden');
+  renderRounds();
+  try { roundsData = await api('round_list'); }
+  catch (e) { roundsMsg = t('online_error') + e.message; }
+  renderRounds();
+}
+function closeRounds() { roundsModal().classList.add('hidden'); }
+
+/* Freigabe-Vermerk für den Charakterbogen (Live-Status vom Server, liegt in
+   C._rounds, sobald ein Cloud-Dokument geladen wurde). Wird von den Bögen in
+   app.js / droid.js / ship.js aufgerufen – daher hier zentral und global. */
+function roundStampHtml() {
+  const list = (typeof C !== 'undefined' && C && Array.isArray(C._rounds)) ? C._rounds : [];
+  if (!list.length) return '';
+  return `<div class="round-stamps">` + list.map(a =>
+    `<span class="round-stamp">✔ ${t('sheet_round_stamp')
+        .replace('{round}', esc(a.round)).replace('{gm}', esc(a.gm))}`
+    + (a.at ? ` · ${fmtDate(a.at)}` : '') + `</span>`).join('') + `</div>`;
+}
+
+/* Alle eigenen Cloud-Dokumente (Charaktere, Droiden, Schiffe) für die
+   Anmelde-Auswahl – Spezies sind nicht spielbar und bleiben außen vor. */
+async function myCloudDocs() {
+  const kinds = ['char', 'droid', 'ship'];
+  const res = await Promise.all(kinds.map(k =>
+    api('chars', undefined, { kind: k }).catch(() => ({ mine: [] }))));
+  const out = [];
+  res.forEach((r, i) => (r.mine || []).forEach(c =>
+    out.push({ id: c.id, name: c.name, kind: kinds[i] })));
+  return out;
+}
+async function openRoundDetail(id) {
+  roundSel = id; roundDetail = null; roundsMsg = '';
+  renderRounds();
+  const round = (roundsData.rounds || []).find(r => r.id === id);
+  if (!round) { roundSel = null; renderRounds(); return; }
+  try {
+    const members = (await api('round_members', undefined, { id })).members || [];
+    const gmChars = round.role === 'gm' ? (await api('round_chars', undefined, { id })).chars || [] : null;
+    const myChars = (await api('round_my_chars', undefined, { id })).chars || [];
+    const myDocs = await myCloudDocs();
+    roundDetail = { round, members, gmChars, myChars, myDocs };
+  } catch (e) { roundsMsg = t('online_error') + e.message; }
+  renderRounds();
+}
+
+function roundsBody() {
+  if (!roundsData) return `<p class="hint">${t('online_loading')}</p>`;
+  if (roundSel) return roundDetailBody();
+  const rows = (roundsData.rounds || []).map(r => `<tr>
+      <td><a href="#" data-ract="open" data-id="${r.id}">${esc(r.name)}</a></td>
+      <td class="hint">${t('rounds_gm')}: ${esc(r.gm)}</td>
+      <td class="hint">${r.members} · ${t('rounds_members')}</td>
+      <td>${r.role === 'gm'
+            ? `<span class="badge gold">${t('rounds_role_gm')}</span>`
+            : `<span class="badge">${t('rounds_role_player')}</span>`}</td>
+    </tr>`).join('');
+  return `
+    <h3>${t('rounds_create')}</h3>
+    <p><input type="text" id="rNewName" placeholder="${esc(t('rounds_name'))}" style="width:55%">
+       <button class="accent" data-ract="create">${t('rounds_create_btn')}</button></p>
+    <h3>${t('rounds_join')}</h3>
+    <p><input type="text" id="rJoinCode" placeholder="${esc(t('rounds_code'))}" style="width:40%">
+       <button data-ract="join">${t('rounds_join_btn')}</button></p>
+    <h3>${t('rounds_mine')}</h3>
+    <table class="list">${rows || `<tr><td class="hint">${t('rounds_none')}</td></tr>`}</table>`;
+}
+
+function roundDetailBody() {
+  const d = roundDetail;
+  const back = `<p><button class="mini" data-ract="back">← ${t('rounds_back')}</button></p>`;
+  if (!d) return back + `<p class="hint">${t('online_loading')}</p>`;
+  const r = d.round;
+  const isGm = r.role === 'gm';
+  let html = back + `<h2>${esc(r.name)}</h2>`;
+  if (isGm && r.inviteCode)
+    html += `<p>${t('rounds_invite')}: <code class="rcode">${esc(r.inviteCode)}</code></p>
+             <p class="hint">${t('rounds_invite_hint')}</p>`;
+
+  html += `<h3>${t('rounds_members')} (${d.members.length})</h3><table class="list">`
+    + d.members.map(m => `<tr>
+        <td>${esc(m.username)} ${m.role === 'gm' ? `<span class="badge gold">GM</span>` : ''}</td>
+        <td class="nowrap">${isGm && m.role !== 'gm'
+          ? `<button class="mini danger" data-ract="kick" data-id="${r.id}" data-user="${esc(m.username)}">${t('rounds_kick')}</button>`
+          : ''}</td></tr>`).join('') + `</table>`;
+
+  /* Eigene Charaktere anmelden / abmelden (GM wie Spieler) */
+  const assigned = new Set((d.myChars || []).map(c => c.id));
+  const mineRows = (d.myChars || []).map(c => `<tr>
+      <td>${esc(c.name)} ${c.approved
+          ? `<span class="badge gold">✔ ${t('rounds_approved')}</span>`
+          : `<span class="badge">${t('rounds_pending')}</span>`}</td>
+      <td class="nowrap"><button class="mini danger" data-ract="unassign" data-id="${r.id}" data-cid="${c.id}">${t('rounds_unassign')}</button></td>
+    </tr>`).join('');
+  const opts = (d.myDocs || []).filter(c => !assigned.has(c.id))
+      .map(c => `<option value="${c.id}">${esc(c.name)} (${t('rounds_kind_' + c.kind)})</option>`).join('');
+  html += `<h3>${t('rounds_my_chars')}</h3>
+    <table class="list">${mineRows || `<tr><td class="hint">${t('online_none')}</td></tr>`}</table>`;
+  if (opts) html += `<p><select id="rAssignSel">${opts}</select>
+      <button class="accent" data-ract="assign" data-id="${r.id}">${t('rounds_assign')}</button></p>`;
+
+  /* GM-Ansicht: alle angemeldeten Charaktere mit Freigabe-Schalter */
+  if (isGm) {
+    const gmRows = (d.gmChars || []).map(c => {
+      const canView = c.kind === DOC_KIND;
+      const viewBtn = canView
+        ? `<button class="mini" data-ract="view" data-cid="${c.id}">${t('online_load')}</button>`
+        : `<span class="hint" title="${esc(t('rounds_wrong_page').replace('{kind}', t('rounds_kind_' + c.kind)))}">${t('rounds_kind_' + c.kind)}</span>`;
+      return `<tr>
+        <td>${esc(c.name)} <span class="hint">(${esc(c.owner)})</span></td>
+        <td>${c.approved ? `<span class="ok">✔ ${t('rounds_approved')}</span>` : `<span class="hint">${t('rounds_pending')}</span>`}</td>
+        <td class="nowrap">${viewBtn}
+          <button class="mini ${c.approved ? '' : 'accent'}" data-ract="approve" data-id="${r.id}" data-cid="${c.id}" data-appr="${c.approved ? 0 : 1}">${c.approved ? t('rounds_revoke') : t('rounds_approve')}</button>
+        </td></tr>`;
+    }).join('');
+    html += `<h3>${t('rounds_party')}</h3>
+      <table class="list">${gmRows || `<tr><td class="hint">${t('online_none')}</td></tr>`}</table>`;
+  }
+
+  html += `<p style="margin-top:14px">${isGm
+      ? `<button class="mini danger" data-ract="deleteRound" data-id="${r.id}" data-name="${esc(r.name)}">${t('rounds_delete')}</button>`
+      : `<button class="mini danger" data-ract="leave" data-id="${r.id}" data-name="${esc(r.name)}">${t('rounds_leave')}</button>`}</p>`;
+  return html;
+}
+
+function renderRounds() {
+  const box = document.getElementById('roundsBox');
+  if (!box) return;
+  box.innerHTML = `<div class="modal-head"><h2>${t('rounds_title')}</h2>
+      <button class="mini" data-ract="close">✕</button></div>`
+    + (roundsMsg ? `<p class="modal-msg">${esc(roundsMsg)}</p>` : '')
+    + roundsBody();
+}
+
+async function roundsClick(el) {
+  const act = el.dataset.ract;
+  roundsMsg = '';
+  try {
+    switch (act) {
+      case 'close': closeRounds(); return;
+      case 'back': roundSel = null; roundDetail = null; break;
+      case 'open': await openRoundDetail(+el.dataset.id); return;
+      case 'create': {
+        const name = (document.getElementById('rNewName').value || '').trim();
+        if (!name) { roundsMsg = t('rounds_need_name'); break; }
+        await api('round_create', { name });
+        roundsData = await api('round_list');
+        break;
+      }
+      case 'join': {
+        const code = (document.getElementById('rJoinCode').value || '').trim();
+        if (!code) { roundsMsg = t('rounds_need_code'); break; }
+        await api('round_join', { code });
+        roundsData = await api('round_list');
+        break;
+      }
+      case 'assign': {
+        const sel = document.getElementById('rAssignSel');
+        if (!sel || !sel.value) break;
+        await api('round_assign', { id: +el.dataset.id, charId: +sel.value });
+        await openRoundDetail(+el.dataset.id); return;
+      }
+      case 'unassign':
+        await api('round_unassign', { id: +el.dataset.id, charId: +el.dataset.cid });
+        await openRoundDetail(+el.dataset.id); return;
+      case 'approve':
+        await api('round_approve', { id: +el.dataset.id, charId: +el.dataset.cid, approved: el.dataset.appr === '1' });
+        await openRoundDetail(+el.dataset.id); return;
+      case 'kick':
+        if (!confirm(t('rounds_kick_confirm').replace('{name}', el.dataset.user))) return;
+        await api('round_remove_member', { id: +el.dataset.id, username: el.dataset.user });
+        await openRoundDetail(+el.dataset.id); return;
+      case 'leave':
+        if (!confirm(t('rounds_leave_confirm').replace('{name}', el.dataset.name))) return;
+        await api('round_leave', { id: +el.dataset.id });
+        roundSel = null; roundDetail = null;
+        roundsData = await api('round_list');
+        break;
+      case 'deleteRound':
+        if (!confirm(t('rounds_delete_confirm').replace('{name}', el.dataset.name))) return;
+        await api('round_delete', { id: +el.dataset.id });
+        roundSel = null; roundDetail = null;
+        roundsData = await api('round_list');
+        break;
+      case 'view': {
+        const id = +el.dataset.cid;
+        const data = await api('char_get', undefined, { id });
+        if ((data.kind || 'char') !== DOC_KIND) {
+          roundsMsg = t('rounds_wrong_page').replace('{kind}', t('rounds_kind_' + (data.kind || 'char')));
+          break;
+        }
+        C = migrate(data.data);
+        C._cloudId = null;                 // GM ist nicht Eigentümer → Kopie
+        C._rounds = data.roundApprovals || [];
+        applySpeciesBonusSkills();
+        autosave(); renderAll();
+        closeRounds(); closeOnline();
+        return;
+      }
+    }
+  } catch (e) { roundsMsg = t('online_error') + e.message; }
+  renderRounds();
+}
+
 function renderOnline() {
   const box = document.getElementById('onlineBox');
   if (!box) return;
@@ -491,6 +797,7 @@ function renderOnline() {
     <h3>${t('online_shared_chars')}</h3>
     <table class="list">${shared || `<tr><td class="hint">${t('online_none')}</td></tr>`}</table>
     <p class="hint">${t('online_readonly_hint')}</p>
+    <p><button data-oact="openRounds">${t('rounds_open')}</button></p>
     ${ONLINE.isAdmin ? `<p><button data-oact="openAdmin">${t('online_admin_open')}</button></p>` : ''}
     <h3>${t('online_pw_change')}</h3>
     <label>${t('online_pw_old')}</label><input type="password" id="pwOld" autocomplete="current-password">
@@ -596,6 +903,10 @@ async function onlineAction(el) {
         closeOnline();
         openAdmin();
         return;
+      case 'openRounds':
+        closeOnline();
+        openRounds();
+        return;
       case 'logout':
         try { await api('logout', {}); } catch (e) {}
         setOnlineAuth({ token: '', username: '', mfaEnabled: false, isAdmin: false });
@@ -606,6 +917,7 @@ async function onlineAction(el) {
         if (!name) { onlineMsg = t('online_no_name'); break; }
         const payload = JSON.parse(JSON.stringify(C));
         delete payload._cloudId;
+        delete payload._rounds;          // Freigaben sind Server-Live-Status, nie mitspeichern
         let id = C._cloudId || 0;
         try {
           const res = await api('char_save', { id, name, kind: DOC_KIND, data: payload });
@@ -626,6 +938,7 @@ async function onlineAction(el) {
         const data = await api('char_get', undefined, { id });
         C = migrate(data.data);
         C._cloudId = data.readonly ? null : data.id;
+        C._rounds = data.roundApprovals || [];
         applySpeciesBonusSkills();
         autosave(); renderAll();
         onlineMsg = t('online_loaded');
@@ -765,8 +1078,16 @@ document.addEventListener('change', async e => {
   } catch (err) { onlineMsg = t('online_error') + err.message; }
   renderOnline();
 });
+/* ---- Runden-Fenster: eigene Handler (nur innerhalb #roundsModal) ---- */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-ract]');
+  if (!el || !el.closest('#roundsModal')) return;
+  if (el.tagName === 'SELECT') return;
+  e.preventDefault();
+  roundsClick(el);
+});
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeOnline(); closeAdmin(); }
+  if (e.key === 'Escape') { closeOnline(); closeAdmin(); closeRounds(); }
   if (e.key === 'Enter' && e.target.closest && e.target.closest('#onlineModal')) {
     const box = document.getElementById('onlineBox');
     const primary = box && box.querySelector('button.accent[data-oact]');
@@ -823,6 +1144,8 @@ setLang = function (l) {
   renderOnline();
   const am = document.getElementById('adminModal');
   if (am && !am.classList.contains('hidden')) renderAdmin();
+  const rm = document.getElementById('roundsModal');
+  if (rm && !rm.classList.contains('hidden')) renderRounds();
 };
 
 /* Server-Erkennung beim Start */

@@ -281,6 +281,20 @@ table.list td.num, table.list th.num { text-align: right; white-space: nowrap; }
 .nowrap { white-space: nowrap; }
 #btnOnline { display: none; }
 
+/* Einladungscode einer Spielrunde */
+.rcode { font-family: monospace; font-size: 16px; letter-spacing: 2px;
+  background: #1b2038; padding: 2px 8px; border-radius: 4px; color: var(--accent); }
+
+/* Freigabe-Vermerk auf dem Charakterbogen (GM hat den Char für die Runde
+   freigegeben). Am Bildschirm mit Akzentfarbe, im Druck dezent gerahmt. */
+.round-stamps { display: flex; flex-wrap: wrap; gap: 4px; margin: 2mm 0; }
+.round-stamp { display: inline-block; font-size: 8.5pt; font-weight: 600;
+  color: var(--accent); border: 1px solid var(--accent-dim);
+  border-radius: 4px; padding: 1px 8px; }
+@media print {
+  .round-stamp { color: #000; border-color: #000; }
+}
+
 /* ---------- Impressum / Datenschutz ---------- */
 .legal-doc { max-width: 720px; }
 .legal-doc h3 { margin: 4px 0 10px; font-size: 17px; color: var(--accent);
@@ -428,6 +442,41 @@ table.sp-table td.num { text-align: right; white-space: nowrap; }
   }
   .sheet-page:last-child { page-break-after: auto; }
 }
+
+/* ---------- NPC-Gruppengenerator: kompakte Karten ---------- */
+.npc-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 10px; margin-top: 14px;
+}
+.npc-card {
+  background: var(--card2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px 10px; font-size: 13px; line-height: 1.4;
+}
+.npc-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin-bottom: 4px; }
+.npc-name { font-weight: 700; color: var(--accent); font-size: 15px; }
+.npc-name-in {
+  font-weight: 700; font-size: 14px; width: 44%; min-width: 120px;
+  background: var(--card); border: 1px solid var(--border); color: var(--text);
+  border-radius: 4px; padding: 1px 5px;
+}
+.npc-sub { color: var(--muted); font-size: 12px; }
+.npc-actions { margin-left: auto; white-space: nowrap; }
+.npc-attrs { display: flex; flex-wrap: wrap; gap: 4px 8px; margin: 4px 0; }
+.npc-attr {
+  font-size: 12px; background: var(--card); border: 1px solid var(--border);
+  border-radius: 4px; padding: 0 6px; white-space: nowrap;
+}
+.npc-attr b { color: var(--muted); font-weight: 600; margin-right: 2px; }
+.npc-line { margin: 2px 0; }
+.npc-line b { color: var(--muted); font-weight: 600; }
+.npc-sheet-title { font-weight: 700; margin: 2mm 0 3mm; font-size: 12pt; }
+
+/* Auf dem gedruckten Bogen: dichter, mehrspaltig, Schwarz auf Weiß */
+.npc-grid.print { grid-template-columns: repeat(2, 1fr); gap: 4mm; margin-top: 3mm; }
+.npc-sheet .npc-card { background: #fff; border: 1px solid #000; font-size: 8.6pt; break-inside: avoid; }
+.npc-sheet .npc-name { color: #000; font-size: 9.6pt; }
+.npc-sheet .npc-attr { background: #fff; border-color: #999; }
+.npc-sheet .npc-attr b, .npc-sheet .npc-sub, .npc-sheet .npc-line b { color: #333; }
 
 /* ---------- Werkstatt: Pannen-Ergebnis (Schiffsseite) ---------- */
 .ws-result {
