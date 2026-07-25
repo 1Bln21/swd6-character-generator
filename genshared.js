@@ -381,6 +381,12 @@ function initPage(defaultTab) {
   applyStaticI18n();
   wireCommonEvents();
   renderAll();
+  /* Passwort-Manager (Chrome, Edge UND Firefox) markieren die Eingabefelder
+     einmalig bei der Formularanalyse nach dem Laden als Login-Kandidaten –
+     auch bei autocomplete="off". Ein einmaliges Neu-Rendern nach dem ersten
+     Paint ersetzt sie durch frische Elemente, die dem entgehen (wie beim
+     manuellen Reiterwechsel). */
+  requestAnimationFrame(() => requestAnimationFrame(() => renderTab(activeTab)));
 }
 
 /* Rückfall, falls skills-de.js nicht geladen wurde (etwa bei einem
