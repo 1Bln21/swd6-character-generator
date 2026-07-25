@@ -18,6 +18,8 @@ let LANG = localStorage.getItem(LS_LANG) || 'en';
 const T = {
 de: {
   options: 'Optionen', opt_language: 'Sprache / Language',
+  opt_theme: 'Darstellung', theme_dark: 'Dunkel', theme_light: 'Hell',
+  theme_oled: 'OLED-Schwarz', theme_bespin: 'Bespin (warm)',
   btn_load: 'Laden', btn_save: '💾 Speichern', btn_new: 'Neu',
   btn_export: '⬇ Export', btn_import: '⬆ Import', btn_print: '🖨 Drucken / PDF',
   nav_char: 'Charaktere', nav_droid: 'Droiden', nav_ship: 'Schiffe / Fahrzeuge',
@@ -47,6 +49,8 @@ de: {
 },
 en: {
   options: 'Options', opt_language: 'Sprache / Language',
+  opt_theme: 'Theme', theme_dark: 'Dark', theme_light: 'Light',
+  theme_oled: 'OLED black', theme_bespin: 'Bespin (warm)',
   btn_load: 'Load', btn_save: '💾 Save', btn_new: 'New',
   btn_export: '⬇ Export', btn_import: '⬆ Import', btn_print: '🖨 Print / PDF',
   nav_char: 'Characters', nav_droid: 'Droids', nav_ship: 'Ships / Vehicles',

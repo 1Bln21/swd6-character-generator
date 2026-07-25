@@ -189,6 +189,10 @@ Object.assign(T.de, {
   rounds_invite_hint: 'Diesen Code an deine Spieler weitergeben – damit treten sie der Runde bei.',
   rounds_kick: 'entfernen',
   rounds_kick_confirm: '„{name}“ aus der Runde entfernen?',
+  rounds_founder: 'Gründer',
+  rounds_make_gm: '→ zum GM',
+  rounds_make_player: '→ zum Spieler',
+  rounds_make_gm_confirm: '„{name}“ zum weiteren GM dieser Runde ernennen? Ein GM kann Charaktere ansehen, freigeben und Mitglieder verwalten.',
   rounds_my_chars: 'Meine angemeldeten Charaktere',
   rounds_assign: 'Anmelden',
   rounds_unassign: 'abmelden',
@@ -227,6 +231,10 @@ Object.assign(T.en, {
   rounds_invite_hint: 'Give this code to your players so they can join the round.',
   rounds_kick: 'remove',
   rounds_kick_confirm: 'Remove “{name}” from the round?',
+  rounds_founder: 'founder',
+  rounds_make_gm: '→ make GM',
+  rounds_make_player: '→ make player',
+  rounds_make_gm_confirm: 'Make “{name}” an additional GM of this round? A GM can view and approve characters and manage members.',
   rounds_my_chars: 'My submitted characters',
   rounds_assign: 'Submit',
   rounds_unassign: 'withdraw',
@@ -585,11 +593,19 @@ function roundDetailBody() {
              <p class="hint">${t('rounds_invite_hint')}</p>`;
 
   html += `<h3>${t('rounds_members')} (${d.members.length})</h3><table class="list">`
-    + d.members.map(m => `<tr>
-        <td>${esc(m.username)} ${m.role === 'gm' ? `<span class="badge gold">GM</span>` : ''}</td>
-        <td class="nowrap">${isGm && m.role !== 'gm'
-          ? `<button class="mini danger" data-ract="kick" data-id="${r.id}" data-user="${esc(m.username)}">${t('rounds_kick')}</button>`
-          : ''}</td></tr>`).join('') + `</table>`;
+    + d.members.map(m => {
+      const isFounder = m.username === r.gm;
+      let acts = '';
+      if (isGm && !isFounder) {
+        acts += m.role === 'gm'
+          ? `<button class="mini" data-ract="setRole" data-id="${r.id}" data-user="${esc(m.username)}" data-role="player">${t('rounds_make_player')}</button> `
+          : `<button class="mini" data-ract="setRole" data-id="${r.id}" data-user="${esc(m.username)}" data-role="gm">${t('rounds_make_gm')}</button> `;
+        acts += `<button class="mini danger" data-ract="kick" data-id="${r.id}" data-user="${esc(m.username)}">${t('rounds_kick')}</button>`;
+      }
+      return `<tr>
+        <td>${esc(m.username)} ${m.role === 'gm' ? `<span class="badge gold">GM</span>` : ''}${isFounder ? ` <span class="hint">(${t('rounds_founder')})</span>` : ''}</td>
+        <td class="nowrap">${acts}</td></tr>`;
+    }).join('') + `</table>`;
 
   /* Eigene Charaktere anmelden / abmelden (GM wie Spieler) */
   const assigned = new Set((d.myChars || []).map(c => c.id));
@@ -676,6 +692,10 @@ async function roundsClick(el) {
       case 'kick':
         if (!confirm(t('rounds_kick_confirm').replace('{name}', el.dataset.user))) return;
         await api('round_remove_member', { id: +el.dataset.id, username: el.dataset.user });
+        await openRoundDetail(+el.dataset.id); return;
+      case 'setRole':
+        if (el.dataset.role === 'gm' && !confirm(t('rounds_make_gm_confirm').replace('{name}', el.dataset.user))) return;
+        await api('round_set_role', { id: +el.dataset.id, username: el.dataset.user, role: el.dataset.role });
         await openRoundDetail(+el.dataset.id); return;
       case 'leave':
         if (!confirm(t('rounds_leave_confirm').replace('{name}', el.dataset.name))) return;

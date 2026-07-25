@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Star Wars D6 – Droid Generator</title>
 <link rel="stylesheet" href="style.css">
+<script src="theme.js"></script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
 </head>
 <body>
@@ -42,6 +43,11 @@
         <div class="opt-section" data-i18n="opt_language">Sprache / Language</div>
         <label class="opt-row"><input type="radio" name="langOpt" value="de"> 🇩🇪 Deutsch</label>
         <label class="opt-row"><input type="radio" name="langOpt" value="en"> 🇺🇸 English</label>
+        <div class="opt-section" data-i18n="opt_theme">Theme</div>
+        <label class="opt-row"><input type="radio" name="themeOpt" value="dark"> <span data-i18n="theme_dark">Dark</span></label>
+        <label class="opt-row"><input type="radio" name="themeOpt" value="light"> <span data-i18n="theme_light">Hell</span></label>
+        <label class="opt-row"><input type="radio" name="themeOpt" value="oled"> <span data-i18n="theme_oled">OLED-Schwarz</span></label>
+        <label class="opt-row"><input type="radio" name="themeOpt" value="bespin"> <span data-i18n="theme_bespin">Bespin</span></label>
         <div id="legalConfig"></div>
         <div class="opt-section" data-i18n="opt_about">Info</div>
         <button id="btnAbout" class="opt-btn" data-i18n="about_open">ℹ About &amp; Credits</button>

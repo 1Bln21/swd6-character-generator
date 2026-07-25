@@ -379,6 +379,15 @@ function require_admin() {
   if (!is_admin($user)) fail('Administrator rights required', 403);
   return $user;
 }
+/* Ist dieser Nutzer GM der Runde? Der Gründer bekommt bei round_create die
+   Rolle 'gm' im round_members-Eintrag, weitere GMs per round_set_role – daher
+   deckt diese Rolle sowohl Gründer als auch Co-GMs ab. */
+function round_is_gm($roundId, $userId) {
+  global $db;
+  $st = $db->prepare("SELECT 1 FROM round_members WHERE round_id = ? AND user_id = ? AND role = 'gm'");
+  $st->execute([$roundId, $userId]);
+  return (bool)$st->fetch();
+}
 function admin_count() {
   global $db;
   $st = $db->query('SELECT COUNT(*) FROM users WHERE is_admin = 1 OR id = 1');
@@ -698,9 +707,10 @@ case 'char_get': {
     $st->execute([$id, $user['id']]);
     $ok = (bool)$st->fetch();
     if (!$ok) {
-      /* GM einer Runde darf angemeldete Chars ansehen (read-only). */
-      $st = $db->prepare('SELECT 1 FROM round_chars rc JOIN rounds r ON r.id = rc.round_id
-                          WHERE rc.char_id = ? AND r.gm_id = ?');
+      /* GM (Gründer oder Co-GM) einer Runde darf angemeldete Chars ansehen. */
+      $st = $db->prepare("SELECT 1 FROM round_chars rc
+                          JOIN round_members m ON m.round_id = rc.round_id
+                          WHERE rc.char_id = ? AND m.user_id = ? AND m.role = 'gm'");
       $st->execute([$id, $user['id']]);
       $ok = (bool)$st->fetch();
     }
@@ -1061,7 +1071,7 @@ case 'round_remove_member': {
   $st->execute([$id]);
   $round = $st->fetch(PDO::FETCH_ASSOC);
   if (!$round) fail('Round not found', 404);
-  if ((int)$round['gm_id'] !== (int)$user['id']) fail('Only the GM can remove members', 403);
+  if (!round_is_gm($id, $user['id'])) fail('Only a GM can remove members', 403);
   $target = trim((string)inp('username', ''));
   $st = $db->prepare('SELECT id FROM users WHERE username = ?');
   $st->execute([$target]);
@@ -1072,6 +1082,31 @@ case 'round_remove_member': {
   $db->prepare('DELETE FROM round_chars WHERE round_id = ? AND char_id IN (SELECT id FROM chars WHERE user_id = ?)')
      ->execute([$id, $tu['id']]);
   json_out(['ok' => true]);
+}
+
+/* Einen weiteren GM ernennen oder zurückstufen (für wechselnde Spielleiter). */
+case 'round_set_role': {
+  $user = auth();
+  $id = (int)inp('id', 0);
+  $st = $db->prepare('SELECT gm_id FROM rounds WHERE id = ?');
+  $st->execute([$id]);
+  $round = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$round) fail('Round not found', 404);
+  if (!round_is_gm($id, $user['id'])) fail('Only a GM can change roles', 403);
+  $role = inp('role', '') === 'gm' ? 'gm' : 'player';
+  $target = trim((string)inp('username', ''));
+  $st = $db->prepare('SELECT id FROM users WHERE username = ?');
+  $st->execute([$target]);
+  $tu = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$tu) fail('User not found', 404);
+  /* Der Gründer bleibt immer GM. */
+  if ((int)$tu['id'] === (int)$round['gm_id']) fail('The founding GM keeps their role');
+  $st = $db->prepare('SELECT 1 FROM round_members WHERE round_id = ? AND user_id = ?');
+  $st->execute([$id, $tu['id']]);
+  if (!$st->fetch()) fail('User is not a member of this round', 404);
+  $db->prepare('UPDATE round_members SET role = ? WHERE round_id = ? AND user_id = ?')
+     ->execute([$role, $id, $tu['id']]);
+  json_out(['ok' => true, 'role' => $role]);
 }
 
 case 'round_assign': case 'round_unassign': {
@@ -1103,7 +1138,7 @@ case 'round_approve': {
   $st->execute([$id]);
   $round = $st->fetch(PDO::FETCH_ASSOC);
   if (!$round) fail('Round not found', 404);
-  if ((int)$round['gm_id'] !== (int)$user['id']) fail('Only the GM can approve characters', 403);
+  if (!round_is_gm($id, $user['id'])) fail('Only a GM can approve characters', 403);
   $st = $db->prepare('SELECT 1 FROM round_chars WHERE round_id = ? AND char_id = ?');
   $st->execute([$id, $charId]);
   if (!$st->fetch()) fail('Character is not assigned to this round', 404);
@@ -1126,7 +1161,7 @@ case 'round_chars': {
   $st->execute([$id]);
   $round = $st->fetch(PDO::FETCH_ASSOC);
   if (!$round) fail('Round not found', 404);
-  if ((int)$round['gm_id'] !== (int)$user['id']) fail('Only the GM can view round characters', 403);
+  if (!round_is_gm($id, $user['id'])) fail('Only a GM can view round characters', 403);
   $st = $db->prepare("SELECT c.id, c.name, c.kind, c.updated, u.username AS owner,
                       rc.approved, rc.approved_at
                       FROM round_chars rc JOIN chars c ON c.id = rc.char_id

@@ -12,13 +12,42 @@
   --green: #6fe08c;
   --red: #ff6b6b;
   --blue: #6db3ff;
+  --inset: #0e1122;      /* eingelassene Felder/Chips (Selects, Badges …) */
+  --hover: #2a3054;      /* Hover auf Knöpfen/Menüzeilen */
+  --rowhover: #1b2038;   /* Hover auf Tabellen-/Listenzeilen */
+}
+
+/* ---------- Themes (via data-theme am <html>, siehe theme.js) ---------- */
+/* Light: heller Hintergrund, dunkle Schrift, kräftigeres Gold für Kontrast */
+:root[data-theme="light"] {
+  --bg: #eceef6; --bg2: #e0e3f0; --card: #ffffff; --card2: #f3f5fc;
+  --border: #c6cbe4; --text: #1a1d2e; --muted: #565d84;
+  --accent: #b89400; --accent-dim: #8f7400;
+  --green: #1f9d4d; --red: #d63a3a; --blue: #2f6fd0;
+  --inset: #e6e9f5; --hover: #d7dcf0; --rowhover: #eaedf9;
+}
+/* OLED: reines Schwarz, angenehm auf AMOLED-Displays */
+:root[data-theme="oled"] {
+  --bg: #000000; --bg2: #080810; --card: #0e0e16; --card2: #15151f;
+  --border: #29293a; --text: #e8eaf6; --muted: #9aa1c9;
+  --accent: #ffe81f; --accent-dim: #c9b719;
+  --green: #6fe08c; --red: #ff6b6b; --blue: #6db3ff;
+  --inset: #0b0b12; --hover: #1c1c28; --rowhover: #141420;
+}
+/* Bespin: warme Wolkenstadt-Töne mit orangem Akzent */
+:root[data-theme="bespin"] {
+  --bg: #1c1610; --bg2: #261d14; --card: #2c2118; --card2: #362819;
+  --border: #4d3a26; --text: #f2e8d6; --muted: #c7b391;
+  --accent: #ff9d3c; --accent-dim: #c9791e;
+  --green: #8fd08c; --red: #ff7a5c; --blue: #e0a86d;
+  --inset: #241c14; --hover: #3a2c1c; --rowhover: #2c2119;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
   background: var(--bg);
-  background-image: radial-gradient(circle at 20% 10%, #171b34 0%, transparent 40%),
-                    radial-gradient(circle at 80% 90%, #131730 0%, transparent 45%);
+  background-image: radial-gradient(circle at 20% 10%, var(--bg2) 0%, transparent 40%),
+                    radial-gradient(circle at 80% 90%, var(--bg2) 0%, transparent 45%);
   color: var(--text);
   font-family: "Segoe UI", system-ui, sans-serif;
   font-size: 15px;
@@ -30,7 +59,7 @@ body {
   display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
   justify-content: space-between;
   padding: 12px 20px;
-  background: linear-gradient(180deg, #0d1020, #101430);
+  background: linear-gradient(180deg, var(--bg2), var(--card));
   border-bottom: 2px solid var(--accent);
 }
 .title-block h1 {
@@ -56,13 +85,13 @@ button {
   padding: 7px 12px; cursor: pointer; font-size: 13px;
   transition: background .15s, border-color .15s;
 }
-button:hover { background: #2a3054; border-color: #3d4677; }
+button:hover { background: var(--hover); border-color: #3d4677; }
 button.accent { background: var(--accent); color: #14140a; font-weight: 700; border-color: var(--accent-dim); }
 button.accent:hover { background: #fff268; }
 button.mini { padding: 2px 9px; font-size: 14px; line-height: 1.3; font-weight: 700; }
 button.danger { color: var(--red); }
 select, input[type=text], input[type=number], textarea {
-  background: #0e1122; color: var(--text);
+  background: var(--inset); color: var(--text);
   border: 1px solid var(--border); border-radius: 6px;
   padding: 7px 9px; font-size: 14px; font-family: inherit;
 }
@@ -101,7 +130,7 @@ label { color: var(--muted); font-size: 12px; display: block; margin-bottom: 3px
   color: var(--text); font-size: 14px; cursor: pointer; border-radius: 5px;
   text-transform: none; letter-spacing: 0; margin: 0;
 }
-#optionsMenu .opt-row:hover { background: #2a3054; }
+#optionsMenu .opt-row:hover { background: var(--hover); }
 
 /* ---------- Tabs ---------- */
 #tabs {
@@ -146,14 +175,14 @@ main { padding: 18px 20px 60px; max-width: 1500px; margin: 0 auto; }
 .warn { color: var(--red); font-weight: 600; }
 .ok { color: var(--green); font-weight: 600; }
 .badge {
-  display: inline-block; background: #0e1122; border: 1px solid var(--border);
+  display: inline-block; background: var(--inset); border: 1px solid var(--border);
   border-radius: 5px; padding: 1px 8px; font-size: 12px; color: var(--muted); margin: 1px 2px;
 }
 .badge.gold { color: var(--accent); border-color: var(--accent-dim); }
 
 .dice {
   font-family: Consolas, monospace; font-weight: 700; color: var(--accent);
-  background: #0e1122; border: 1px solid var(--accent-dim);
+  background: var(--inset); border: 1px solid var(--accent-dim);
   border-radius: 6px; padding: 2px 10px; display: inline-block; min-width: 62px; text-align: center;
 }
 .dice.plain { color: var(--text); border-color: var(--border); }
@@ -193,7 +222,7 @@ main { padding: 18px 20px 60px; max-width: 1500px; margin: 0 auto; }
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   padding: 5px 8px; border-bottom: 1px dashed #232849;
 }
-.skill-row:hover { background: #1b2038; }
+.skill-row:hover { background: var(--rowhover); }
 .skill-row .sname { flex: 1 1 220px; }
 .skill-row .sname .tag { font-size: 11px; color: var(--blue); }
 .skill-row.spec .sname { padding-left: 26px; font-style: italic; }
@@ -208,13 +237,13 @@ table.list th {
   border-bottom: 1px solid var(--border); padding: 6px 8px;
 }
 table.list td { padding: 6px 8px; border-bottom: 1px solid #20264a; vertical-align: top; }
-table.list tr:hover td { background: #1b2038; }
+table.list tr:hover td { background: var(--rowhover); }
 table.list td.num, table.list th.num { text-align: right; white-space: nowrap; }
 .table-scroll { overflow-x: auto; }
 
 /* ---------- Force powers ---------- */
 .power-row { display: flex; gap: 10px; align-items: flex-start; padding: 7px 8px; border-bottom: 1px dashed #232849; }
-.power-row:hover { background: #1b2038; }
+.power-row:hover { background: var(--rowhover); }
 .power-row input { margin-top: 3px; }
 .power-row .pname { font-weight: 600; }
 .power-row .pmeta { font-size: 12px; color: var(--muted); }
@@ -230,7 +259,7 @@ table.list td.num, table.list th.num { text-align: right; white-space: nowrap; }
   width: 190px; height: 235px; flex: 0 0 190px;
   border: 2px dashed var(--border); border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
-  overflow: hidden; cursor: pointer; background: #0e1122;
+  overflow: hidden; cursor: pointer; background: var(--inset);
   transition: border-color .15s;
 }
 .portrait-drop:hover { border-color: var(--accent-dim); }
@@ -242,7 +271,7 @@ table.list td.num, table.list th.num { text-align: right; white-space: nowrap; }
   padding: 7px 12px; cursor: pointer; font-size: 13px;
   text-transform: none; letter-spacing: 0; margin: 0;
 }
-.filebtn:hover { background: #2a3054; border-color: #3d4677; }
+.filebtn:hover { background: var(--hover); border-color: #3d4677; }
 
 /* ---------- Online-Modal ---------- */
 .modal-overlay {
@@ -266,24 +295,24 @@ table.list td.num, table.list th.num { text-align: right; white-space: nowrap; }
 .modal-box input[type=text], .modal-box input[type=password] { width: 100%; }
 .modal-box h3 { margin: 16px 0 6px; font-size: 13px; color: var(--blue); letter-spacing: 1px; text-transform: uppercase; }
 .modal-msg {
-  background: #2a2440; border: 1px solid var(--accent-dim); border-radius: 6px;
+  background: var(--rowhover); border: 1px solid var(--accent-dim); border-radius: 6px;
   padding: 7px 10px; font-size: 13px;
 }
 .qr-wrap { background: #fff; border-radius: 8px; padding: 8px; display: inline-block; }
 .qr-wrap svg { display: block; }
 .mono-secret {
   font-family: Consolas, monospace; font-size: 14px; letter-spacing: 1px;
-  background: #0e1122; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--inset); border: 1px solid var(--border); border-radius: 6px;
   padding: 8px 10px; word-break: break-all; user-select: all;
 }
-.share-row { background: #1b2038; font-size: 13px; }
+.share-row { background: var(--rowhover); font-size: 13px; }
 .share-row .badge a { color: var(--red); text-decoration: none; margin-left: 3px; }
 .nowrap { white-space: nowrap; }
 #btnOnline { display: none; }
 
 /* Einladungscode einer Spielrunde */
 .rcode { font-family: monospace; font-size: 16px; letter-spacing: 2px;
-  background: #1b2038; padding: 2px 8px; border-radius: 4px; color: var(--accent); }
+  background: var(--rowhover); padding: 2px 8px; border-radius: 4px; color: var(--accent); }
 
 /* Freigabe-Vermerk auf dem Charakterbogen (GM hat den Char für die Runde
    freigegeben). Am Bildschirm mit Akzentfarbe, im Druck dezent gerahmt. */
