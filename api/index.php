@@ -1109,6 +1109,35 @@ case 'round_set_role': {
   json_out(['ok' => true, 'role' => $role]);
 }
 
+/* Runde übergeben: nur der aktuelle Gründer (oder ein Admin) kann die
+   Eigentümerschaft an ein anderes Mitglied abgeben – etwa wenn er aufhört.
+   Der neue Gründer wird GM; der bisherige bleibt als Co-GM in der Runde. */
+case 'round_transfer': {
+  $user = auth();
+  $id = (int)inp('id', 0);
+  $st = $db->prepare('SELECT gm_id FROM rounds WHERE id = ?');
+  $st->execute([$id]);
+  $round = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$round) fail('Round not found', 404);
+  if ((int)$round['gm_id'] !== (int)$user['id'] && !is_admin($user))
+    fail('Only the founding GM can hand over the round', 403);
+  $target = trim((string)inp('username', ''));
+  $st = $db->prepare('SELECT id FROM users WHERE username = ?');
+  $st->execute([$target]);
+  $tu = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$tu) fail('User not found', 404);
+  if ((int)$tu['id'] === (int)$round['gm_id']) fail('This user already owns the round');
+  $st = $db->prepare('SELECT 1 FROM round_members WHERE round_id = ? AND user_id = ?');
+  $st->execute([$id, $tu['id']]);
+  if (!$st->fetch()) fail('User is not a member of this round', 404);
+  $db->prepare('UPDATE rounds SET gm_id = ? WHERE id = ?')->execute([$tu['id'], $id]);
+  $db->prepare("UPDATE round_members SET role = 'gm' WHERE round_id = ? AND user_id = ?")
+     ->execute([$id, $tu['id']]);                                   // neuer Gründer ist GM
+  $db->prepare("UPDATE round_members SET role = 'gm' WHERE round_id = ? AND user_id = ?")
+     ->execute([$id, (int)$round['gm_id']]);                        // alter Gründer bleibt Co-GM
+  json_out(['ok' => true]);
+}
+
 case 'round_assign': case 'round_unassign': {
   $user = auth();
   $id = (int)inp('id', 0);

@@ -193,6 +193,8 @@ Object.assign(T.de, {
   rounds_make_gm: '→ zum GM',
   rounds_make_player: '→ zum Spieler',
   rounds_make_gm_confirm: '„{name}“ zum weiteren GM dieser Runde ernennen? Ein GM kann Charaktere ansehen, freigeben und Mitglieder verwalten.',
+  rounds_transfer: '★ übergeben',
+  rounds_transfer_confirm: 'Die Runde an „{name}“ übergeben? {name} wird neuer Gründer/Eigentümer, du bleibst als GM in der Runde und kannst sie danach verlassen.',
   rounds_my_chars: 'Meine angemeldeten Charaktere',
   rounds_assign: 'Anmelden',
   rounds_unassign: 'abmelden',
@@ -235,6 +237,8 @@ Object.assign(T.en, {
   rounds_make_gm: '→ make GM',
   rounds_make_player: '→ make player',
   rounds_make_gm_confirm: 'Make “{name}” an additional GM of this round? A GM can view and approve characters and manage members.',
+  rounds_transfer: '★ hand over',
+  rounds_transfer_confirm: 'Hand the round over to “{name}”? {name} becomes the new founder/owner; you stay in the round as a GM and can leave afterwards.',
   rounds_my_chars: 'My submitted characters',
   rounds_assign: 'Submit',
   rounds_unassign: 'withdraw',
@@ -592,6 +596,7 @@ function roundDetailBody() {
     html += `<p>${t('rounds_invite')}: <code class="rcode">${esc(r.inviteCode)}</code></p>
              <p class="hint">${t('rounds_invite_hint')}</p>`;
 
+  const iAmFounder = typeof ONLINE !== 'undefined' && ONLINE.username === r.gm;
   html += `<h3>${t('rounds_members')} (${d.members.length})</h3><table class="list">`
     + d.members.map(m => {
       const isFounder = m.username === r.gm;
@@ -600,6 +605,8 @@ function roundDetailBody() {
         acts += m.role === 'gm'
           ? `<button class="mini" data-ract="setRole" data-id="${r.id}" data-user="${esc(m.username)}" data-role="player">${t('rounds_make_player')}</button> `
           : `<button class="mini" data-ract="setRole" data-id="${r.id}" data-user="${esc(m.username)}" data-role="gm">${t('rounds_make_gm')}</button> `;
+        if (iAmFounder)
+          acts += `<button class="mini" data-ract="transfer" data-id="${r.id}" data-user="${esc(m.username)}">${t('rounds_transfer')}</button> `;
         acts += `<button class="mini danger" data-ract="kick" data-id="${r.id}" data-user="${esc(m.username)}">${t('rounds_kick')}</button>`;
       }
       return `<tr>
@@ -696,6 +703,11 @@ async function roundsClick(el) {
       case 'setRole':
         if (el.dataset.role === 'gm' && !confirm(t('rounds_make_gm_confirm').replace('{name}', el.dataset.user))) return;
         await api('round_set_role', { id: +el.dataset.id, username: el.dataset.user, role: el.dataset.role });
+        await openRoundDetail(+el.dataset.id); return;
+      case 'transfer':
+        if (!confirm(t('rounds_transfer_confirm').replace('{name}', el.dataset.user))) return;
+        await api('round_transfer', { id: +el.dataset.id, username: el.dataset.user });
+        roundsData = await api('round_list');
         await openRoundDetail(+el.dataset.id); return;
       case 'leave':
         if (!confirm(t('rounds_leave_confirm').replace('{name}', el.dataset.name))) return;
