@@ -34,6 +34,8 @@ Object.assign(T.de, {
   sh_altitude: 'Max. Flughöhe', sh_nav: 'Nav-Computer',
   sh_hyper: 'Hyperantrieb (Multiplikator)', sh_hyperbackup: 'Backup-Hyperantrieb',
   sh_buy_backup: 'Backup-Hyperantrieb kaufen',
+  sh_weight_scale: 'Klasse',
+  sh_weight_scale_hint: 'Großsysteme (Ersatz-Antrieb, Hyperantrieb, Backup-Hyperantrieb, Schildgenerator) wiegen je nach Größenklasse unterschiedlich – aktueller Faktor ×{f}. Basis sind die Space-Transport-Werte aus Galaxy Guide 6: Jäger ×0,5, Space Transport ×1, Capital ×10, Death Star ×25 (Hausregel, abgeleitet aus der Scale-Tabelle des Grundregelwerks). Ausrüstung und Frachtumbauten bleiben unverändert.',
   sh_backup_yes: 'Ja – x5 (2.500 Cr, Gewicht 8)',
   sh_backup_hint: 'Notfall-Antrieb „Lifesaver 1000" (x5) aus Galaxy Guide 6: kostet 2.500 Credits und 8 Gewicht (wie ein Ersatzteil, geht vom Laderaum ab). Muss nach jedem Sprung überholt werden. Ein gekaufter Backup hat Vorrang vor dem im Reiter „Werte" hinterlegten Wert.',
   sh_stats: 'Werte', sh_hull: 'Hülle', sh_shields: 'Schilde',
@@ -160,6 +162,8 @@ Object.assign(T.en, {
   sh_altitude: 'Max. altitude', sh_nav: 'Nav computer',
   sh_hyper: 'Hyperdrive (multiplier)', sh_hyperbackup: 'Backup hyperdrive',
   sh_buy_backup: 'Buy backup hyperdrive',
+  sh_weight_scale: 'class',
+  sh_weight_scale_hint: 'Major systems (replacement drive, hyperdrive, backup hyperdrive, shield generator) weigh differently by ship class — current factor ×{f}. The baseline is the Space Transport figures from Galaxy Guide 6: starfighter ×0.5, space transport ×1, capital ×10, Death Star ×25 (house rule, derived from the core rulebook scale table). Equipment and cargo modifications are unaffected.',
   sh_backup_yes: 'Yes – x5 (2,500 cr, weight 8)',
   sh_backup_hint: 'Emergency drive “Lifesaver 1000” (x5) from Galaxy Guide 6: costs 2,500 credits and 8 weight (like a spare part, comes off cargo). Must be overhauled after every jump. A purchased backup overrides the value set on the “Stats” tab.',
   sh_stats: 'Stats', sh_hull: 'Hull', sh_shields: 'Shields',
@@ -331,6 +335,22 @@ function normScale(s) {
    „Muss nach jedem Sprung überholt werden" (Notfallantrieb). */
 const BACKUP_HYPER = { mult: 'x5', cost: 2500, weight: 8 };
 
+/* Gewichts-Faktor der großen Einbausysteme nach Größenklasse. Die GG6-Werte
+   sind für leichte Frachter (Space Transports) ausgelegt – ein Capital-
+   Hyperantrieb oder -Schildgenerator wiegt ein Vielfaches, ein reiner Jäger
+   weniger. Offizielle Scale-Tabelle (R&E S.92): Starfighter 6D, Capital 12D,
+   Death Star 24D; daraus als Hausregel abgeleitete, gerundete Faktoren.
+   Betrifft nur die Großsysteme (Antrieb, Hyperantrieb, Schildgenerator) –
+   Ausrüstung/Frachtumbauten bleiben crew-groß und unskaliert. */
+function weightScaleFactor(i) {
+  switch (i.scale) {
+    case 'Capital':   return 10;
+    case 'Deathstar': return 25;
+    case 'Starfighter': return i.skill === 'Space Transports' ? 1 : 0.5;
+    default:          return 0.5;   // Speeder / Walker / Character
+  }
+}
+
 /* ---------------- Berechnungen ---------------- */
 function pctMod(list, label) { return list.find(m => m.label === label) || null; }
 
@@ -403,13 +423,15 @@ function shipDerived() {
     const sel = pctMod(list, md[key]);
     if (sel) { modCost += cost * sel.costPct; mishap += sel.mishap; }
   }
+  /* Großsysteme skalieren mit der Größenklasse (siehe weightScaleFactor). */
+  const wf = weightScaleFactor(i);
   const rd = SHIP_DATA.replDrives.find(x => x.model === md.replDrive);
-  if (rd) { modCost += rd.cost; weight += rd.weight; }
+  if (rd) { modCost += rd.cost; weight += rd.weight * wf; }
   const rh = SHIP_DATA.replHyper.find(x => x.model === md.replHyper);
-  if (rh) { modCost += rh.cost; weight += rh.weight; }
-  if (md.backupHyper) { modCost += BACKUP_HYPER.cost; weight += BACKUP_HYPER.weight; }
+  if (rh) { modCost += rh.cost; weight += rh.weight * wf; }
+  if (md.backupHyper) { modCost += BACKUP_HYPER.cost; weight += BACKUP_HYPER.weight * wf; }
   const sg = SHIP_DATA.shieldGens.find(x => x.rating === md.shieldGen);
-  if (sg) { modCost += sg.cost; weight += sg.weight; }
+  if (sg) { modCost += sg.cost; weight += sg.weight * wf; }
   for (const [n, q] of Object.entries(md.general)) {
     const g = SHIP_DATA.generalMods.find(x => x.name === n);
     if (g && q > 0) { modCost += g.cost * q; weight += g.weight * q; }
@@ -419,6 +441,7 @@ function shipDerived() {
     if (g && q > 0) { modCost += g.cost * q; weight += g.weight * q; }
   }
   md.custom.forEach(cm => { modCost += (+cm.cost || 0); weight += (+cm.weight || 0); });
+  weight = Math.round(weight * 10) / 10;   // saubere Anzeige bei ×0.5-Faktor
 
   /* Effektive Werte */
   const hull = (+i.hull || 0) + modPips(md.hull);
@@ -456,6 +479,7 @@ function shipDerived() {
   return Object.assign(
     { modCost, mishap, weight, hull, shields, maneuver, space, hyper, wdmgPips,
       atmo, canAtmo: canEnterAtmosphere(i.atmosphere), hyperBackup,
+      weightFactor: wf,
       costTotal: cost + modCost },
     cargoStatus(weight));
 }
@@ -959,7 +983,7 @@ function viewMods() {
   <div class="pool-banner">
     <span>${t('sh_cost_mods')}: <b>${fmtCr(der.modCost)}</b> Cr.</span>
     <span>${t('sh_cost_total')}: <b>${fmtCr(der.costTotal)}</b> Cr.</span>
-    <span>${t('sh_weight_total')}: <b>${der.weight}</b> t</span>
+    <span>${t('sh_weight_total')}: <b>${der.weight}</b> t${der.weightFactor !== 1 ? ` <span class="hint">(${t('sh_weight_scale')} ×${der.weightFactor})</span>` : ''}</span>
     ${der.cargoBase ? `<span>${t('sh_cargo_left')}: <b class="${der.cargoOver ? 'warn' : ''}">${fmtCargo(der.cargoLeft, der.cargoUnit)}</b> / ${fmtCargo(der.cargoBase, der.cargoUnit)}${der.cargoRule === 'off' ? ' · ' + t('sh_cargo_off_short') : ''}</span>` : ''}
     <span>${t('sh_mishap_total')}: <b>${der.mishap}</b></span>
   </div>
@@ -997,6 +1021,7 @@ function viewMods() {
         </select></div>
     </div>
     <p class="hint">${t('sh_backup_hint')}</p>
+    <p class="hint">${t('sh_weight_scale_hint').replace('{f}', der.weightFactor)}</p>
   </div>
   <div class="card"><h2>${t('sh_effective')}</h2>
     <p>
