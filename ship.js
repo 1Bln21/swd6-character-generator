@@ -35,7 +35,11 @@ Object.assign(T.de, {
   sh_hyper: 'Hyperantrieb (Multiplikator)', sh_hyperbackup: 'Backup-Hyperantrieb',
   sh_buy_backup: 'Backup-Hyperantrieb kaufen',
   sh_weight_scale: 'Klasse',
-  sh_weight_scale_hint: 'Großsysteme (Ersatz-Antrieb, Hyperantrieb, Backup-Hyperantrieb, Schildgenerator) wiegen je nach Größenklasse unterschiedlich – aktueller Faktor ×{f}. Basis sind die Space-Transport-Werte aus Galaxy Guide 6: Jäger ×0,5, Space Transport ×1, Capital ×10, Death Star ×25 (Hausregel, abgeleitet aus der Scale-Tabelle des Grundregelwerks). Ausrüstung und Frachtumbauten bleiben unverändert.',
+  sh_capclass: 'Capital-Unterklasse',
+  sh_capclass_cruiser: 'bis Kreuzer (×6)',
+  sh_capclass_isd: 'Sternenzerstörer (×15)',
+  sh_capclass_ssd: 'Super-Sternenzerstörer (×30)',
+  sh_weight_scale_hint: 'Großsysteme (Ersatz-Antrieb, Hyperantrieb, Backup-Hyperantrieb, Schildgenerator) wiegen je nach Größenklasse unterschiedlich – aktueller Faktor ×{f}. Basis sind die Space-Transport-Werte aus Galaxy Guide 6: Jäger ×0,5, Space Transport ×1; Capital abgestuft (bis Kreuzer ×6, Sternenzerstörer ×15, Super-Sternenzerstörer ×30), Death Star ×60 (Hausregel, abgeleitet aus der Scale-Tabelle des Grundregelwerks). Ausrüstung und Frachtumbauten bleiben unverändert.',
   sh_backup_yes: 'Ja – x5 (2.500 Cr, Gewicht 8)',
   sh_backup_hint: 'Notfall-Antrieb „Lifesaver 1000" (x5) aus Galaxy Guide 6: kostet 2.500 Credits und 8 Gewicht (wie ein Ersatzteil, geht vom Laderaum ab). Muss nach jedem Sprung überholt werden. Ein gekaufter Backup hat Vorrang vor dem im Reiter „Werte" hinterlegten Wert.',
   sh_stats: 'Werte', sh_hull: 'Hülle', sh_shields: 'Schilde',
@@ -163,7 +167,11 @@ Object.assign(T.en, {
   sh_hyper: 'Hyperdrive (multiplier)', sh_hyperbackup: 'Backup hyperdrive',
   sh_buy_backup: 'Buy backup hyperdrive',
   sh_weight_scale: 'class',
-  sh_weight_scale_hint: 'Major systems (replacement drive, hyperdrive, backup hyperdrive, shield generator) weigh differently by ship class — current factor ×{f}. The baseline is the Space Transport figures from Galaxy Guide 6: starfighter ×0.5, space transport ×1, capital ×10, Death Star ×25 (house rule, derived from the core rulebook scale table). Equipment and cargo modifications are unaffected.',
+  sh_capclass: 'Capital sub-class',
+  sh_capclass_cruiser: 'up to cruiser (×6)',
+  sh_capclass_isd: 'Star Destroyer (×15)',
+  sh_capclass_ssd: 'Super Star Destroyer (×30)',
+  sh_weight_scale_hint: 'Major systems (replacement drive, hyperdrive, backup hyperdrive, shield generator) weigh differently by ship class — current factor ×{f}. The baseline is the Space Transport figures from Galaxy Guide 6: starfighter ×0.5, space transport ×1; capital is tiered (up to cruiser ×6, Star Destroyer ×15, Super Star Destroyer ×30), Death Star ×60 (house rule, derived from the core rulebook scale table). Equipment and cargo modifications are unaffected.',
   sh_backup_yes: 'Yes – x5 (2,500 cr, weight 8)',
   sh_backup_hint: 'Emergency drive “Lifesaver 1000” (x5) from Galaxy Guide 6: costs 2,500 credits and 8 weight (like a spare part, comes off cargo). Must be overhauled after every jump. A purchased backup overrides the value set on the “Stats” tab.',
   sh_stats: 'Stats', sh_hull: 'Hull', sh_shields: 'Shields',
@@ -277,6 +285,7 @@ function emptyDoc() {
       skill: 'Space Transports', skillSpec: '', crew: '', passengers: '',
       cargo: '', consumables: '', length: '', cover: 'Not applicable',
       altitude: '', nav: true, hyper: 'x2', hyperBackup: 'None',
+      capitalClass: 'cruiser',      // nur bei Capital-Skala: cruiser | stardestroyer | ssd
       hull: 12, shields: 3, maneuver: 3, space: 4, atmosphere: '',
       costNew: 0, costUsed: 0, mishapBase: 0, portrait: '', notes: '',
       cargoRule: 'auto',            // auto | strict | off – siehe cargoStatus()
@@ -344,8 +353,12 @@ const BACKUP_HYPER = { mult: 'x5', cost: 2500, weight: 8 };
    Ausrüstung/Frachtumbauten bleiben crew-groß und unskaliert. */
 function weightScaleFactor(i) {
   switch (i.scale) {
-    case 'Capital':   return 10;
-    case 'Deathstar': return 25;
+    case 'Capital':
+      /* Innerhalb der Capital-Skala nochmals abgestuft (nur fürs Gewicht):
+         bis Kreuzer < Sternenzerstörer < Super-Sternenzerstörer. */
+      return i.capitalClass === 'ssd' ? 30
+           : i.capitalClass === 'stardestroyer' ? 15 : 6;
+    case 'Deathstar': return 60;    // bleibt die Spitze – größer geht nur DS II / Starkiller ;)
     case 'Starfighter': return i.skill === 'Space Transports' ? 1 : 0.5;
     default:          return 0.5;   // Speeder / Walker / Character
   }
@@ -731,7 +744,13 @@ function viewShip() {
       <div><label>${t('sh_owner')}</label>${inputT('info.owner', i.owner)}</div>
       <div><label>${t('sh_craft')}</label>${inputT('info.craft', i.craft)}</div>
       <div><label>${t('sh_type')}</label>${inputT('info.type', i.type)}</div>
-      <div><label>${t('sh_scale')}</label><select data-bind="info.scale">${selOpts(SHIP_DATA.scales, i.scale)}</select></div>
+      <div><label>${t('sh_scale')}</label><select data-bind="info.scale" data-rerender="1">${selOpts(SHIP_DATA.scales, i.scale)}</select></div>
+      ${i.scale === 'Capital' ? `<div><label>${t('sh_capclass')}</label>
+        <select data-bind="info.capitalClass" data-rerender="1">
+          <option value="cruiser" ${i.capitalClass === 'cruiser' ? 'selected' : ''}>${t('sh_capclass_cruiser')}</option>
+          <option value="stardestroyer" ${i.capitalClass === 'stardestroyer' ? 'selected' : ''}>${t('sh_capclass_isd')}</option>
+          <option value="ssd" ${i.capitalClass === 'ssd' ? 'selected' : ''}>${t('sh_capclass_ssd')}</option>
+        </select></div>` : ''}
       <div><label>${t('sh_skill')}</label><select data-bind="info.skill">${selOpts(SHIP_DATA.pilotSkills, i.skill)}</select></div>
       <div><label>${t('sh_skillspec')}</label>${inputT('info.skillSpec', i.skillSpec)}</div>
       <div><label>${t('sh_crew')}</label>${inputT('info.crew', i.crew)}</div>
