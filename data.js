@@ -928,6 +928,40 @@ const DATA = {
    "armorE": 0
   },
   {
+   "name": "Morellian",
+   "min": [
+    6,
+    6,
+    6,
+    6,
+    6,
+    6
+   ],
+   "max": [
+    12,
+    12,
+    12,
+    12,
+    12,
+    12
+   ],
+   "move": 10,
+   "free": 18,
+   "offset": 0,
+   "hMin": 1.5,
+   "hMax": 2,
+   "planet": "Morellia",
+   "page": "Wookieepedia",
+   "abilities": [],
+   "story": [
+    "Near-Extinct: After the Yuuzhan Vong invasion, the Morellians were nearly extinct."
+   ],
+   "skillImprove": [],
+   "bonusSkills": [],
+   "armorP": 0,
+   "armorE": 0
+  },
+  {
    "name": "Hutt",
    "min": [
     1,
