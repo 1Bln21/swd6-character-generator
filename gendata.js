@@ -1904,5 +1904,5 @@ const SHIP_DATA = {
    "weight": 1
   }
  ],
- "maxWeapons": 6
+ "maxWeapons": 12
 };

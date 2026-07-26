@@ -33,6 +33,9 @@ Object.assign(T.de, {
   sh_consumables: 'Vorräte', sh_length: 'Länge (m)', sh_cover: 'Deckung',
   sh_altitude: 'Max. Flughöhe', sh_nav: 'Nav-Computer',
   sh_hyper: 'Hyperantrieb (Multiplikator)', sh_hyperbackup: 'Backup-Hyperantrieb',
+  sh_buy_backup: 'Backup-Hyperantrieb kaufen',
+  sh_backup_yes: 'Ja – x5 (2.500 Cr, Gewicht 8)',
+  sh_backup_hint: 'Notfall-Antrieb „Lifesaver 1000" (x5) aus Galaxy Guide 6: kostet 2.500 Credits und 8 Gewicht (wie ein Ersatzteil, geht vom Laderaum ab). Muss nach jedem Sprung überholt werden. Ein gekaufter Backup hat Vorrang vor dem im Reiter „Werte" hinterlegten Wert.',
   sh_stats: 'Werte', sh_hull: 'Hülle', sh_shields: 'Schilde',
   sh_maneuver: 'Manövrierfähigkeit', sh_space: 'Space (Bewegung)',
   sh_atmosphere: 'Atmosphäre – Quellwert (optional)',
@@ -156,6 +159,9 @@ Object.assign(T.en, {
   sh_consumables: 'Consumables', sh_length: 'Length (m)', sh_cover: 'Cover',
   sh_altitude: 'Max. altitude', sh_nav: 'Nav computer',
   sh_hyper: 'Hyperdrive (multiplier)', sh_hyperbackup: 'Backup hyperdrive',
+  sh_buy_backup: 'Buy backup hyperdrive',
+  sh_backup_yes: 'Yes – x5 (2,500 cr, weight 8)',
+  sh_backup_hint: 'Emergency drive “Lifesaver 1000” (x5) from Galaxy Guide 6: costs 2,500 credits and 8 weight (like a spare part, comes off cargo). Must be overhauled after every jump. A purchased backup overrides the value set on the “Stats” tab.',
   sh_stats: 'Stats', sh_hull: 'Hull', sh_shields: 'Shields',
   sh_maneuver: 'Maneuverability', sh_space: 'Space (movement)',
   sh_atmosphere: 'Atmosphere – source value (optional)',
@@ -280,7 +286,7 @@ function emptyDoc() {
     crewSkills: {},                 // Skillname -> Pips
     mods: {
       drive: '', maneuver: '', hyper: '', hull: '', shield: '', wdmg: '',
-      replDrive: '', replHyper: '', shieldGen: '',
+      replDrive: '', replHyper: '', shieldGen: '', backupHyper: false,
       general: {},                  // Name -> Anzahl
       cargo: {},                    // Name -> Anzahl
       custom: [],                   // {name, desc, cost, weight}
@@ -319,6 +325,11 @@ function weaponScaleList() {
 function normScale(s) {
   return s === 'Starship' ? 'Starfighter' : (s || '');
 }
+
+/* Kaufbarer Backup-Hyperantrieb: der klassische „Lifesaver 1000" (x5) aus
+   Galaxy Guide 6 – feste Werte, kostet Credits und Gewicht wie ein Ersatzteil.
+   „Muss nach jedem Sprung überholt werden" (Notfallantrieb). */
+const BACKUP_HYPER = { mult: 'x5', cost: 2500, weight: 8 };
 
 /* ---------------- Berechnungen ---------------- */
 function pctMod(list, label) { return list.find(m => m.label === label) || null; }
@@ -396,6 +407,7 @@ function shipDerived() {
   if (rd) { modCost += rd.cost; weight += rd.weight; }
   const rh = SHIP_DATA.replHyper.find(x => x.model === md.replHyper);
   if (rh) { modCost += rh.cost; weight += rh.weight; }
+  if (md.backupHyper) { modCost += BACKUP_HYPER.cost; weight += BACKUP_HYPER.weight; }
   const sg = SHIP_DATA.shieldGens.find(x => x.rating === md.shieldGen);
   if (sg) { modCost += sg.cost; weight += sg.weight; }
   for (const [n, q] of Object.entries(md.general)) {
@@ -437,9 +449,13 @@ function shipDerived() {
   }
   const wdmgPips = modPips(md.wdmg);
   const atmo = atmoDisplay(space, i.atmosphere);
+  /* Backup-Hyperantrieb: gekaufter (x5) hat Vorrang vor dem manuell im
+     Reiter hinterlegten Wert. „None"/leer = keiner. */
+  const hyperBackup = md.backupHyper ? BACKUP_HYPER.mult
+    : (i.hyperBackup && i.hyperBackup !== 'None' ? i.hyperBackup : '');
   return Object.assign(
     { modCost, mishap, weight, hull, shields, maneuver, space, hyper, wdmgPips,
-      atmo, canAtmo: canEnterAtmosphere(i.atmosphere),
+      atmo, canAtmo: canEnterAtmosphere(i.atmosphere), hyperBackup,
       costTotal: cost + modCost },
     cargoStatus(weight));
 }
@@ -974,7 +990,13 @@ function viewMods() {
       ${partSel('replDrive', SHIP_DATA.replDrives, 'model', t('sh_repl_drive'), t('sh_keep'))}
       ${partSel('replHyper', SHIP_DATA.replHyper, 'model', t('sh_repl_hyper'), t('sh_keep'))}
       ${partSel('shieldGen', SHIP_DATA.shieldGens, 'rating', t('sh_shieldgen'), t('sh_keep'))}
+      <div><label>${t('sh_buy_backup')}</label>
+        <select data-bind="mods.backupHyper" data-type="bool">
+          <option value="false" ${!C.mods.backupHyper ? 'selected' : ''}>${t('no')}</option>
+          <option value="true" ${C.mods.backupHyper ? 'selected' : ''}>${t('sh_backup_yes')}</option>
+        </select></div>
     </div>
+    <p class="hint">${t('sh_backup_hint')}</p>
   </div>
   <div class="card"><h2>${t('sh_effective')}</h2>
     <p>
@@ -982,7 +1004,8 @@ function viewMods() {
       ${t('sh_shields')}: <span class="dice">${fmtD(der.shields)}</span> &nbsp;
       ${t('sh_maneuver')}: <span class="dice">${fmtD(der.maneuver)}</span> &nbsp;
       ${t('sh_space')}: <span class="dice">${der.space}</span> &nbsp;
-      ${t('sh_hyper')}: <span class="dice">${esc(der.hyper || 'None')}</span>
+      ${t('sh_hyper')}: <span class="dice">${esc(der.hyper || 'None')}</span> &nbsp;
+      ${t('sh_hyperbackup')}: <span class="dice">${esc(der.hyperBackup || t('sh_atmo_none'))}</span>
       ${der.wdmgPips ? ` &nbsp; ${t('sh_mod_wdmg')}: <span class="dice">+${fmtD(der.wdmgPips)}</span>` : ''}
       <br>${t('sh_atmo_eff')}: <span class="dice">${der.atmo ? esc(der.atmo) : t('sh_atmo_none')}</span>
     </p>
@@ -1067,7 +1090,7 @@ function renderSheet() {
         <div class="sp-stat"><span class="big">${fmtD(der.maneuver)}</span><span class="lbl">${t('sh_maneuver')}</span></div>
         <div class="sp-stat"><span class="big">${der.space}</span><span class="lbl">Space</span></div>
         <div class="sp-stat"><span class="big">${esc(der.hyper || '–')}</span><span class="lbl">${t('sh_hyper')}</span></div>
-        <div class="sp-stat"><span class="big">${esc(i.hyperBackup || '–')}</span><span class="lbl">${t('sh_hyperbackup')}</span></div>
+        <div class="sp-stat"><span class="big">${esc(der.hyperBackup || '–')}</span><span class="lbl">${t('sh_hyperbackup')}</span></div>
         <div class="sp-stat"><span class="big">${fmtCr(der.costTotal)}</span><span class="lbl">${t('sh_cost_total')}</span></div>
       </div>
       <div style="font-size:8pt; margin-top:3px">${t('sh_atmo_eff')}: ${der.atmo ? esc(der.atmo) : t('sh_atmo_none')}</div>
