@@ -525,6 +525,27 @@ async function openRounds() {
 }
 function closeRounds() { roundsModal().classList.add('hidden'); }
 
+/* Seitenübergreifendes „Ansehen": Der GM klickt in der Runde auf eine Droide/
+   ein Schiff, das nicht zur aktuellen Seite passt. Wir merken das Ziel und
+   wechseln auf die richtige Generator-Seite, die es beim Laden read-only holt. */
+const LS_PENDING_VIEW = 'swd6_pending_view';
+const ROUND_VIEW_PAGES = { char: 'index.html', droid: 'droid.html', ship: 'ship.html', npc: 'npc.html' };
+async function checkPendingRoundView() {
+  let p;
+  try { p = JSON.parse(localStorage.getItem(LS_PENDING_VIEW) || 'null'); } catch (e) {}
+  if (!p || p.kind !== DOC_KIND || !ONLINE.token) return;
+  localStorage.removeItem(LS_PENDING_VIEW);
+  try {
+    const data = await api('char_get', undefined, { id: p.id });
+    if ((data.kind || 'char') !== DOC_KIND) return;
+    C = migrate(data.data);
+    C._cloudId = null;                       // GM ist nicht Eigentümer → read-only Kopie
+    C._rounds = data.roundApprovals || [];
+    applySpeciesBonusSkills();
+    autosave(); renderAll();
+  } catch (e) { /* Zugriff verweigert o. Ä. – still ignorieren */ }
+}
+
 /* Freigabe-Vermerk für den Charakterbogen (Live-Status vom Server, liegt in
    C._rounds, sobald ein Cloud-Dokument geladen wurde). Wird von den Bögen in
    app.js / droid.js / ship.js aufgerufen – daher hier zentral und global. */
@@ -632,10 +653,11 @@ function roundDetailBody() {
   /* GM-Ansicht: alle angemeldeten Charaktere mit Freigabe-Schalter */
   if (isGm) {
     const gmRows = (d.gmChars || []).map(c => {
-      const canView = c.kind === DOC_KIND;
-      const viewBtn = canView
+      /* Gleiche Art → direkt laden; andere Art (Droide/Schiff) → auf die
+         passende Generator-Seite wechseln und dort read-only laden. */
+      const viewBtn = c.kind === DOC_KIND
         ? `<button class="mini" data-ract="view" data-cid="${c.id}">${t('online_load')}</button>`
-        : `<span class="hint" title="${esc(t('rounds_wrong_page').replace('{kind}', t('rounds_kind_' + c.kind)))}">${t('rounds_kind_' + c.kind)}</span>`;
+        : `<button class="mini" data-ract="viewElsewhere" data-cid="${c.id}" data-kind="${esc(c.kind)}">↗ ${t('rounds_kind_' + c.kind)}</button>`;
       return `<tr>
         <td>${esc(c.name)} <span class="hint">(${esc(c.owner)})</span></td>
         <td>${c.approved ? `<span class="ok">✔ ${t('rounds_approved')}</span>` : `<span class="hint">${t('rounds_pending')}</span>`}</td>
@@ -734,6 +756,15 @@ async function roundsClick(el) {
         applySpeciesBonusSkills();
         autosave(); renderAll();
         closeRounds(); closeOnline();
+        return;
+      }
+      case 'viewElsewhere': {
+        /* Droide/Schiff auf der passenden Generator-Seite ansehen: Ziel
+           merken und dorthin wechseln – dort lädt online.js es read-only. */
+        const kind = el.dataset.kind, id = +el.dataset.cid;
+        localStorage.setItem(LS_PENDING_VIEW, JSON.stringify({ id, kind }));
+        const page = ROUND_VIEW_PAGES[kind] || 'index.html';
+        location.href = page;
         return;
       }
     }
@@ -1204,6 +1235,7 @@ setLang = function (l) {
         ONLINE.isAdmin = !!me.isAdmin;
         setOnlineAuth(ONLINE);
         if (typeof renderLegal === 'function') renderLegal();
+        await checkPendingRoundView();       // GM wollte eine Droide/ein Schiff ansehen
       } catch (e) {}
     }
   } catch (e) { /* kein Server – rein lokale Nutzung */ }
