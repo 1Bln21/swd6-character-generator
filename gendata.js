@@ -1477,105 +1477,84 @@ const SHIP_DATA = {
   "Deathstar"
  ],
  "generalMods": [
-  {
-   "name": "Sensor Jamming Hardware",
-   "desc": "Grants sensors +1D to Identify, but -2D to Detect",
-   "cost": 4000,
-   "weight": 1,
-   "avail": "X"
-  },
-  {
-   "name": "Sensor Decoys",
-   "desc": "add +2D to the difficulty to determine ship vs. sensor",
-   "cost": 2000,
-   "weight": 2,
-   "avail": "F"
-  },
-  {
-   "name": "Escape Equipment",
-   "desc": "Seats eight (food/oxygen for 2 weeks)",
-   "cost": 1200,
-   "weight": 5,
-   "avail": "2"
-  },
-  {
-   "name": "Enviromental Converters",
-   "desc": "Comfortable environs through-out the ship",
-   "cost": 4000,
-   "weight": 4,
-   "avail": "2"
-  },
-  {
-   "name": "Fuel Converter: Solid Fuel Converter",
-   "desc": "Half the ship's \"restocking\" fees",
-   "cost": 8000,
-   "weight": 5,
-   "avail": "2"
-  },
-  {
-   "name": "Fuel Converter: Scoops",
-   "desc": "Recharges power cells in atmosphere or water",
-   "cost": 15000,
-   "weight": 15,
-   "avail": "2"
-  },
-  {
-   "name": "Fuel Converter: Solar Converter",
-   "desc": "Solar Sails: recharge ship's power cells in about 15 days",
-   "cost": 12000,
-   "weight": 10,
-   "avail": "2"
-  },
-  {
-   "name": "Automatic Cargo Jettisoning",
-   "desc": "Ability to jettison cargo from the cockpit",
-   "cost": 1000,
-   "weight": 1,
-   "avail": "F"
-  },
-  {
-   "name": "Cargo Compartment: Concealed",
-   "desc": "ton of concealed cargo",
-   "cost": 200,
-   "weight": 1,
-   "avail": "1"
-  },
-  {
-   "name": "Cargo Compartment: Hidden",
-   "desc": "ton of hidden cargo",
-   "cost": 400,
-   "weight": 5,
-   "avail": "1"
-  },
-  {
-   "name": "Cargo Compartment: Scanner Resistant",
-   "desc": "ton of scanner resistant cargo",
-   "cost": 1000,
-   "weight": 5,
-   "avail": "1"
-  },
-  {
-   "name": "Passenger Conversion: Primitive",
-   "desc": "Passengers sleep on the floor",
-   "cost": 30,
-   "weight": 1,
-   "avail": "X"
-  },
-  {
-   "name": "Passenger Conversion: Standard",
-   "desc": "Passenger compartment",
-   "cost": 400,
-   "weight": 10,
-   "avail": "2"
-  },
-  {
-   "name": "Passenger Conversion: Luxury",
-   "desc": "Luxurious passanger compartment",
-   "cost": 1000,
-   "weight": 15,
-   "avail": "3"
-  }
- ],
+ {
+  "name": "Sensor Jamming Hardware",
+  "desc": "Grants sensors +1D to Identify, but -2D to Detect",
+  "cost": 4000,
+  "weight": 1,
+  "avail": "X"
+ },
+ {
+  "name": "Sensor Decoys",
+  "desc": "add +2D to the difficulty to determine ship vs. sensor",
+  "cost": 2000,
+  "weight": 2,
+  "avail": "F"
+ },
+ {
+  "name": "Escape Equipment",
+  "desc": "Seats eight (food/oxygen for 2 weeks)",
+  "cost": 1200,
+  "weight": 5,
+  "avail": "2"
+ },
+ {
+  "name": "Enviromental Converters",
+  "desc": "Comfortable environs through-out the ship",
+  "cost": 4000,
+  "weight": 4,
+  "avail": "2"
+ },
+ {
+  "name": "Fuel Converter: Solid Fuel Converter",
+  "desc": "Half the ship's \"restocking\" fees",
+  "cost": 8000,
+  "weight": 5,
+  "avail": "2"
+ },
+ {
+  "name": "Fuel Converter: Scoops",
+  "desc": "Recharges power cells in atmosphere or water",
+  "cost": 15000,
+  "weight": 15,
+  "avail": "2"
+ },
+ {
+  "name": "Fuel Converter: Solar Converter",
+  "desc": "Solar Sails: recharge ship's power cells in about 15 days",
+  "cost": 12000,
+  "weight": 10,
+  "avail": "2"
+ },
+ {
+  "name": "Automatic Cargo Jettisoning",
+  "desc": "Ability to jettison cargo from the cockpit",
+  "cost": 1000,
+  "weight": 1,
+  "avail": "F"
+ },
+ {
+  "name": "Passenger Conversion: Primitive",
+  "desc": "Passengers sleep on the floor",
+  "cost": 30,
+  "weight": 1,
+  "avail": "X"
+ },
+ {
+  "name": "Passenger Conversion: Standard",
+  "desc": "Passenger compartment",
+  "cost": 400,
+  "weight": 10,
+  "avail": "2"
+ },
+ {
+  "name": "Passenger Conversion: Luxury",
+  "desc": "Luxurious passanger compartment",
+  "cost": 1000,
+  "weight": 15,
+  "avail": "3"
+ }
+],
  "driveMods": [
   {
    "label": "+1",

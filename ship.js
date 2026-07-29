@@ -1164,7 +1164,14 @@ function renderSheet() {
   if (C.mods.replHyper) modList.push(`${t('sh_repl_hyper')}: ${C.mods.replHyper}`);
   if (C.mods.shieldGen) modList.push(`${t('sh_shieldgen')}: ${C.mods.shieldGen}`);
   for (const [n, q] of Object.entries(C.mods.general)) if (q > 0) modList.push(n + (q > 1 ? ' ×' + q : ''));
-  for (const [n, q] of Object.entries(C.mods.cargo)) if (q > 0) modList.push(n + (q > 1 ? ' ×' + q : ''));
+  for (const [n, q] of Object.entries(C.mods.cargo)) {
+    if (q <= 0) continue;
+    /* Frachtabteile als summierte metrische Tonnen Spezial-Frachtraum
+       ausweisen (Gewicht × Anzahl), nicht als „×Anzahl". */
+    const cm = SHIP_DATA.cargoMods.find(x => x.name === n);
+    if (cm && /^Cargo Compartment:/.test(n)) modList.push(`${n} — ${(cm.weight || 0) * q} mt`);
+    else modList.push(n + (q > 1 ? ' ×' + q : ''));
+  }
   C.mods.custom.forEach(cm => { if (cm.name) modList.push(cm.name); });
   const crewRows = SHIP_DATA.crewSkills.filter(n => (C.crewSkills[n] || 0) > 0)
     .map(n => `<div class="sp-skill"><span>${esc(skillName(n))}</span><span class="d">${fmtD(C.crewSkills[n])}</span></div>`).join('');
