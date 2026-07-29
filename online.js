@@ -18,6 +18,9 @@ Object.assign(T.de, {
   online_do_login: 'Anmelden', online_do_register: 'Konto erstellen',
   online_logout: 'Abmelden',
   online_logged_in_as: 'Angemeldet als',
+  online_mydata: '⬇ Meine Daten herunterladen',
+  online_mydata_hint: 'DSGVO-Auskunft: lädt alle über dich gespeicherten Daten als JSON (ohne Passwort-/Code-Hashes).',
+  online_mydata_done: 'Daten heruntergeladen: {docs} Dokumente, {shares} Freigaben, {rounds} Runden.',
   online_pw_mismatch: 'Die Passwörter stimmen nicht überein.',
   online_pw_short: 'Das Passwort muss mindestens 8 Zeichen haben.',
   online_mfa: 'Zwei-Faktor-Anmeldung (MFA)',
@@ -99,6 +102,9 @@ Object.assign(T.en, {
   online_do_login: 'Sign in', online_do_register: 'Create account',
   online_logout: 'Sign out',
   online_logged_in_as: 'Signed in as',
+  online_mydata: '⬇ Download my data',
+  online_mydata_hint: 'GDPR access: downloads all data stored about you as JSON (without password/code hashes).',
+  online_mydata_done: 'Data downloaded: {docs} documents, {shares} shares, {rounds} rounds.',
   online_pw_mismatch: 'The passwords do not match.',
   online_pw_short: 'The password must be at least 8 characters.',
   online_mfa: 'Two-factor authentication (MFA)',
@@ -862,6 +868,8 @@ function renderOnline() {
     <p class="hint">${t('online_readonly_hint')}</p>
     <p><button data-oact="openRounds">${t('rounds_open')}</button></p>
     ${ONLINE.isAdmin ? `<p><button data-oact="openAdmin">${t('online_admin_open')}</button></p>` : ''}
+    <p><button data-oact="myData">${t('online_mydata')}</button>
+       <span class="hint">${t('online_mydata_hint')}</span></p>
     <h3>${t('online_pw_change')}</h3>
     <label>${t('online_pw_old')}</label><input type="password" id="pwOld" autocomplete="current-password">
     <label>${t('online_new_password')}</label><input type="password" id="pwNew" autocomplete="new-password">
@@ -970,6 +978,21 @@ async function onlineAction(el) {
         closeOnline();
         openRounds();
         return;
+      case 'myData': {
+        const data = await api('my_data');
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'swd6-meine-daten-' + (ONLINE.username || 'account') + '.json';
+        a.click();
+        URL.revokeObjectURL(a.href);
+        const d = data.documents ? data.documents.length : 0;
+        onlineMsg = t('online_mydata_done')
+          .replace('{docs}', d)
+          .replace('{shares}', (data.sharesGiven || []).length)
+          .replace('{rounds}', (data.rounds || []).length);
+        break;
+      }
       case 'logout':
         try { await api('logout', {}); } catch (e) {}
         setOnlineAuth({ token: '', username: '', mfaEnabled: false, isAdmin: false });

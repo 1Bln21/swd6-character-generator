@@ -681,6 +681,59 @@ case 'me': {
             'backupCodesLeft' => is_array($codes) ? count($codes) : 0]);
 }
 
+/* DSGVO-Auskunft: alle über den angemeldeten Nutzer gespeicherten Daten.
+   Keine Geheimnisse (Passwort-/TOTP-/Code-Hashes bleiben draußen). */
+case 'my_data': {
+  $user = auth();
+  $codes = json_decode((string)$user['backup_codes'], true);
+  $account = [
+    'username'        => $user['username'],
+    'created'         => (int)$user['created'],
+    'approved'        => (int)$user['approved'] === 1,
+    'isAdmin'         => is_admin($user),
+    'mfaEnabled'      => (int)$user['totp_enabled'] === 1,
+    'backupCodesLeft' => is_array($codes) ? count($codes) : 0,
+    'hasRecoveryCode' => !empty($user['recovery_hash']),
+    'adminResetPending' => !empty($user['reset_hash']) && (int)$user['reset_expires'] > time(),
+  ];
+  /* Eigene Dokumente inkl. Inhalt (es sind die eigenen Daten des Nutzers) */
+  $st = $db->prepare("SELECT id, name, COALESCE(kind,'char') AS kind, updated, data
+                      FROM chars WHERE user_id = ? ORDER BY COALESCE(kind,'char'), " . ci('name'));
+  $st->execute([$user['id']]);
+  $documents = [];
+  foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+    $documents[] = ['id' => (int)$r['id'], 'name' => $r['name'], 'kind' => $r['kind'],
+                    'updated' => (int)$r['updated'], 'data' => json_decode($r['data'], true)];
+  }
+  /* Freigaben, die der Nutzer erteilt hat */
+  $st = $db->prepare("SELECT c.name, u.username AS shared_with
+                      FROM shares s JOIN chars c ON c.id = s.char_id JOIN users u ON u.id = s.to_user_id
+                      WHERE s.owner_id = ? ORDER BY " . ci('c.name'));
+  $st->execute([$user['id']]);
+  $sharesGiven = $st->fetchAll(PDO::FETCH_ASSOC);
+  /* Freigaben, die dem Nutzer erteilt wurden */
+  $st = $db->prepare("SELECT c.name, u.username AS owner
+                      FROM shares s JOIN chars c ON c.id = s.char_id JOIN users u ON u.id = s.owner_id
+                      WHERE s.to_user_id = ? ORDER BY " . ci('c.name'));
+  $st->execute([$user['id']]);
+  $sharesReceived = $st->fetchAll(PDO::FETCH_ASSOC);
+  /* Runden-Mitgliedschaften */
+  $st = $db->prepare("SELECT r.name, m.role, gu.username AS gm
+                      FROM round_members m JOIN rounds r ON r.id = m.round_id
+                      JOIN users gu ON gu.id = r.gm_id WHERE m.user_id = ? ORDER BY " . ci('r.name'));
+  $st->execute([$user['id']]);
+  $rounds = $st->fetchAll(PDO::FETCH_ASSOC);
+  json_out([
+    'exportedAt' => time(),
+    'account'    => $account,
+    'documents'  => $documents,
+    'sharesGiven'    => $sharesGiven,
+    'sharesReceived' => $sharesReceived,
+    'rounds'     => $rounds,
+    'note' => 'This is all data stored about your account. Password, MFA and recovery codes are stored only as irreversible hashes and are never included.',
+  ]);
+}
+
 case 'mfa_start': {
   $user = auth();
   $secret = b32_encode(random_bytes(20));

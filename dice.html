@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Star Wars D6 – Dice</title>
+<link rel="stylesheet" href="style.css">
+<script src="theme.js"></script>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎲</text></svg>">
+</head>
+<body>
+
+<header id="topbar" class="no-print">
+  <div class="title-block">
+    <h1>STAR WARS <span>D6</span></h1>
+    <div class="subtitle" data-i18n="subtitle">Würfelwurf</div>
+    <nav class="page-nav">
+      <a href="index.html" data-i18n="nav_char">Charaktere</a>
+      <a href="droid.html" data-i18n="nav_droid">Droiden</a>
+      <a href="ship.html" data-i18n="nav_ship">Schiffe / Fahrzeuge</a>
+      <a href="npc.html" data-i18n="nav_npc">NPCs</a>
+      <a href="dice.html" class="active" data-i18n="nav_dice">Würfeln</a>
+    </nav>
+  </div>
+  <div class="char-manager">
+    <div class="options-wrap">
+      <button id="btnOptions" title="Options / Optionen">⚙</button>
+      <div id="optionsMenu" class="hidden">
+        <div class="opt-title" data-i18n="options">Options</div>
+        <div class="opt-section" data-i18n="opt_language">Sprache / Language</div>
+        <label class="opt-row"><input type="radio" name="langOpt" value="de"> 🇩🇪 Deutsch</label>
+        <label class="opt-row"><input type="radio" name="langOpt" value="en"> 🇺🇸 English</label>
+        <div class="opt-section" data-i18n="opt_theme">Theme</div>
+        <label class="opt-row"><input type="radio" name="themeOpt" value="dark"> <span data-i18n="theme_dark">Dark</span></label>
+        <label class="opt-row"><input type="radio" name="themeOpt" value="light"> <span data-i18n="theme_light">Hell</span></label>
+        <label class="opt-row"><input type="radio" name="themeOpt" value="oled"> <span data-i18n="theme_oled">OLED-Schwarz</span></label>
+        <label class="opt-row"><input type="radio" name="themeOpt" value="bespin"> <span data-i18n="theme_bespin">Bespin</span></label>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main id="content">
+  <div class="grid2">
+    <div class="card">
+      <h2 data-i18n="free_roll">Freier Wurf</h2>
+      <div class="formgrid">
+        <div><label data-i18n="dice">Würfel (D)</label><input type="number" id="freeDice" min="0" value="3"></div>
+        <div><label data-i18n="pips">Pips (+)</label><input type="number" id="freePips" min="0" max="2" value="0"></div>
+        <div><label data-i18n="modifier">Modifikator</label><input type="number" id="modPips" value="0"></div>
+      </div>
+      <p><label class="opt-row" style="text-transform:none"><input type="checkbox" id="wildToggle" checked> <span data-i18n="wild_die">Wild Die</span></label></p>
+      <p><button class="accent" id="btnRoll" data-i18n="roll">🎲 Würfeln</button>
+         <button id="btnReload" data-i18n="reload">↻ Profile neu laden</button></p>
+      <p class="hint" data-i18n="add_mod_hint"></p>
+    </div>
+    <div class="card">
+      <h2 data-i18n="result">Ergebnis</h2>
+      <div id="result"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span data-i18n="from_char">Aus geladenem Charakter</span><span id="charName" class="hint"></span></h2>
+    <div id="charPools" class="roll-pools"></div>
+  </div>
+  <div class="card">
+    <h2 data-i18n="from_gear">Ausrüstung (Würfel-Bonus)</h2>
+    <div id="gearPools" class="roll-pools"></div>
+  </div>
+  <div class="card">
+    <h2><span data-i18n="from_ship">Aus geladenem Schiff</span><span id="shipName" class="hint"></span></h2>
+    <div id="shipPools" class="roll-pools"></div>
+  </div>
+</main>
+
+<footer class="no-print">
+  <span>Star Wars: The Roleplaying Game, 2nd Edition – West End Games D6-System</span>
+</footer>
+
+<script src="dice.js"></script>
+</body>
+</html>

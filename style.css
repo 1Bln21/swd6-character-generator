@@ -472,6 +472,24 @@ table.sp-table td.num { text-align: right; white-space: nowrap; }
   .sheet-page:last-child { page-break-after: auto; }
 }
 
+/* ---------- Würfelseite ---------- */
+.roll-pools { display: flex; flex-wrap: wrap; gap: 6px; }
+.roll-pool { background: var(--card2); border: 1px solid var(--border); border-radius: 6px;
+  padding: 5px 10px; font-size: 13px; cursor: pointer; }
+.roll-pool:hover { border-color: var(--accent-dim); }
+.roll-pool b { color: var(--accent); margin-left: 4px; }
+.roll-head { color: var(--muted); font-size: 13px; }
+.roll-total { font-size: 44px; font-weight: 900; color: var(--accent); line-height: 1.1; }
+.roll-dice { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin: 6px 0; }
+.roll-dice .die { display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 6px; background: var(--inset);
+  border: 1px solid var(--border); font-weight: 700; }
+.roll-dice .die.six { border-color: var(--green); color: var(--green); }
+.roll-dice .die.one { border-color: var(--red); color: var(--red); }
+.roll-dice .die.wild { border-width: 2px; border-color: var(--accent); }
+.roll-dice .pips { color: var(--muted); }
+.roll-warn { color: var(--red); font-weight: 600; margin: 6px 0; }
+
 /* ---------- NPC-Gruppengenerator: kompakte Karten ---------- */
 .npc-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));

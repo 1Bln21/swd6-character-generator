@@ -31,7 +31,7 @@ de: {
   options: 'Optionen', opt_language: 'Sprache / Language',
   opt_theme: 'Darstellung', theme_dark: 'Dunkel', theme_light: 'Hell',
   theme_oled: 'OLED-Schwarz', theme_bespin: 'Bespin (warm)',
-  nav_char: 'Charaktere', nav_droid: 'Droiden', nav_ship: 'Schiffe / Fahrzeuge', nav_npc: 'NPCs',
+  nav_char: 'Charaktere', nav_droid: 'Droiden', nav_ship: 'Schiffe / Fahrzeuge', nav_npc: 'NPCs', nav_dice: 'Würfeln',
   doc_one: 'Charakter', doc_plural: 'Charaktere',
   pdf_catalog: 'Erweiterter Katalog aus den Regelwerken',
   pdf_search: 'Suchen', pdf_add: '+ Übernehmen',
@@ -204,7 +204,7 @@ en: {
   options: 'Options', opt_language: 'Sprache / Language',
   opt_theme: 'Theme', theme_dark: 'Dark', theme_light: 'Light',
   theme_oled: 'OLED black', theme_bespin: 'Bespin (warm)',
-  nav_char: 'Characters', nav_droid: 'Droids', nav_ship: 'Ships / Vehicles', nav_npc: 'NPCs',
+  nav_char: 'Characters', nav_droid: 'Droids', nav_ship: 'Ships / Vehicles', nav_npc: 'NPCs', nav_dice: 'Dice',
   doc_one: 'character', doc_plural: 'characters',
   pdf_catalog: 'Extended catalog from the sourcebooks',
   pdf_search: 'Search', pdf_add: '+ Add',
@@ -715,7 +715,42 @@ function autosave() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     try { localStorage.setItem(LS_CURRENT, JSON.stringify(C)); } catch (e) {}
+    buildRollProfile();
   }, 300);
+}
+/* Kompaktes Wurf-Profil für die Würfelseite: Attribute + trainierte Skills
+   als fertige Pip-Pools. Die Würfelseite liest nur diese Datei. */
+function noteBonusPips(txt) {
+  txt = String(txt || '');
+  let m = /(?:adds?\s+)?\+?(\d+)D(?:\+(\d+))?/i.exec(txt);
+  return m ? (+m[1]) * 3 + (m[2] ? +m[2] : 0) : 0;
+}
+function buildRollProfile() {
+  try {
+    const entries = [], seen = {};
+    ATTRS.forEach(a => entries.push({ label: a.name, pips: attrTotal(a.key), kind: 'attr' }));
+    ATTRS.forEach(a => skillsFor(a.key).forEach(r => {
+      const key = skillKey(a.key, r.name);
+      if (skillPips(key) > 0 && !seen[key]) { seen[key] = 1; entries.push({ label: skillName(r.name), pips: skillTotal(key), kind: 'skill' }); }
+    }));
+    /* Getragene Ausrüstung mit Würfel-Bonus (Computer, Code-Slicer …) – der
+       Spieler hakt auf der Würfelseite an, was er tatsächlich nutzt. */
+    const gear = [], seenG = {};
+    Object.keys(C.equipment || {}).forEach(n => {
+      if ((C.equipment[n] || 0) <= 0 || seenG[n]) return;
+      const it = catByName(DATA.equipment, n)
+        || (typeof PDF_EQUIPMENT !== 'undefined' && catByName(PDF_EQUIPMENT, n));
+      const note = it ? (it.notes || it.note || '') : '';
+      const pips = noteBonusPips(note);
+      if (pips > 0) { seenG[n] = 1; gear.push({ label: n, pips: pips, hint: note.slice(0, 80) }); }
+    });
+    (C.customEquipment || []).forEach(e => {
+      if (!e || !e.name || (+e.qty || 0) <= 0) return;
+      const pips = noteBonusPips(e.note || e.notes || '');
+      if (pips > 0) gear.push({ label: e.name, pips: pips, hint: String(e.note || e.notes || '').slice(0, 80) });
+    });
+    localStorage.setItem('swd6_roll_char', JSON.stringify({ name: (C.info && C.info.name) || '', entries, gear }));
+  } catch (e) {}
 }
 function update(tab) {
   autosave();

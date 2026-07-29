@@ -412,6 +412,22 @@ function maneuverThruster(i, sel) {
   return { value: pips, cost: pips * 6000, weight: Math.max(1, Math.round(pips / 2)) };
 }
 
+/* Wurf-Profil fürs Würfeln: Manöver, Schilde, Waffen-Feuerkontrolle, Crew-Skills. */
+function buildRollProfile() {
+  try {
+    const der = shipDerived();
+    const entries = [{ label: t('sh_maneuver'), pips: der.maneuver, kind: 'ship' }];
+    if (der.shields) entries.push({ label: t('sh_shields'), pips: der.shields, kind: 'ship' });
+    (C.weapons || []).forEach(w => {
+      if (w.name) entries.push({ label: w.name + ' · FC', pips: (+w.fireControl || 0), kind: 'ship' });
+    });
+    Object.entries(C.crewSkills || {}).forEach(([n, p]) => {
+      if (p > 0) entries.push({ label: skillName(n), pips: p, kind: 'skill' });
+    });
+    localStorage.setItem('swd6_roll_ship', JSON.stringify({ name: (C.info && C.info.name) || '', entries }));
+  } catch (e) {}
+}
+
 /* ---------------- Berechnungen ---------------- */
 function pctMod(list, label) { return list.find(m => m.label === label) || null; }
 

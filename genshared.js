@@ -25,7 +25,7 @@ de: {
   btn_pdf: '📄 PDF exportieren', pdf_working: 'PDF wird erstellt …',
   pdf_lib_missing: 'PDF-Bibliotheken nicht geladen (jspdf.min.js / html2canvas.min.js fehlen im Upload).',
   pdf_error: 'PDF-Export fehlgeschlagen: ',
-  nav_char: 'Charaktere', nav_droid: 'Droiden', nav_ship: 'Schiffe / Fahrzeuge', nav_npc: 'NPCs',
+  nav_char: 'Charaktere', nav_droid: 'Droiden', nav_ship: 'Schiffe / Fahrzeuge', nav_npc: 'NPCs', nav_dice: 'Würfeln',
   saved_placeholder: '– Gespeichert –',
   saved_ok: '✔ Gespeichert',
   prompt_doc_name: 'Name zum Speichern:',
@@ -60,7 +60,7 @@ en: {
   btn_pdf: '📄 Export PDF', pdf_working: 'Creating PDF …',
   pdf_lib_missing: 'PDF libraries not loaded (jspdf.min.js / html2canvas.min.js missing from the upload).',
   pdf_error: 'PDF export failed: ',
-  nav_char: 'Characters', nav_droid: 'Droids', nav_ship: 'Ships / Vehicles', nav_npc: 'NPCs',
+  nav_char: 'Characters', nav_droid: 'Droids', nav_ship: 'Ships / Vehicles', nav_npc: 'NPCs', nav_dice: 'Dice',
   saved_placeholder: '– Saved –',
   saved_ok: '✔ Saved',
   prompt_doc_name: 'Name for saving:',
@@ -219,6 +219,7 @@ function autosave() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     try { localStorage.setItem(LS_CURRENT, JSON.stringify(C)); } catch (e) {}
+    if (typeof buildRollProfile === 'function') buildRollProfile();   // Wurf-Profil (Schiff/Droide)
   }, 300);
 }
 function update(tab) { autosave(); renderTab(tab || activeTab); }
