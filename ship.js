@@ -35,6 +35,7 @@ Object.assign(T.de, {
   sh_hyper: 'Hyperantrieb (Multiplikator)', sh_hyperbackup: 'Backup-Hyperantrieb',
   sh_buy_backup: 'Backup-Hyperantrieb kaufen',
   sh_weight_scale: 'Klasse',
+  sh_weapon_weight: 'davon Waffen',
   sh_capclass: 'Capital-Unterklasse',
   sh_capclass_cruiser: 'bis Kreuzer (×6)',
   sh_capclass_isd: 'Sternenzerstörer (×15)',
@@ -167,6 +168,7 @@ Object.assign(T.en, {
   sh_hyper: 'Hyperdrive (multiplier)', sh_hyperbackup: 'Backup hyperdrive',
   sh_buy_backup: 'Buy backup hyperdrive',
   sh_weight_scale: 'class',
+  sh_weapon_weight: 'of which weapons',
   sh_capclass: 'Capital sub-class',
   sh_capclass_cruiser: 'up to cruiser (×6)',
   sh_capclass_isd: 'Star Destroyer (×15)',
@@ -364,6 +366,22 @@ function weightScaleFactor(i) {
   }
 }
 
+/* Gewichts-Multiplikator einer Größenklasse (für Waffen, nach deren eigener
+   Skala). Analog zu weightScaleFactor, aber ohne Space-Transport-Sonderfall. */
+function scaleMultOf(scale) {
+  switch (scale) {
+    case 'Capital':   return 10;
+    case 'Deathstar': return 30;
+    case 'Starfighter': return 1;
+    case 'Walker':    return 0.6;
+    case 'Speeder':   return 0.4;
+    default:          return 0.3;   // Character
+  }
+}
+/* Basisgewicht einer Waffe auf Starfighter-Skala (Hausregel), damit
+   Zusatzbewaffnung nicht gewichtslos zum Overpowern taugt. */
+const WEAPON_BASE_WEIGHT = 2;
+
 /* ---------------- Berechnungen ---------------- */
 function pctMod(list, label) { return list.find(m => m.label === label) || null; }
 
@@ -454,6 +472,12 @@ function shipDerived() {
     if (g && q > 0) { modCost += g.cost * q; weight += g.weight * q; }
   }
   md.custom.forEach(cm => { modCost += (+cm.cost || 0); weight += (+cm.weight || 0); });
+  /* Bewaffnung wiegt jetzt mit (je Waffe nach ihrer Skala × Anzahl). */
+  let weaponWeight = 0;
+  (C.weapons || []).forEach(w => {
+    weaponWeight += WEAPON_BASE_WEIGHT * scaleMultOf(w.scale) * Math.max(1, +w.number || 1);
+  });
+  weight += weaponWeight;
   weight = Math.round(weight * 10) / 10;   // saubere Anzeige bei ×0.5-Faktor
 
   /* Effektive Werte */
@@ -492,7 +516,7 @@ function shipDerived() {
   return Object.assign(
     { modCost, mishap, weight, hull, shields, maneuver, space, hyper, wdmgPips,
       atmo, canAtmo: canEnterAtmosphere(i.atmosphere), hyperBackup,
-      weightFactor: wf,
+      weightFactor: wf, weaponWeight: Math.round(weaponWeight * 10) / 10,
       costTotal: cost + modCost },
     cargoStatus(weight));
 }
@@ -993,16 +1017,20 @@ function viewMods() {
     <td class="num">${inputN('mods.custom.' + i2 + '.cost', cm.cost, 'data-rerender="1" style="width:90px"')}</td>
     <td class="num">${inputN('mods.custom.' + i2 + '.weight', cm.weight, 'data-rerender="1" style="width:70px"')}</td>
     <td><button class="mini danger" data-act="delCustomMod" data-idx="${i2}">×</button></td></tr>`).join('');
-  const partSel = (key, list, mk, label, none) => {
-    const opts = [`<option value="">${none}</option>`].concat(list.map(x =>
-      `<option ${md[key] === x[mk] ? 'selected' : ''} value="${esc(x[mk])}">${esc(mk === 'rating' ? x.rating + ' · ' + fmtCr(x.cost) + ' Cr.' : x[mk] + ' (' + (x.maker || '') + ') · ' + fmtCr(x.cost) + ' Cr.')}</option>`)).join('');
+  const partSel = (key, list, mk, label, none, classOf) => {
+    const opts = [`<option value="">${none}</option>`].concat(list.map(x => {
+      /* classOf: nur die Klasse zeigen (z. B. „Space 12" / „x5"), keinen
+         Modellnamen – das Modell wäre je Schiffsklasse ohnehin nicht dasselbe. */
+      const lbl = classOf ? classOf(x) : (mk === 'rating' ? x.rating : x[mk] + ' (' + (x.maker || '') + ')');
+      return `<option ${md[key] === x[mk] ? 'selected' : ''} value="${esc(x[mk])}">${esc(lbl + ' · ' + fmtCr(x.cost) + ' Cr.')}</option>`;
+    })).join('');
     return `<div><label>${label}</label><select data-bind="mods.${key}" data-rerender="1">${opts}</select></div>`;
   };
   return `
   <div class="pool-banner">
     <span>${t('sh_cost_mods')}: <b>${fmtCr(der.modCost)}</b> Cr.</span>
     <span>${t('sh_cost_total')}: <b>${fmtCr(der.costTotal)}</b> Cr.</span>
-    <span>${t('sh_weight_total')}: <b>${der.weight}</b> t${der.weightFactor !== 1 ? ` <span class="hint">(${t('sh_weight_scale')} ×${der.weightFactor})</span>` : ''}</span>
+    <span>${t('sh_weight_total')}: <b>${der.weight}</b> t${der.weightFactor !== 1 ? ` <span class="hint">(${t('sh_weight_scale')} ×${der.weightFactor})</span>` : ''}${der.weaponWeight ? ` <span class="hint">· ${t('sh_weapon_weight')} ${der.weaponWeight} t</span>` : ''}</span>
     ${der.cargoBase ? `<span>${t('sh_cargo_left')}: <b class="${der.cargoOver ? 'warn' : ''}">${fmtCargo(der.cargoLeft, der.cargoUnit)}</b> / ${fmtCargo(der.cargoBase, der.cargoUnit)}${der.cargoRule === 'off' ? ' · ' + t('sh_cargo_off_short') : ''}</span>` : ''}
     <span>${t('sh_mishap_total')}: <b>${der.mishap}</b></span>
   </div>
@@ -1030,8 +1058,8 @@ function viewMods() {
   </div>
   <div class="card"><h2>${t('sh_parts')}</h2>
     <div class="formgrid">
-      ${partSel('replDrive', SHIP_DATA.replDrives, 'model', t('sh_repl_drive'), t('sh_keep'))}
-      ${partSel('replHyper', SHIP_DATA.replHyper, 'model', t('sh_repl_hyper'), t('sh_keep'))}
+      ${partSel('replDrive', SHIP_DATA.replDrives, 'model', t('sh_repl_drive'), t('sh_keep'), x => t('sh_space') + ' ' + x.space)}
+      ${partSel('replHyper', SHIP_DATA.replHyper, 'model', t('sh_repl_hyper'), t('sh_keep'), x => x.mult)}
       ${partSel('shieldGen', SHIP_DATA.shieldGens, 'rating', t('sh_shieldgen'), t('sh_keep'))}
       <div><label>${t('sh_buy_backup')}</label>
         <select data-bind="mods.backupHyper" data-type="bool">

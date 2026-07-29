@@ -53,7 +53,10 @@ de: {
   species_by: 'von', species_use: 'Übernehmen',
   species_confirm_delete: 'Gespeicherte Spezies „{name}“ wirklich löschen?',
   btn_load: 'Laden', btn_save: '💾 Speichern', btn_new: 'Neu',
-  btn_export: '⬇ Export', btn_import: '⬆ Import', btn_print: '🖨 Drucken / PDF',
+  btn_export: '⬇ Export', btn_import: '⬆ Import', btn_print: '🖨 Drucken',
+  btn_pdf: '📄 PDF exportieren', pdf_working: 'PDF wird erstellt …',
+  pdf_lib_missing: 'PDF-Bibliotheken nicht geladen (jspdf.min.js / html2canvas.min.js fehlen im Upload).',
+  pdf_error: 'PDF-Export fehlgeschlagen: ',
   tab_info: 'Charakter', tab_attrs: 'Attribute', tab_skills: 'Fertigkeiten',
   tab_force: 'Die Macht', tab_equip: 'Ausrüstung', tab_weapons: 'Waffen',
   tab_armor: 'Rüstung', tab_credits: 'Credits', tab_sheet: 'Charakterbogen',
@@ -86,7 +89,8 @@ de: {
   typical_skills: 'Typische Fertigkeiten', bonus_skills: 'Bonus-Fertigkeiten (automatisch hinzugefügt)',
   portrait: 'Charakterbild', portrait_import: '📷 Bild importieren',
   portrait_remove: 'Entfernen', portrait_placeholder: 'Kein Bild',
-  portrait_hint: 'JPG/PNG – wird automatisch verkleinert. Datei hierher ziehen oder auf den Rahmen klicken.',
+  portrait_hint: 'JPG/PNG/WebP – wird automatisch verkleinert. Datei hierher ziehen oder auf den Rahmen klicken. Mit ↺ ↻ drehen.',
+  portrait_rotate: 'Um 90° drehen',
   portrait_error: 'Bild konnte nicht geladen werden.',
   custom_species_def: 'Eigene Spezies definieren', species_name: 'Name der Spezies',
   attr_limits: 'Attribut-Grenzen (in Pips: 3 Pips = 1D, z. B. 6 = 2D, 12 = 4D)',
@@ -222,7 +226,10 @@ en: {
   species_by: 'by', species_use: 'Use',
   species_confirm_delete: 'Really delete stored species "{name}"?',
   btn_load: 'Load', btn_save: '💾 Save', btn_new: 'New',
-  btn_export: '⬇ Export', btn_import: '⬆ Import', btn_print: '🖨 Print / PDF',
+  btn_export: '⬇ Export', btn_import: '⬆ Import', btn_print: '🖨 Print',
+  btn_pdf: '📄 Export PDF', pdf_working: 'Creating PDF …',
+  pdf_lib_missing: 'PDF libraries not loaded (jspdf.min.js / html2canvas.min.js missing from the upload).',
+  pdf_error: 'PDF export failed: ',
   tab_info: 'Character', tab_attrs: 'Attributes', tab_skills: 'Skills',
   tab_force: 'The Force', tab_equip: 'Equipment', tab_weapons: 'Weapons',
   tab_armor: 'Armor', tab_credits: 'Credits', tab_sheet: 'Character Sheet',
@@ -255,7 +262,8 @@ en: {
   typical_skills: 'Typical Skills', bonus_skills: 'Bonus Skills (added automatically)',
   portrait: 'Character Portrait', portrait_import: '📷 Import image',
   portrait_remove: 'Remove', portrait_placeholder: 'No image',
-  portrait_hint: 'JPG/PNG – resized automatically. Drag a file here or click the frame.',
+  portrait_hint: 'JPG/PNG/WebP – resized automatically. Drag a file here or click the frame. Rotate with ↺ ↻.',
+  portrait_rotate: 'Rotate 90°',
   portrait_error: 'Could not load the image.',
   custom_species_def: 'Define Custom Species', species_name: 'Species Name',
   attr_limits: 'Attribute limits (in pips: 3 pips = 1D, e.g. 6 = 2D, 12 = 4D)',
@@ -568,10 +576,20 @@ function skillTotal(key) {
   const base = isAdvKey(key) ? 0 : attrTotal(attr);
   return base + skillPips(key);
 }
+/* Spezialisierung? (extraSkills-Eintrag mit gesetztem spec-Elternskill) –
+   Spezialisierungen kosten laut Grundregelwerk die halben CP der Fertigkeit. */
+function isSpecKey(key) {
+  const parts = key.split('|'); const attr = parts[0], name = parts[1];
+  return C.extraSkills.some(e => e.attr === attr && e.spec && e.name === name);
+}
+function cpDieCost(key, d) {
+  if (isAdvKey(key)) return d * 2;              // Advanced: doppelt
+  if (isSpecKey(key)) return Math.max(1, Math.ceil(d / 2));  // Spezialisierung: halb (aufgerundet)
+  return d;
+}
 function skillCpCost(key) {
   const cur = skillTotal(key);
-  let d = Math.max(1, Math.floor(cur / 3));
-  return isAdvKey(key) ? d * 2 : d;
+  return cpDieCost(key, Math.max(1, Math.floor(cur / 3)));
 }
 function skillCpSpent(key) {
   const s = C.skills[key]; if (!s || !s.cp) return 0;
@@ -579,8 +597,7 @@ function skillCpSpent(key) {
   const base = (isAdvKey(key) ? 0 : attrTotal(attr)) + (s.c || 0);
   let cost = 0;
   for (let i = 0; i < s.cp; i++) {
-    let d = Math.max(1, Math.floor((base + i) / 3));
-    cost += isAdvKey(key) ? d * 2 : d;
+    cost += cpDieCost(key, Math.max(1, Math.floor((base + i) / 3)));
   }
   return cost;
 }
@@ -764,6 +781,24 @@ function importPortrait(file) {
   };
   rd.readAsDataURL(file);
 }
+/* Importiertes Bild um 90° drehen (dir < 0 = gegen den Uhrzeigersinn). */
+function rotatePortrait(dir) {
+  if (!C.info.portrait) return;
+  const img = new Image();
+  img.onload = () => {
+    const cv = document.createElement('canvas');
+    cv.width = img.height; cv.height = img.width;      // 90°: Seiten tauschen
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.translate(cv.width / 2, cv.height / 2);
+    ctx.rotate((dir < 0 ? -90 : 90) * Math.PI / 180);
+    ctx.drawImage(img, -img.width / 2, -img.height / 2);
+    C.info.portrait = cv.toDataURL('image/jpeg', 0.85);
+    update('info');
+  };
+  img.onerror = () => alert(t('portrait_error'));
+  img.src = C.info.portrait;
+}
 
 /* ---------------- Tab: Charakter ---------------- */
 function viewInfo() {
@@ -799,7 +834,9 @@ function viewInfo() {
         <div style="flex:1; min-width:180px">
           <p>
             <label class="filebtn">${t('portrait_import')}<input type="file" id="portraitFile" accept="image/*" hidden></label>
-            ${C.info.portrait ? ` <button class="mini danger" data-act="portraitRemove">× ${t('portrait_remove')}</button>` : ''}
+            ${C.info.portrait ? ` <button class="mini" data-act="portraitRotL" title="${t('portrait_rotate')}">↺</button>
+              <button class="mini" data-act="portraitRotR" title="${t('portrait_rotate')}">↻</button>
+              <button class="mini danger" data-act="portraitRemove">× ${t('portrait_remove')}</button>` : ''}
           </p>
           <p class="hint">${t('portrait_hint')}</p>
         </div>
@@ -2076,6 +2113,8 @@ content.addEventListener('click', e => {
       C.info.portrait = '';
       update('info'); break;
     }
+    case 'portraitRotL': rotatePortrait(-1); break;
+    case 'portraitRotR': rotatePortrait(1); break;
     case 'pdfAdd': pdfAdd(el.dataset.kind, +el.dataset.i); break;
     case 'speciesSaveCloud': saveSpeciesCloud(); break;
     case 'speciesUse': applyCloudSpecies(+el.dataset.id); break;

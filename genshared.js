@@ -21,8 +21,11 @@ de: {
   opt_theme: 'Darstellung', theme_dark: 'Dunkel', theme_light: 'Hell',
   theme_oled: 'OLED-Schwarz', theme_bespin: 'Bespin (warm)',
   btn_load: 'Laden', btn_save: '💾 Speichern', btn_new: 'Neu',
-  btn_export: '⬇ Export', btn_import: '⬆ Import', btn_print: '🖨 Drucken / PDF',
-  nav_char: 'Charaktere', nav_droid: 'Droiden', nav_ship: 'Schiffe / Fahrzeuge',
+  btn_export: '⬇ Export', btn_import: '⬆ Import', btn_print: '🖨 Drucken',
+  btn_pdf: '📄 PDF exportieren', pdf_working: 'PDF wird erstellt …',
+  pdf_lib_missing: 'PDF-Bibliotheken nicht geladen (jspdf.min.js / html2canvas.min.js fehlen im Upload).',
+  pdf_error: 'PDF-Export fehlgeschlagen: ',
+  nav_char: 'Charaktere', nav_droid: 'Droiden', nav_ship: 'Schiffe / Fahrzeuge', nav_npc: 'NPCs',
   saved_placeholder: '– Gespeichert –',
   saved_ok: '✔ Gespeichert',
   prompt_doc_name: 'Name zum Speichern:',
@@ -45,15 +48,19 @@ de: {
   sheet_preview: 'Vorschau des Bogens. <b>Drucken / PDF:</b> Knopf unten – im Druckdialog „Als PDF speichern“ wählen.',
   portrait_import: '📷 Bild importieren', portrait_remove: 'Entfernen',
   portrait_placeholder: 'Kein Bild', portrait_error: 'Bild konnte nicht geladen werden.',
-  portrait_hint: 'JPG/PNG – wird automatisch verkleinert. Datei hierher ziehen oder auf den Rahmen klicken.',
+  portrait_hint: 'JPG/PNG/WebP – wird automatisch verkleinert. Datei hierher ziehen oder auf den Rahmen klicken. Mit ↺ ↻ drehen.',
+  portrait_rotate: 'Um 90° drehen',
 },
 en: {
   options: 'Options', opt_language: 'Sprache / Language',
   opt_theme: 'Theme', theme_dark: 'Dark', theme_light: 'Light',
   theme_oled: 'OLED black', theme_bespin: 'Bespin (warm)',
   btn_load: 'Load', btn_save: '💾 Save', btn_new: 'New',
-  btn_export: '⬇ Export', btn_import: '⬆ Import', btn_print: '🖨 Print / PDF',
-  nav_char: 'Characters', nav_droid: 'Droids', nav_ship: 'Ships / Vehicles',
+  btn_export: '⬇ Export', btn_import: '⬆ Import', btn_print: '🖨 Print',
+  btn_pdf: '📄 Export PDF', pdf_working: 'Creating PDF …',
+  pdf_lib_missing: 'PDF libraries not loaded (jspdf.min.js / html2canvas.min.js missing from the upload).',
+  pdf_error: 'PDF export failed: ',
+  nav_char: 'Characters', nav_droid: 'Droids', nav_ship: 'Ships / Vehicles', nav_npc: 'NPCs',
   saved_placeholder: '– Saved –',
   saved_ok: '✔ Saved',
   prompt_doc_name: 'Name for saving:',
@@ -76,7 +83,8 @@ en: {
   sheet_preview: 'Preview of the sheet. <b>Print / PDF:</b> button below – choose "Save as PDF" in the print dialog.',
   portrait_import: '📷 Import image', portrait_remove: 'Remove',
   portrait_placeholder: 'No image', portrait_error: 'Could not load the image.',
-  portrait_hint: 'JPG/PNG – resized automatically. Drag a file here or click the frame.',
+  portrait_hint: 'JPG/PNG/WebP – resized automatically. Drag a file here or click the frame. Rotate with ↺ ↻.',
+  portrait_rotate: 'Rotate 90°',
 },
 };
 function t(k) {
@@ -163,6 +171,24 @@ function importPortrait(file) {
   };
   rd.readAsDataURL(file);
 }
+/* Importiertes Bild um 90° drehen (dir < 0 = gegen den Uhrzeigersinn). */
+function rotatePortrait(dir) {
+  if (!C.info.portrait) return;
+  const img = new Image();
+  img.onload = () => {
+    const cv = document.createElement('canvas');
+    cv.width = img.height; cv.height = img.width;
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.translate(cv.width / 2, cv.height / 2);
+    ctx.rotate((dir < 0 ? -90 : 90) * Math.PI / 180);
+    ctx.drawImage(img, -img.width / 2, -img.height / 2);
+    C.info.portrait = cv.toDataURL('image/jpeg', 0.85);
+    update();
+  };
+  img.onerror = () => alert(t('portrait_error'));
+  img.src = C.info.portrait;
+}
 function portraitCardHtml(title) {
   return `
     <div class="card">
@@ -176,7 +202,9 @@ function portraitCardHtml(title) {
         <div style="flex:1; min-width:180px">
           <p>
             <label class="filebtn">${t('portrait_import')}<input type="file" id="portraitFile" accept="image/*" hidden></label>
-            ${C.info.portrait ? ` <button class="mini danger" data-act="portraitRemove">× ${t('portrait_remove')}</button>` : ''}
+            ${C.info.portrait ? ` <button class="mini" data-act="portraitRotL" title="${t('portrait_rotate')}">↺</button>
+              <button class="mini" data-act="portraitRotR" title="${t('portrait_rotate')}">↻</button>
+              <button class="mini danger" data-act="portraitRemove">× ${t('portrait_remove')}</button>` : ''}
           </p>
           <p class="hint">${t('portrait_hint')}</p>
         </div>
@@ -296,6 +324,8 @@ function wireCommonEvents() {
     const el = e.target.closest('[data-act]');
     if (!el) return;
     if (el.dataset.act === 'portraitRemove') { C.info.portrait = ''; update(); return; }
+    if (el.dataset.act === 'portraitRotL') { rotatePortrait(-1); return; }
+    if (el.dataset.act === 'portraitRotR') { rotatePortrait(1); return; }
     if (el.dataset.act === 'print') { renderSheet(); window.print(); return; }
     if (typeof pageAction === 'function') pageAction(el);
   });

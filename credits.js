@@ -14,7 +14,7 @@
    ===================================================================== */
 'use strict';
 
-const APP_VERSION = '2.6.6';
+const APP_VERSION = '2.7.0';
 
 /* ---------------- Übersetzungen ---------------- */
 Object.assign(T.de, {
@@ -30,7 +30,7 @@ Object.assign(T.de, {
     'Der größte Dank gebührt CHANCE GIBBONEY, dem Schöpfer der originalen Excel-Tabellen für Charaktere, Droiden und Schiffe. Seine akribische Arbeit bildet das Fundament aller drei Generatoren – ohne ihn gäbe es diese Anwendung nicht. Er hat der Nutzung freundlicherweise zugestimmt.',
     'Dank gebührt WEST END GAMES für das D6-System und das Star-Wars-Rollenspiel der Zweiten Edition, das Generationen von Spielern zusammenbrachte.',
     'Dank an die namenlosen Chronisten der Fan-Gemeinde, die über Jahre die Sammelbände für Waffen, Ausrüstung, Droiden, Raumschiffe und Fahrzeuge zusammentrugen und die Saga-Edition ins D6-System zurückübersetzten. Aus ihrer Arbeit stammen die Kataloge dieser Anwendung.',
-    'Dank an Kazuhiko Arase für die QR-Code-Bibliothek und an die Schöpfer von PHP, SQLite und Python, deren freie Werkzeuge diese Reise möglich machten.',
+    'Dank an Kazuhiko Arase für die QR-Code-Bibliothek, an die Projekte jsPDF und html2canvas (beide MIT) für den PDF-Export und an die Schöpfer von PHP, SQLite und Python, deren freie Werkzeuge diese Reise möglich machten.',
     'Dank auch an die KI-Assistenz, die beim Portieren des Codes zur Seite stand.',
     'Und schließlich Dank an dich – tapfere Heldin, tapferer Held am Spieltisch, der neue Charaktere in eine unendliche Galaxis entsendet.',
     'Möge die Macht mit dir sein.',
@@ -50,7 +50,7 @@ Object.assign(T.en, {
     'Our greatest thanks go to CHANCE GIBBONEY, creator of the original Excel workbooks for characters, droids and ships. His meticulous work is the foundation of all three generators — without him, this app would not exist. He kindly gave his permission for it to be used.',
     'Thanks to WEST END GAMES for the D6 system and the Second Edition of the Star Wars Roleplaying Game that brought generations of players together.',
     'Thanks to the unnamed chroniclers of the fan community, who over many years compiled the compendia of weapons, equipment, droids, starships and vehicles, and converted the Saga Edition back into the D6 system. Their work is where the catalogs in this app come from.',
-    'Thanks to Kazuhiko Arase for the QR code library, and to the makers of PHP, SQLite and Python, whose free tools made this journey possible.',
+    'Thanks to Kazuhiko Arase for the QR code library, to the jsPDF and html2canvas projects (both MIT) for PDF export, and to the makers of PHP, SQLite and Python, whose free tools made this journey possible.',
     'Thanks also to the AI assistance that helped port the code.',
     'And finally, thanks to you — brave hero at the gaming table, who sends new characters into an endless galaxy.',
     'May the Force be with you.',
