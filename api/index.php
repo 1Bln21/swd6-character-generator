@@ -23,7 +23,9 @@ $CONFIG = [
      as host, name and user are set, MySQL is used. If left empty the
      API falls back to SQLite (api/data/). */
   'db' => [
-    'driver' => 'auto',   // 'auto' | 'mysql' | 'sqlite'
+    'driver' => 'auto',   // 'auto' | 'mysql' | 'pgsql' | 'sqlite'
+                          // 'auto' nutzt MySQL, sobald host/name/user gefüllt sind;
+                          // für PostgreSQL ausdrücklich 'pgsql' eintragen.
     'host'   => '',       // z. B. sql212.byethost6.com
     'name'   => '',       // Datenbankname / database name
     'user'   => '',       // Datenbank-Benutzer / database user
@@ -113,14 +115,17 @@ function json_out($data, $code = 200) {
 }
 function fail($msg, $code = 400) { json_out(['error' => $msg], $code); }
 
-/* ---------------- Datenbank: SQLite ODER MySQL ---------------- */
+/* ---------------- Datenbank: SQLite, MySQL/MariaDB ODER PostgreSQL ---------------- */
 $dataDir = __DIR__ . '/data';
 $dbc = $CONFIG['db'];
-$useMysql = ($dbc['driver'] === 'mysql')
-  || ($dbc['driver'] === 'auto' && $dbc['host'] !== '' && $dbc['name'] !== '' && $dbc['user'] !== '');
-$DRIVER = $useMysql ? 'mysql' : 'sqlite';
+$drv = strtolower((string)$dbc['driver']);
+$usePg = in_array($drv, ['pgsql', 'postgres', 'postgresql'], true);
+$useMysql = !$usePg && ($drv === 'mysql'
+  || ($drv === 'auto' && $dbc['host'] !== '' && $dbc['name'] !== '' && $dbc['user'] !== ''));
+$useServer = $usePg || $useMysql;                 // alles außer SQLite
+$DRIVER = $usePg ? 'pgsql' : ($useMysql ? 'mysql' : 'sqlite');
 
-if (!$useMysql) {
+if (!$useServer) {
   if (!is_dir($dataDir)) @mkdir($dataDir, 0770, true);
   /* Schutzdateien auch dann anlegen, wenn der Ordner von Hand erstellt wurde */
   if (is_dir($dataDir) && !is_file($dataDir . '/.htaccess')) {
@@ -129,15 +134,23 @@ if (!$useMysql) {
   }
   if (!extension_loaded('pdo_sqlite')) {
     fail('This server has no SQLite support (PHP extension pdo_sqlite missing). '
-       . 'Enter your MySQL credentials in the $CONFIG[\'db\'] block of api/index.php instead.', 500);
+       . 'Enter your MySQL or PostgreSQL credentials in the $CONFIG[\'db\'] block of api/index.php instead.', 500);
   }
 }
 if ($useMysql && !extension_loaded('pdo_mysql')) {
   fail('This server has no MySQL support (PHP extension pdo_mysql missing).', 500);
 }
+if ($usePg && !extension_loaded('pdo_pgsql')) {
+  fail('This server has no PostgreSQL support (PHP extension pdo_pgsql missing).', 500);
+}
 
 try {
-  if ($useMysql) {
+  if ($usePg) {
+    $dsn = 'pgsql:host=' . $dbc['host']
+         . ($dbc['port'] !== '' ? ';port=' . $dbc['port'] : '')
+         . ';dbname=' . $dbc['name'];
+    $db = new PDO($dsn, $dbc['user'], $dbc['pass']);
+  } elseif ($useMysql) {
     $dsn = 'mysql:host=' . $dbc['host']
          . ($dbc['port'] !== '' ? ';port=' . $dbc['port'] : '')
          . ';dbname=' . $dbc['name'] . ';charset=utf8mb4';
@@ -146,20 +159,20 @@ try {
     $db = new PDO('sqlite:' . $dataDir . '/swd6.sqlite');
   }
   $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-  if (!$useMysql) {
+  if (!$useServer) {
     $db->exec('PRAGMA journal_mode = WAL');
     $db->exec('PRAGMA foreign_keys = ON');
   }
 } catch (Exception $e) {
   $msg = 'Database connection failed: ' . $e->getMessage();
-  if (!$useMysql) {
+  if (!$useServer) {
     /* Häufigster Fall: der Webserver darf im Datenordner nicht schreiben.
        SQLite braucht Schreibrechte auf dem ORDNER, nicht nur auf der Datei. */
     $msg .= ' | SQLite needs write access to the folder "' . $dataDir . '". On Linux run: '
           . 'sudo mkdir -p "' . $dataDir . '" && sudo chown -R www-data:www-data "' . $dataDir . '" '
           . '&& sudo chmod 775 "' . $dataDir . '" '
           . '(replace www-data with your web server user). '
-          . 'Alternatively use MySQL by filling in the $CONFIG[\'db\'] block in api/index.php. '
+          . 'Alternatively use MySQL or PostgreSQL by filling in the $CONFIG[\'db\'] block in api/index.php. '
           . 'Open api/check.php for a full report.';
   } else {
     $msg .= ' | Check host, database name, user and password in the $CONFIG[\'db\'] block '
@@ -169,14 +182,39 @@ try {
 }
 
 /* Dialekt-Unterschiede an einer Stelle gebündelt */
-$PK  = $useMysql ? 'INT AUTO_INCREMENT PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT';
-$STR = $useMysql ? 'VARCHAR(191)' : 'TEXT';
-$TXT = $useMysql ? 'LONGTEXT'     : 'TEXT';
-$UNI = $useMysql ? 'VARCHAR(64) UNIQUE NOT NULL' : 'TEXT UNIQUE NOT NULL COLLATE NOCASE';
+$PK  = $usePg ? 'SERIAL PRIMARY KEY'
+     : ($useMysql ? 'INT AUTO_INCREMENT PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT');
+$STR = 'VARCHAR(191)';                             // für alle drei; SQLite ignoriert die Länge
+$TXT = $useMysql ? 'LONGTEXT' : 'TEXT';
+if ($usePg) {
+  /* citext macht Benutzernamen case-insensitive (wie bei MySQL/SQLite). Fehlt
+     die Erweiterung (kein Superuser), bleibt VARCHAR – dann case-sensitiv. */
+  try { $db->exec('CREATE EXTENSION IF NOT EXISTS citext'); $UNI = 'CITEXT UNIQUE NOT NULL'; }
+  catch (Exception $e) { $UNI = 'VARCHAR(64) UNIQUE NOT NULL'; }
+} else {
+  $UNI = $useMysql ? 'VARCHAR(64) UNIQUE NOT NULL' : 'TEXT UNIQUE NOT NULL COLLATE NOCASE';
+}
 $SUF = $useMysql ? ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci' : '';
-/* Case-insensitive Sortierung: MySQL kann das per Collation schon selbst */
-function ci($col) { global $useMysql; return $useMysql ? $col : $col . ' COLLATE NOCASE'; }
-function insert_ignore() { global $useMysql; return $useMysql ? 'INSERT IGNORE INTO' : 'INSERT OR IGNORE INTO'; }
+/* Case-insensitive Sortierung */
+function ci($col) {
+  global $useMysql, $usePg;
+  if ($useMysql) return $col;                      // Collation ist schon ci
+  if ($usePg) return 'LOWER(' . $col . ')';        // Postgres: per LOWER sortieren
+  return $col . ' COLLATE NOCASE';                 // SQLite
+}
+function insert_ignore() {
+  global $useMysql, $usePg;
+  if ($useMysql) return 'INSERT IGNORE INTO';
+  if ($usePg) return 'INSERT INTO';                // Postgres: dazu on_conflict() ans Ende
+  return 'INSERT OR IGNORE INTO';
+}
+/* An eine per insert_ignore() gebaute Anweisung anhängen (nur Postgres). */
+function on_conflict() { global $usePg; return $usePg ? ' ON CONFLICT DO NOTHING' : ''; }
+/* Zuletzt vergebene Auto-ID – Postgres braucht den Sequenznamen. */
+function last_id($table) {
+  global $db, $usePg;
+  return (int)($usePg ? $db->lastInsertId($table . '_id_seq') : $db->lastInsertId());
+}
 
 $db->exec("CREATE TABLE IF NOT EXISTS users (
   id $PK,
@@ -245,11 +283,15 @@ $db->exec("CREATE TABLE IF NOT EXISTS round_chars (
 
 /* Spalten einer Tabelle ermitteln (für Migration und Selbstprüfung) */
 function table_columns($table) {
-  global $db, $useMysql;
+  global $db, $useMysql, $usePg;
   $cols = [];
   try {
     if ($useMysql) {
       foreach ($db->query("SHOW COLUMNS FROM `$table`")->fetchAll(PDO::FETCH_ASSOC) as $c) $cols[] = $c['Field'];
+    } elseif ($usePg) {
+      $st = $db->prepare("SELECT column_name FROM information_schema.columns WHERE table_name = ?");
+      $st->execute([$table]);
+      foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $c) $cols[] = $c['column_name'];
     } else {
       foreach ($db->query("PRAGMA table_info($table)")->fetchAll(PDO::FETCH_ASSOC) as $c) $cols[] = $c['name'];
     }
@@ -528,7 +570,7 @@ case 'register': {
   $approved = ($isFirst || $mode !== 'approval') ? 1 : 0;
   $st = $db->prepare('INSERT INTO users (username, pass_hash, created, approved, is_admin) VALUES (?,?,?,?,?)');
   $st->execute([$username, password_hash($password, PASSWORD_DEFAULT), time(), $approved, $isFirst ? 1 : 0]);
-  $id = (int)$db->lastInsertId();
+  $id = last_id('users');
   $recovery = new_recovery_code($id);
   if (!$approved)
     json_out(['pendingApproval' => true, 'username' => $username, 'recoveryCode' => $recovery]);
@@ -756,7 +798,7 @@ case 'char_save': {
   if ((int)$st->fetchColumn() >= $CONFIG['max_chars_per_user']) fail('Character limit reached');
   $db->prepare('INSERT INTO chars (user_id, name, kind, data, updated) VALUES (?,?,?,?,?)')
      ->execute([$user['id'], $name, req_kind(), $json, time()]);
-  json_out(['id' => (int)$db->lastInsertId()]);
+  json_out(['id' => last_id('chars')]);
 }
 
 /* ---- Eigene Spezies: für alle angemeldeten Gruppenmitglieder sichtbar ---- */
@@ -819,7 +861,7 @@ case 'share_add': case 'share_remove': case 'shares': {
     $tu = $st->fetch(PDO::FETCH_ASSOC);
     if (!$tu) fail('User not found', 404);
     if ((int)$tu['id'] === (int)$user['id']) fail('You cannot share with yourself');
-    $db->prepare(insert_ignore() . ' shares (char_id, owner_id, to_user_id) VALUES (?,?,?)')
+    $db->prepare(insert_ignore() . ' shares (char_id, owner_id, to_user_id) VALUES (?,?,?)' . on_conflict())
        ->execute([$id, $user['id'], $tu['id']]);
   }
   if ($action === 'share_remove') {
@@ -985,8 +1027,8 @@ case 'round_create': {
   if ($code === '') $code = strtoupper(bin2hex(random_bytes(8)));
   $db->prepare('INSERT INTO rounds (name, gm_id, invite_code, created) VALUES (?,?,?,?)')
      ->execute([$name, $user['id'], $code, time()]);
-  $rid = (int)$db->lastInsertId();
-  $db->prepare(insert_ignore() . ' round_members (round_id, user_id, role) VALUES (?,?,?)')
+  $rid = last_id('rounds');
+  $db->prepare(insert_ignore() . ' round_members (round_id, user_id, role) VALUES (?,?,?)' . on_conflict())
      ->execute([$rid, $user['id'], 'gm']);
   json_out(['id' => $rid, 'name' => $name, 'inviteCode' => $code, 'role' => 'gm']);
 }
@@ -999,7 +1041,7 @@ case 'round_join': {
   $st->execute([strtoupper($code)]);
   $round = $st->fetch(PDO::FETCH_ASSOC);
   if (!$round) { usleep(300000); fail('No round found for this code', 404); }  // bremst Code-Brute-Force
-  $db->prepare(insert_ignore() . ' round_members (round_id, user_id, role) VALUES (?,?,?)')
+  $db->prepare(insert_ignore() . ' round_members (round_id, user_id, role) VALUES (?,?,?)' . on_conflict())
      ->execute([$round['id'], $user['id'], 'player']);
   json_out(['ok' => true, 'id' => (int)$round['id'], 'name' => $round['name']]);
 }
@@ -1151,7 +1193,7 @@ case 'round_assign': case 'round_unassign': {
   if (!$row) fail('Character not found', 404);
   if ((int)$row['user_id'] !== (int)$user['id']) fail('Only the owner can assign this character', 403);
   if ($action === 'round_assign') {
-    $db->prepare(insert_ignore() . ' round_chars (round_id, char_id, approved) VALUES (?,?,0)')
+    $db->prepare(insert_ignore() . ' round_chars (round_id, char_id, approved) VALUES (?,?,0)' . on_conflict())
        ->execute([$id, $charId]);
   } else {
     $db->prepare('DELETE FROM round_chars WHERE round_id = ? AND char_id = ?')->execute([$id, $charId]);

@@ -28,7 +28,7 @@ Object.assign(T.de, {
   npc_mode_single: 'Eine Spezies',
   npc_mode_aliens: 'Nur Aliens (gemischt)',
   npc_species_pick: 'Spezies wählen',
-  npc_faction: 'Fraktion / Zuordnung',
+  npc_faction: 'Fraktion / Beruf',
   npc_threat: 'Erfahrung / Gefährlichkeit',
   npc_threat_green: 'Grün (Kanonenfutter)',
   npc_threat_average: 'Durchschnitt',
@@ -50,6 +50,16 @@ Object.assign(T.de, {
   fac_imperial: 'Imperium', fac_rebel: 'Rebellen-Allianz', fac_pirate: 'Piraten',
   fac_cis: 'CIS / Separatisten', fac_bounty: 'Kopfgeldjäger', fac_crime: 'Verbrechersyndikat',
   fac_merc: 'Söldner', fac_civilian: 'Zivilisten',
+  fac_trader: 'Händler', fac_customs: 'Zollbeamte', fac_smuggler: 'Schmuggler',
+  fac_pilot: 'Piloten', fac_mechanic: 'Mechaniker', fac_medic: 'Sanitäter',
+  fac_scout: 'Kundschafter', fac_official: 'Beamte',
+  npc_gen: 'Was erzeugen?', npc_gen_people: 'Personen', npc_gen_ships: 'Schiffe',
+  npc_ship_size: 'Schiffsklasse',
+  npc_size_starfighter: 'Jäger', npc_size_transport: 'Space Transport', npc_size_capital: 'Capital',
+  npc_ship_crew: 'Crew (Steuern/Bordgeschütze)', npc_ship_extra: 'Extra-Waffen',
+  npc_ships_empty: 'Noch keine Schiffe. Klasse und Anzahl wählen und „Gruppe erzeugen“.',
+  npc_add_ship: '+ Schiff hinzufügen',
+  npc_ship_hint: 'Zufällige Schiffe der gewählten Klasse aus dem Katalog; Crew-Würfel und Extra-Waffen richten sich nach der Erfahrungsstufe.',
 });
 Object.assign(T.en, {
   title: 'Star Wars D6 – NPC Generator',
@@ -66,7 +76,7 @@ Object.assign(T.en, {
   npc_mode_single: 'One species',
   npc_mode_aliens: 'Aliens only (mixed)',
   npc_species_pick: 'Choose species',
-  npc_faction: 'Faction / affiliation',
+  npc_faction: 'Faction / profession',
   npc_threat: 'Experience / threat',
   npc_threat_green: 'Green (cannon fodder)',
   npc_threat_average: 'Average',
@@ -88,6 +98,16 @@ Object.assign(T.en, {
   fac_imperial: 'Empire', fac_rebel: 'Rebel Alliance', fac_pirate: 'Pirates',
   fac_cis: 'CIS / Separatists', fac_bounty: 'Bounty hunters', fac_crime: 'Crime syndicate',
   fac_merc: 'Mercenaries', fac_civilian: 'Civilians',
+  fac_trader: 'Traders', fac_customs: 'Customs officers', fac_smuggler: 'Smugglers',
+  fac_pilot: 'Pilots', fac_mechanic: 'Mechanics', fac_medic: 'Medics',
+  fac_scout: 'Scouts', fac_official: 'Officials',
+  npc_gen: 'Generate what?', npc_gen_people: 'People', npc_gen_ships: 'Ships',
+  npc_ship_size: 'Ship class',
+  npc_size_starfighter: 'Starfighter', npc_size_transport: 'Space transport', npc_size_capital: 'Capital',
+  npc_ship_crew: 'Crew (piloting/gunnery)', npc_ship_extra: 'extra weapons',
+  npc_ships_empty: 'No ships yet. Pick class and count, then “Generate group”.',
+  npc_add_ship: '+ Add ship',
+  npc_ship_hint: 'Random ships of the chosen class from the catalog; crew dice and extra weapons scale with the experience level.',
 });
 
 /* ---------------- Spielwerte ---------------- */
@@ -159,8 +179,58 @@ const NPC_FACTIONS = {
     weapon: { name: 'Hold-out Blaster', dmg: 9, rng: '3-4/8/12' },
     gear: { de: 'Alltagskleidung, Komlink', en: 'Everyday clothing, comlink' },
   },
+  /* ---- Berufe / Rollen: Nicht-Kampf-NPCs mit den passenden Fertigkeiten ---- */
+  trader: {
+    focus: [1, 3, 2, 3, 1, 1], armor: 0,
+    skills: [['Bargain', 'per'], ['Value', 'kno'], ['Streetwise', 'kno'], ['Con', 'per'], ['Space Transports', 'mec']],
+    weapon: { name: 'Hold-out Blaster', dmg: 9, rng: '3-4/8/12' },
+    gear: { de: 'Datenpad, Waren-Manifest, Credits-Chips', en: 'Datapad, cargo manifest, credit chips' },
+  },
+  customs: {
+    focus: [2, 3, 2, 3, 1, 1], armor: 1,
+    skills: [['Search', 'per'], ['Investigation', 'per'], ['Bureaucracy', 'kno'], ['Law Enforcement', 'kno'], ['Blaster', 'dex'], ['Space Transports', 'mec']],
+    weapon: { name: 'Blaster Pistol', dmg: 12, rng: '3-10/30/120' },
+    gear: { de: 'Handscanner, Datenpad, Uniform', en: 'Hand scanner, datapad, uniform' },
+  },
+  smuggler: {
+    focus: [2, 2, 3, 2, 1, 1], armor: 0,
+    skills: [['Space Transports', 'mec'], ['Astrogation', 'mec'], ['Con', 'per'], ['Sneak', 'per'], ['Streetwise', 'kno'], ['Blaster', 'dex']],
+    weapon: { name: 'Blaster Pistol', dmg: 12, rng: '3-10/30/120' },
+    gear: { de: 'Verstecktes Frachtfach, Komlink', en: 'Hidden cargo compartment, comlink' },
+  },
+  pilot: {
+    focus: [2, 1, 3, 2, 1, 1], armor: 0,
+    skills: [['Space Transports', 'mec'], ['Starfighter Piloting', 'mec'], ['Astrogation', 'mec'], ['Starship Gunnery', 'mec'], ['Starship Shields', 'mec']],
+    weapon: { name: 'Blaster Pistol', dmg: 12, rng: '3-10/30/120' },
+    gear: { de: 'Fluganzug, Komlink', en: 'Flight suit, comlink' },
+  },
+  mechanic: {
+    focus: [1, 1, 2, 1, 1, 3], armor: 0,
+    skills: [['Space Transports Repair', 'tec'], ['Computer Programming/Repair', 'tec'], ['Blaster Repair', 'tec'], ['Droid Programming/Repair', 'tec']],
+    weapon: { name: 'Hold-out Blaster', dmg: 9, rng: '3-4/8/12' },
+    gear: { de: 'Werkzeugsatz, Diagnose-Scanner, Ersatzteile', en: 'Toolkit, diagnostic scanner, spare parts' },
+  },
+  medic: {
+    focus: [1, 2, 1, 2, 1, 3], armor: 0,
+    skills: [['First Aid', 'tec'], ['(A) Medicine', 'tec'], ['Bargain', 'per']],
+    weapon: { name: 'Hold-out Blaster', dmg: 9, rng: '3-4/8/12' },
+    gear: { de: 'Medpac, Diagnose-Scanner', en: 'Medpac, diagnostic scanner' },
+  },
+  scout: {
+    focus: [2, 2, 2, 3, 1, 1], armor: 0,
+    skills: [['Astrogation', 'mec'], ['Sensors', 'mec'], ['Survival', 'kno'], ['Search', 'per'], ['Beast Riding', 'mec']],
+    weapon: { name: 'Blaster Rifle', dmg: 15, rng: '3-30/100/300' },
+    gear: { de: 'Vorräte, Makrofernglas, Komlink', en: 'Supplies, macrobinoculars, comlink' },
+  },
+  official: {
+    focus: [1, 3, 1, 3, 1, 1], armor: 0,
+    skills: [['Bureaucracy', 'kno'], ['Persuasion', 'per'], ['Business', 'kno'], ['Law Enforcement', 'kno']],
+    weapon: { name: 'Hold-out Blaster', dmg: 9, rng: '3-4/8/12' },
+    gear: { de: 'Datenpad, Amtsausweis', en: 'Datapad, credentials' },
+  },
 };
-const FACTION_ORDER = ['imperial', 'rebel', 'pirate', 'cis', 'bounty', 'crime', 'merc', 'civilian'];
+const FACTION_ORDER = ['imperial', 'rebel', 'pirate', 'cis', 'bounty', 'crime', 'merc', 'civilian',
+  'trader', 'customs', 'smuggler', 'pilot', 'mechanic', 'medic', 'scout', 'official'];
 
 /* Alien-Pool für „gemischt“ / „nur Aliens“ – zur Laufzeit auf tatsächlich
    in DATA.species vorhandene Namen gefiltert. */
@@ -281,8 +351,9 @@ function emptyDoc() {
   return {
     version: 1, kind: 'npc',
     info: { name: '' },
-    setup: { count: 6, mode: 'mixed', species: 'Human', faction: 'imperial', threat: 'average' },
-    npcs: [],
+    setup: { count: 6, gen: 'people', mode: 'mixed', species: 'Human',
+             faction: 'imperial', threat: 'average', shipSize: 'transport' },
+    npcs: [], ships: [],
   };
 }
 let C = emptyDoc();
@@ -292,18 +363,77 @@ function migrate(obj) {
     if (obj.info) d.info.name = obj.info.name || '';
     if (obj.setup) Object.assign(d.setup, obj.setup);
     if (Array.isArray(obj.npcs)) d.npcs = obj.npcs;
+    if (Array.isArray(obj.ships)) d.ships = obj.ships;
     if (obj._cloudId) d._cloudId = obj._cloudId;
   }
   return d;
 }
 
+/* ---------------- NPC-Schiffe ---------------- */
+/* Ordnet einen Katalogeintrag einer Größenkategorie zu. */
+function npcShipCat(s) {
+  const scale = s.scale, skill = (s.skill || '').toLowerCase();
+  if (scale === 'Capital') return 'capital';
+  if (skill.indexOf('space transport') >= 0) return 'transport';
+  if (scale === 'Starfighter') return 'starfighter';
+  return null;   // Fahrzeuge / sonstiges
+}
+/* Crew-Würfel (Piloting/Gunnery, in Pips) je Bedrohungsstufe. */
+const NPC_SHIP_CREW = { green: 9, average: 12, veteran: 15, elite: 21 };
+function genShips(size, threat, n) {
+  const pool = (typeof PDF_SHIPS !== 'undefined' ? PDF_SHIPS : []).filter(x => npcShipCat(x) === size);
+  if (!pool.length) return [];
+  const th = NPC_THREAT[threat] || NPC_THREAT.average;
+  const crew = NPC_SHIP_CREW[threat] || 12;
+  const out = [];
+  for (let k = 0; k < n; k++) {
+    const src = rngPick(pool);
+    out.push({
+      name: src.name, craft: src.craft || '', scale: src.scale || '',
+      hull: src.hull || '', shields: src.shields || '', maneuver: src.maneuver || '',
+      space: src.space || '', hyper: src.hyper || '',
+      weapons: (src.weapons || []).map(w => (w && (w.name || w)) || '').filter(Boolean).slice(0, 6),
+      crewPips: crew + rngRange(0, th.skillMax),
+      extra: (threat === 'veteran' || threat === 'elite') ? rngRange(1, 2) : 0,
+    });
+  }
+  return out;
+}
+function genOneShip() { return genShips(C.setup.shipSize, C.setup.threat, 1)[0]; }
+
 function generateGroup() {
   const s = C.setup;
   const n = Math.max(1, Math.min(30, +s.count || 1));
   s.count = n;
-  const speciesList = buildSpeciesList(n, s.mode, s.species);
-  C.npcs = speciesList.map(sp => genNPC(sp, s.faction, s.threat));
+  if (s.gen === 'ships') {
+    C.ships = genShips(s.shipSize, s.threat, n);
+  } else {
+    const speciesList = buildSpeciesList(n, s.mode, s.species);
+    C.npcs = speciesList.map(sp => genNPC(sp, s.faction, s.threat));
+  }
   autosave();
+}
+function shipCard(sh, i, editable) {
+  return `<div class="npc-card">
+    <div class="npc-head">
+      ${editable
+        ? `<input type="text" class="npc-name-in" data-shipname="${i}" value="${esc(sh.name)}">`
+        : `<span class="npc-name">${esc(sh.name)}</span>`}
+      <span class="npc-sub">${esc(sh.craft)} · ${esc(sh.scale)}</span>
+      ${editable ? `<span class="npc-actions">
+        <button class="mini" data-act="rerollShip" data-idx="${i}">${t('npc_reroll')}</button>
+        <button class="mini danger" data-act="removeShip" data-idx="${i}">×</button></span>` : ''}
+    </div>
+    <div class="npc-attrs">
+      <span class="npc-attr"><b>HULL</b> ${esc(sh.hull || '–')}</span>
+      <span class="npc-attr"><b>SHD</b> ${esc(sh.shields || '–')}</span>
+      <span class="npc-attr"><b>MAN</b> ${esc(sh.maneuver || '–')}</span>
+      <span class="npc-attr"><b>SPACE</b> ${esc(sh.space || '–')}</span>
+      <span class="npc-attr"><b>HYPER</b> ${esc(sh.hyper || '–')}</span>
+    </div>
+    <div class="npc-line"><b>${t('npc_ship_crew')}:</b> ${fmtD(sh.crewPips)}</div>
+    <div class="npc-line"><b>${t('npc_weapon')}:</b> ${sh.weapons.length ? sh.weapons.map(esc).join(', ') : '–'}${sh.extra ? ` <span class="hint">(+${sh.extra} ${t('npc_ship_extra')})</span>` : ''}</div>
+  </div>`;
 }
 
 /* ---------------- Rendering: Setup + Liste ---------------- */
@@ -352,16 +482,39 @@ function renderTab(tab) {
   const s = C.setup;
   const el = document.getElementById('tab-setup');
   if (!el) return;
-  const list = C.npcs.length
-    ? `<div class="npc-grid">${C.npcs.map((n, i) => npcCard(n, i, true)).join('')}</div>`
-    : `<p class="hint">${t('npc_empty')}</p>`;
+  const ships = s.gen === 'ships';
+  const list = ships
+    ? (C.ships.length ? `<div class="npc-grid">${C.ships.map((sh, i) => shipCard(sh, i, true)).join('')}</div>`
+                      : `<p class="hint">${t('npc_ships_empty')}</p>`)
+    : (C.npcs.length ? `<div class="npc-grid">${C.npcs.map((n, i) => npcCard(n, i, true)).join('')}</div>`
+                     : `<p class="hint">${t('npc_empty')}</p>`);
+  const threatSel = `<div><label>${t('npc_threat')}</label>
+    <select data-bind="setup.threat">
+      <option value="green" ${s.threat === 'green' ? 'selected' : ''}>${t('npc_threat_green')}</option>
+      <option value="average" ${s.threat === 'average' ? 'selected' : ''}>${t('npc_threat_average')}</option>
+      <option value="veteran" ${s.threat === 'veteran' ? 'selected' : ''}>${t('npc_threat_veteran')}</option>
+      <option value="elite" ${s.threat === 'elite' ? 'selected' : ''}>${t('npc_threat_elite')}</option>
+    </select></div>`;
   el.innerHTML = `
     <div class="card">
       <h2>${t('doc_one')}</h2>
       <div class="formgrid">
         <div><label>${t('npc_group_name')}</label>${inputT('info.name', C.info.name)}</div>
+        <div><label>${t('npc_gen')}</label>
+          <select data-bind="setup.gen" data-rerender="1">
+            <option value="people" ${!ships ? 'selected' : ''}>${t('npc_gen_people')}</option>
+            <option value="ships" ${ships ? 'selected' : ''}>${t('npc_gen_ships')}</option>
+          </select></div>
         <div><label>${t('npc_count')}</label>${inputN('setup.count', s.count, 'min="1" max="30"')}
           <span class="hint">${t('npc_count_hint')}</span></div>
+        ${ships ? `
+        <div><label>${t('npc_ship_size')}</label>
+          <select data-bind="setup.shipSize">
+            <option value="starfighter" ${s.shipSize === 'starfighter' ? 'selected' : ''}>${t('npc_size_starfighter')}</option>
+            <option value="transport" ${s.shipSize === 'transport' ? 'selected' : ''}>${t('npc_size_transport')}</option>
+            <option value="capital" ${s.shipSize === 'capital' ? 'selected' : ''}>${t('npc_size_capital')}</option>
+          </select></div>
+        ${threatSel}` : `
         <div><label>${t('npc_species_mode')}</label>
           <select data-bind="setup.mode" data-rerender="1">
             <option value="human" ${s.mode === 'human' ? 'selected' : ''}>${t('npc_mode_human')}</option>
@@ -374,17 +527,13 @@ function renderTab(tab) {
              <select data-bind="setup.species">${speciesOpts(s.species)}</select></div>` : ''}
         <div><label>${t('npc_faction')}</label>
           <select data-bind="setup.faction" data-rerender="1">${factionOpts(s.faction)}</select></div>
-        <div><label>${t('npc_threat')}</label>
-          <select data-bind="setup.threat">
-            <option value="green" ${s.threat === 'green' ? 'selected' : ''}>${t('npc_threat_green')}</option>
-            <option value="average" ${s.threat === 'average' ? 'selected' : ''}>${t('npc_threat_average')}</option>
-            <option value="veteran" ${s.threat === 'veteran' ? 'selected' : ''}>${t('npc_threat_veteran')}</option>
-            <option value="elite" ${s.threat === 'elite' ? 'selected' : ''}>${t('npc_threat_elite')}</option>
-          </select></div>
+        ${threatSel}`}
       </div>
-      <p class="hint">${t('npc_mixed_note')}</p>
+      <p class="hint">${ships ? t('npc_ship_hint') : t('npc_mixed_note')}</p>
       <p><button class="accent" data-act="generate">${t('npc_generate')}</button>
-         ${C.npcs.length ? `<button data-act="addNpc">${t('npc_add_one')}</button>` : ''}</p>
+         ${ships
+           ? (C.ships.length ? `<button data-act="addShip">${t('npc_add_ship')}</button>` : '')
+           : (C.npcs.length ? `<button data-act="addNpc">${t('npc_add_one')}</button>` : '')}</p>
     </div>
     ${list}`;
 }
@@ -407,12 +556,24 @@ function pageAction(el) {
     const i = +el.dataset.idx;
     C.npcs.splice(i, 1); autosave(); renderTab('setup'); return;
   }
+  if (act === 'addShip') { const sh = genOneShip(); if (sh) C.ships.push(sh); autosave(); renderTab('setup'); return; }
+  if (act === 'rerollShip') {
+    const i = +el.dataset.idx; const sh = genOneShip();
+    if (C.ships[i] && sh) { C.ships[i] = sh; autosave(); renderTab('setup'); }
+    return;
+  }
+  if (act === 'removeShip') { const i = +el.dataset.idx; C.ships.splice(i, 1); autosave(); renderTab('setup'); return; }
 }
-/* Namensfeld eines NPC (nicht an C gebunden – eigenes data-npcname) */
+/* Namensfelder (nicht an C gebunden – eigenes data-Attribut) */
 function pageChange(el) {
   if (el.dataset.npcname != null) {
     const i = +el.dataset.npcname;
     if (C.npcs[i]) { C.npcs[i].name = el.value; autosave(); }
+    return true;
+  }
+  if (el.dataset.shipname != null) {
+    const i = +el.dataset.shipname;
+    if (C.ships[i]) { C.ships[i].name = el.value; autosave(); }
     return true;
   }
   return false;
@@ -420,12 +581,18 @@ function pageChange(el) {
 
 /* ---------------- Kompakter Bogen ---------------- */
 function renderSheet() {
-  const cards = C.npcs.map((n, i) => npcCard(n, i, false)).join('');
+  const ships = C.setup.gen === 'ships';
+  const cards = ships
+    ? C.ships.map((sh, i) => shipCard(sh, i, false)).join('')
+    : C.npcs.map((n, i) => npcCard(n, i, false)).join('');
+  const subtitle = ships
+    ? `${t('npc_size_' + C.setup.shipSize)} · ${C.ships.length}`
+    : `${t('fac_' + C.setup.faction)} · ${C.npcs.length} NPCs`;
   const html = `
   <div class="sheet-page npc-sheet">
     <div class="sp-header"><div class="sw">STAR WARS</div><div class="st">${t('sheet_title_npc')}</div></div>
     ${typeof roundStampHtml === 'function' ? roundStampHtml() : ''}
-    <div class="npc-sheet-title">${esc(C.info.name || t('doc_one'))} · ${t('fac_' + C.setup.faction)} · ${C.npcs.length} NPCs</div>
+    <div class="npc-sheet-title">${esc(C.info.name || t('doc_one'))} · ${subtitle}</div>
     <div class="npc-grid print">${cards || `<p class="hint">${t('npc_empty')}</p>`}</div>
     <div class="sp-footer"><span>${t('sheet_footer')}</span></div>
   </div>`;

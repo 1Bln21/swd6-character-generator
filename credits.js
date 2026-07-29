@@ -14,7 +14,7 @@
    ===================================================================== */
 'use strict';
 
-const APP_VERSION = '2.7.0';
+const APP_VERSION = '2.8.0';
 
 /* ---------------- Übersetzungen ---------------- */
 Object.assign(T.de, {
@@ -23,6 +23,8 @@ Object.assign(T.de, {
   app_name: 'SWD6 Generatoren',
   about_created: 'Erstellt von', about_license: 'Lizenz', about_repo: 'Quellcode',
   about_replay: '↻ Crawl wiederholen', about_close: 'Schließen',
+  about_music: 'Musik', about_music_track: '„Invasion March – Star Wars Style Cinematic Music“',
+  about_music_by: 'von Luis Humanoid · lizenzfrei',
   about_disclaimer: 'Nicht-kommerzielles Fan-Projekt. Nicht verbunden mit Lucasfilm Ltd., Disney oder West End Games. „Star Wars“ ist eine Marke der jeweiligen Rechteinhaber.',
   about_crawl: [
     'SWD6 GENERATOREN',
@@ -43,6 +45,8 @@ Object.assign(T.en, {
   app_name: 'SWD6 Generators',
   about_created: 'Created by', about_license: 'License', about_repo: 'Source code',
   about_replay: '↻ Replay crawl', about_close: 'Close',
+  about_music: 'Music', about_music_track: '“Invasion March – Star Wars Style Cinematic Music”',
+  about_music_by: 'by Luis Humanoid · royalty-free',
   about_disclaimer: 'Non-commercial fan project. Not affiliated with Lucasfilm Ltd., Disney or West End Games. “Star Wars” is a trademark of its respective owners.',
   about_crawl: [
     'SWD6 GENERATORS',
@@ -90,6 +94,8 @@ window.renderAbout = function renderAbout() {
       <p><b>${esc(t('app_name'))}</b> · v${APP_VERSION}</p>
       <p>${t('about_created')} <b>1Bln21</b> · ${t('about_license')}:
         <a href="LICENSE" target="_blank" rel="noopener">MIT</a></p>
+      <p>${t('about_music')}: <b>${t('about_music_track')}</b> ${t('about_music_by')}</p>
+      <audio controls preload="none" src="credits-theme.mp3" style="width:100%; margin-bottom:8px"></audio>
       <p class="hint">${t('about_repo')}: github.com/1Bln21/swd6-character-generator</p>
       <p class="hint">${t('about_disclaimer')}</p>
     </div>

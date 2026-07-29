@@ -69,6 +69,8 @@ Object.assign(T.de, {
   sh_install: 'Einbau', sh_mishap_col: 'Panne',
   sh_parts: 'Ersatzteile & Systeme',
   sh_repl_drive: 'Ersatz-Antrieb', sh_repl_hyper: 'Ersatz-Hyperantrieb',
+  sh_repl_maneuver: 'Ersatz-Manövriertriebwerke',
+  sh_maneuver_hint: 'Hausregel (nicht in den Büchern): kaufbare Manövriertriebwerke, bewusst teuer. Obergrenze je Klasse – Space Transport bis 2D, Capital-Kreuzer bis 1D+2, größere Capital nur 1D, Jäger bis 4D. Preis/Gewicht skalieren mit der Schiffsklasse.',
   sh_shieldgen: 'Schildgenerator', sh_keep: '– Original behalten –',
   sh_mods_general: 'Ausrüstungs-Umbauten',
   sh_cargo_mods: 'Fracht-Umbauten',
@@ -202,6 +204,8 @@ Object.assign(T.en, {
   sh_install: 'Install', sh_mishap_col: 'Mishap',
   sh_parts: 'Replacement parts & systems',
   sh_repl_drive: 'Replacement drive', sh_repl_hyper: 'Replacement hyperdrive',
+  sh_repl_maneuver: 'Replacement maneuver thrusters',
+  sh_maneuver_hint: 'House rule (not in the books): purchasable maneuver thrusters, deliberately expensive. Cap per class — space transport up to 2D, capital cruiser up to 1D+2, larger capital only 1D, starfighter up to 4D. Price/weight scale with the ship class.',
   sh_shieldgen: 'Shield generator', sh_keep: '– keep original –',
   sh_mods_general: 'Equipment modifications',
   sh_cargo_mods: 'Cargo modifications',
@@ -301,7 +305,7 @@ function emptyDoc() {
     crewSkills: {},                 // Skillname -> Pips
     mods: {
       drive: '', maneuver: '', hyper: '', hull: '', shield: '', wdmg: '',
-      replDrive: '', replHyper: '', shieldGen: '', backupHyper: false,
+      replDrive: '', replHyper: '', shieldGen: '', backupHyper: false, replManeuver: '',
       general: {},                  // Name -> Anzahl
       cargo: {},                    // Name -> Anzahl
       custom: [],                   // {name, desc, cost, weight}
@@ -382,6 +386,32 @@ function scaleMultOf(scale) {
    Zusatzbewaffnung nicht gewichtslos zum Overpowern taugt. */
 const WEAPON_BASE_WEIGHT = 2;
 
+/* Ersatz-Manövriertriebwerke (Hausregel – steht so nicht in den Büchern).
+   Obergrenze der erreichbaren Manövrierbarkeit je Klasse (in Pips):
+   Space Transport ≤ 2D, Capital-Kreuzer ≤ 1D+2, größere Capital ≤ 1D,
+   Jäger/Kleingerät großzügiger. Preis/Gewicht skalieren wie die anderen
+   Großsysteme über weightScaleFactor. */
+function maneuverCapPips(i) {
+  switch (i.scale) {
+    case 'Capital':   return i.capitalClass === 'cruiser' ? 5 : 3;   // 1D+2 / 1D
+    case 'Deathstar': return 3;                                      // 1D
+    case 'Starfighter': return i.skill === 'Space Transports' ? 6 : 12; // 2D / 4D
+    default:          return 12;                                     // Speeder/Walker/Character
+  }
+}
+function maneuverThrusterOptions(i) {
+  const cap = maneuverCapPips(i);
+  const out = [];
+  for (let p = 3; p <= cap; p++) out.push({ pips: p, cost: p * 6000, weight: Math.max(1, Math.round(p / 2)) });
+  return out;
+}
+function maneuverThruster(i, sel) {
+  const pips = +sel;
+  if (!pips) return null;
+  if (pips > maneuverCapPips(i)) return null;   // über Klassen-Cap → ignorieren
+  return { value: pips, cost: pips * 6000, weight: Math.max(1, Math.round(pips / 2)) };
+}
+
 /* ---------------- Berechnungen ---------------- */
 function pctMod(list, label) { return list.find(m => m.label === label) || null; }
 
@@ -454,15 +484,19 @@ function shipDerived() {
     const sel = pctMod(list, md[key]);
     if (sel) { modCost += cost * sel.costPct; mishap += sel.mishap; }
   }
-  /* Großsysteme skalieren mit der Größenklasse (siehe weightScaleFactor). */
+  /* Großsysteme skalieren mit der Größenklasse – Gewicht UND Preis (Jäger
+     billiger/leichter, Capital nach Multiplikator, siehe weightScaleFactor). */
   const wf = weightScaleFactor(i);
   const rd = SHIP_DATA.replDrives.find(x => x.model === md.replDrive);
-  if (rd) { modCost += rd.cost; weight += rd.weight * wf; }
+  if (rd) { modCost += rd.cost * wf; weight += rd.weight * wf; }
   const rh = SHIP_DATA.replHyper.find(x => x.model === md.replHyper);
-  if (rh) { modCost += rh.cost; weight += rh.weight * wf; }
-  if (md.backupHyper) { modCost += BACKUP_HYPER.cost; weight += BACKUP_HYPER.weight * wf; }
+  if (rh) { modCost += rh.cost * wf; weight += rh.weight * wf; }
+  if (md.backupHyper) { modCost += BACKUP_HYPER.cost * wf; weight += BACKUP_HYPER.weight * wf; }
   const sg = SHIP_DATA.shieldGens.find(x => x.rating === md.shieldGen);
-  if (sg) { modCost += sg.cost; weight += sg.weight * wf; }
+  if (sg) { modCost += sg.cost * wf; weight += sg.weight * wf; }
+  /* Ersatz-Manövriertriebwerke (Hausregel, teuer, Preis/Gewicht nach Klasse). */
+  const mt = maneuverThruster(i, md.replManeuver);
+  if (mt) { modCost += mt.cost * wf; weight += mt.weight * wf; }
   for (const [n, q] of Object.entries(md.general)) {
     const g = SHIP_DATA.generalMods.find(x => x.name === n);
     if (g && q > 0) { modCost += g.cost * q; weight += g.weight * q; }
@@ -488,7 +522,8 @@ function shipDerived() {
      einem Schiff mit 3D Schilden ergab 7D statt 4D.
      Prozentuale Umbauten ("Schilde verstärken") kommen danach obendrauf. */
   const shields = (sg ? sg.pips : (+i.shields || 0)) + modPips(md.shield);
-  const maneuver = (+i.maneuver || 0) + modPips(md.maneuver);
+  /* Ersatz-Triebwerk gibt (wie Ersatz-Antrieb) den neuen Grundwert vor. */
+  const maneuver = (mt ? mt.value : (+i.maneuver || 0)) + modPips(md.maneuver);
   /* Ein Ersatz-Antrieb gibt den neuen Grundwert vor; ein zusätzlicher
      Leistungs-Umbau kommt darauf. Die Quelle sieht das ausdrücklich vor
      ("Double all difficulties for modifying this drive"), bisher wurde der
@@ -1066,8 +1101,15 @@ function viewMods() {
           <option value="false" ${!C.mods.backupHyper ? 'selected' : ''}>${t('no')}</option>
           <option value="true" ${C.mods.backupHyper ? 'selected' : ''}>${t('sh_backup_yes')}</option>
         </select></div>
+      <div><label>${t('sh_repl_maneuver')}</label>
+        <select data-bind="mods.replManeuver" data-rerender="1">
+          <option value="" ${!i2.maneuver && !C.mods.replManeuver ? 'selected' : ''}>${t('sh_keep')}</option>
+          ${maneuverThrusterOptions(i2).map(o =>
+            `<option value="${o.pips}" ${(+C.mods.replManeuver === o.pips) ? 'selected' : ''}>${fmtD(o.pips)} · ${fmtCr(o.cost * der.weightFactor)} Cr.</option>`).join('')}
+        </select></div>
     </div>
     <p class="hint">${t('sh_backup_hint')}</p>
+    <p class="hint">${t('sh_maneuver_hint')}</p>
     <p class="hint">${t('sh_weight_scale_hint').replace('{f}', der.weightFactor)}</p>
   </div>
   <div class="card"><h2>${t('sh_effective')}</h2>
