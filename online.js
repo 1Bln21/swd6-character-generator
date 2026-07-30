@@ -229,6 +229,8 @@ Object.assign(T.de, {
   tk_cat_ship: 'Schiff-Vorschlag', tk_cat_species: 'Spezies-Vorschlag', tk_cat_droid: 'Droiden-Vorschlag',
   tk_cat_bug: 'Fehlermeldung', tk_cat_other: 'Sonstiges',
   tk_status_open: 'offen', tk_status_answered: 'beantwortet', tk_status_closed: 'geschlossen',
+  tk_notify_admin: '%n Ticket(s) mit neuen Nachrichten von Nutzern',
+  tk_notify_user: '%n Ticket(s) mit neuen Antworten',
 });
 Object.assign(T.en, {
   online_rounds: 'Game rounds',
@@ -283,6 +285,8 @@ Object.assign(T.en, {
   tk_cat_ship: 'Ship suggestion', tk_cat_species: 'Species suggestion', tk_cat_droid: 'Droid suggestion',
   tk_cat_bug: 'Bug report', tk_cat_other: 'Other',
   tk_status_open: 'open', tk_status_answered: 'answered', tk_status_closed: 'closed',
+  tk_notify_admin: '%n ticket(s) with new messages from users',
+  tk_notify_user: '%n ticket(s) with new replies',
 });
 
 /* ---------------- Zustand & API ---------------- */
@@ -361,7 +365,16 @@ function updateOnlineButton() {
   const b = document.getElementById('btnOnline');
   if (!b) return;
   b.style.display = onlineAvailable ? 'inline-block' : 'none';
-  b.textContent = ONLINE.username ? '☁ ' + ONLINE.username : t('btn_online');
+  const label = ONLINE.username ? '☁ ' + ONLINE.username : t('btn_online');
+  /* Ungelesene Tickets als Zahl am Knopf – nur für Angemeldete. */
+  if (ONLINE.token && ticketUnread > 0) {
+    b.innerHTML = esc(label)
+      + ` <span class="notify-badge">${ticketUnread > 99 ? '99+' : ticketUnread}</span>`;
+    b.title = t(ONLINE.isAdmin ? 'tk_notify_admin' : 'tk_notify_user').replace('%n', ticketUnread);
+  } else {
+    b.textContent = label;
+    b.removeAttribute('title');
+  }
 }
 
 /* ---------------- Modal ---------------- */
@@ -804,6 +817,22 @@ async function roundsClick(el) {
 let supportData = null, supportSel = null, supportDetail = null, supportMsg = '';
 let supportImg = '';            // ausstehender Screenshot (Erstellen)
 let supportReplyImg = '';       // ausstehender Screenshot (Antwort)
+let ticketUnread = 0;           // ungelesene Tickets/Antworten (Zahl am ☁-Knopf)
+let lastTicketCheck = 0;        // Zeitpunkt der letzten Abfrage (bremst das Polling)
+
+/* Zahl der ungelesenen Tickets holen. Admins sehen neue Tickets und Rückfragen,
+   Nutzer die Antworten auf ihre eigenen. Läuft auf jeder Seite mit ☁-Knopf. */
+async function refreshTicketStatus(force) {
+  if (!onlineAvailable || !ONLINE.token) { ticketUnread = 0; updateOnlineButton(); return; }
+  const now = Date.now();
+  if (!force && now - lastTicketCheck < 30000) return;
+  lastTicketCheck = now;
+  try {
+    const r = await api('ticket_status');
+    ticketUnread = Math.max(0, parseInt(r.unread, 10) || 0);
+  } catch (e) { ticketUnread = 0; }
+  updateOnlineButton();
+}
 
 function supportModal() {
   let m = document.getElementById('supportModal');
@@ -824,8 +853,12 @@ async function openSupport() {
   try { supportData = await api('ticket_list'); }
   catch (e) { supportMsg = t('online_error') + e.message; }
   renderSupport();
+  refreshTicketStatus(true);
 }
-function closeSupport() { supportModal().classList.add('hidden'); }
+function closeSupport() {
+  supportModal().classList.add('hidden');
+  refreshTicketStatus(true);      // Gelesenes verschwindet sofort vom Knopf
+}
 
 /* Screenshot auf ≤~1 MB verkleinern (max 1600 px, JPEG-Qualität herunter). */
 function resizeTicketImage(file, cb) {
@@ -856,12 +889,16 @@ function supportBody() {
   if (!supportData) return `<p class="hint">${t('online_loading')}</p>`;
   if (supportSel) return ticketDetailBody();
   const admin = supportData.isAdmin;
-  const rows = (supportData.tickets || []).map(tk => `<tr>
+  const rows = (supportData.tickets || []).map(tk => {
+    const un = Math.max(0, parseInt(tk.unread, 10) || 0);
+    return `<tr class="${un ? 'tk-unread' : ''}">
       <td><a href="#" data-sact="open" data-id="${tk.id}">${esc(tk.subject)}</a>
+        ${un ? `<span class="notify-badge">${un > 99 ? '99+' : un}</span>` : ''}
         <span class="hint">· ${t('tk_cat_' + tk.category)}${admin ? ' · ' + esc(tk.owner) : ''}</span></td>
       <td class="hint">${fmtDate(tk.updated)}</td>
       <td><span class="badge ${tk.status === 'answered' ? 'gold' : ''}">${t('tk_status_' + tk.status)}</span></td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
   const createForm = admin ? '' : `
     <h3>${t('tk_new')}</h3>
     <div class="formgrid">
@@ -913,6 +950,7 @@ async function openTicket(id) {
   try { supportDetail = await api('ticket_get', undefined, { id }); }
   catch (e) { supportMsg = t('online_error') + e.message; }
   renderSupport();
+  refreshTicketStatus(true);      // Öffnen gilt serverseitig als gelesen
 }
 async function supportClick(el) {
   const act = el.dataset.sact;
@@ -1040,7 +1078,8 @@ function renderOnline() {
     <table class="list">${shared || `<tr><td class="hint">${t('online_none')}</td></tr>`}</table>
     <p class="hint">${t('online_readonly_hint')}</p>
     <p><button data-oact="openRounds">${t('rounds_open')}</button>
-       <button data-oact="openSupport">${t('tk_open')}</button></p>
+       <button data-oact="openSupport">${t('tk_open')}${ticketUnread > 0
+         ? ` <span class="notify-badge">${ticketUnread > 99 ? '99+' : ticketUnread}</span>` : ''}</button></p>
     ${ONLINE.isAdmin ? `<p><button data-oact="openAdmin">${t('online_admin_open')}</button></p>` : ''}
     <p><button data-oact="myData">${t('online_mydata')}</button>
        <span class="hint">${t('online_mydata_hint')}</span></p>
@@ -1174,6 +1213,7 @@ async function onlineAction(el) {
       case 'logout':
         try { await api('logout', {}); } catch (e) {}
         setOnlineAuth({ token: '', username: '', mfaEnabled: false, isAdmin: false });
+        ticketUnread = 0; lastTicketCheck = 0;
         onlineView = 'login';
         break;
       case 'upload': {
@@ -1462,7 +1502,16 @@ setLang = function (l) {
         setOnlineAuth(ONLINE);
         if (typeof renderLegal === 'function') renderLegal();
         await checkPendingRoundView();       // GM wollte eine Droide/ein Schiff ansehen
+        refreshTicketStatus(true);           // Hinweis auf neue Tickets/Antworten
       } catch (e) {}
     }
   } catch (e) { /* kein Server – rein lokale Nutzung */ }
 })();
+
+/* Hinweis aktuell halten: alle 2 Minuten, aber nur bei sichtbarem Tab; beim
+   Zurückwechseln sofort (durch die 30-Sekunden-Bremse in refreshTicketStatus
+   bleibt das auch bei häufigem Wechseln sparsam). */
+setInterval(() => { if (!document.hidden) refreshTicketStatus(); }, 120000);
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) refreshTicketStatus();
+});

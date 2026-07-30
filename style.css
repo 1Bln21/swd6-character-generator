@@ -479,6 +479,15 @@ table.sp-table td.num { text-align: right; white-space: nowrap; }
 .tk-meta { font-size: 12px; margin-bottom: 4px; }
 .tk-text { line-height: 1.45; }
 .tk-img { max-width: 100%; max-height: 320px; margin-top: 6px; border-radius: 6px; border: 1px solid var(--border); display: block; }
+/* Hinweis auf ungelesene Tickets: rote Zahl am ☁-Knopf und in der Ticketliste.
+   Rot statt Gold, damit er sich vom sonstigen Akzent der Oberfläche abhebt. */
+.notify-badge {
+  display: inline-block; min-width: 17px; padding: 0 5px; margin-left: 4px;
+  background: #d33; color: #fff; border-radius: 9px;
+  font-size: 11px; font-weight: 700; line-height: 17px; text-align: center;
+  vertical-align: middle;
+}
+.tk-unread td { font-weight: 600; }
 
 /* ---------- Würfelseite ---------- */
 .roll-pools { display: flex; flex-wrap: wrap; gap: 6px; }

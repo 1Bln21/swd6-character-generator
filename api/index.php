@@ -300,6 +300,15 @@ $db->exec("CREATE TABLE IF NOT EXISTS ticket_messages (
   image $TXT,
   created BIGINT
 )$SUF");
+/* Wer hat welches Ticket wann zuletzt gelesen? Pro Nutzer eine Zeile je Ticket –
+   so bleibt der Hinweis für jeden Admin einzeln stehen, statt dass ein Admin ihn
+   für alle wegklickt. Fehlt eine Zeile, gilt das Ticket als nie gelesen. */
+$db->exec("CREATE TABLE IF NOT EXISTS ticket_seen (
+  user_id INT NOT NULL,
+  ticket_id INT NOT NULL,
+  seen BIGINT,
+  PRIMARY KEY (user_id, ticket_id)
+)$SUF");
 
 /* Spalten einer Tabelle ermitteln (für Migration und Selbstprüfung) */
 function table_columns($table) {
@@ -462,6 +471,49 @@ function valid_ticket_image($img) {
   if (!preg_match('#^data:image/(png|jpe?g|webp);base64,#i', $img)) fail('Unsupported image format (PNG/JPEG/WebP only)');
   if (strlen($img) > 1500000) fail('Screenshot too large (max ~1 MB)');
   return $img;
+}
+/* ---- Ticket-Benachrichtigungen ----
+   „Neu für mich" heißt: eine Nachricht der Gegenseite ist jünger als der
+   Zeitpunkt, zu dem ich das Ticket zuletzt geöffnet habe. Für Admins zählen
+   Nachrichten von Nutzern (is_admin = 0, also neue Tickets und Rückfragen),
+   für Nutzer die Antworten der Admins (is_admin = 1). */
+function ticket_mark_seen($userId, $ticketId) {
+  global $db, $useMysql;
+  $sql = $useMysql
+    ? 'INSERT INTO ticket_seen (user_id, ticket_id, seen) VALUES (?,?,?) ON DUPLICATE KEY UPDATE seen = VALUES(seen)'
+    : 'INSERT INTO ticket_seen (user_id, ticket_id, seen) VALUES (?,?,?) '
+      . 'ON CONFLICT(user_id, ticket_id) DO UPDATE SET seen = excluded.seen';
+  $db->prepare($sql)->execute([(int)$userId, (int)$ticketId, time()]);
+}
+/* Obergrenzen gegen Spam und Speicher-Missbrauch: eine Nachricht darf einen
+   Screenshot von ~1 MB tragen – ohne Deckel könnte ein angemeldetes Konto die
+   Datenbank vollschreiben. Admins sind ausgenommen (sie beantworten viel). */
+function ticket_check_limits($user, $newTicket) {
+  global $db;
+  if (is_admin($user)) return;
+  $hourAgo = time() - 3600;
+  $st = $db->prepare('SELECT COUNT(*) FROM ticket_messages WHERE author_id = ? AND created > ?');
+  $st->execute([$user['id'], $hourAgo]);
+  if ((int)$st->fetchColumn() >= 30) fail('Too many messages in the last hour – please try again later', 429);
+  if (!$newTicket) return;
+  $st = $db->prepare("SELECT COUNT(*) FROM tickets WHERE user_id = ? AND status <> 'closed'");
+  $st->execute([$user['id']]);
+  if ((int)$st->fetchColumn() >= 20) fail('You have too many open tickets (max 20) – please close some first');
+  $st = $db->prepare('SELECT COUNT(*) FROM tickets WHERE user_id = ? AND created > ?');
+  $st->execute([$user['id'], $hourAgo]);
+  if ((int)$st->fetchColumn() >= 5) fail('Too many new tickets in the last hour – please try again later', 429);
+}
+function ticket_unread_count($user, $admin) {
+  global $db;
+  $sql = 'SELECT COUNT(*) FROM tickets t WHERE EXISTS (
+            SELECT 1 FROM ticket_messages m WHERE m.ticket_id = t.id AND m.is_admin = ?
+              AND m.created > COALESCE((SELECT s.seen FROM ticket_seen s
+                                        WHERE s.user_id = ? AND s.ticket_id = t.id), 0))';
+  $params = [$admin ? 0 : 1, $user['id']];
+  if (!$admin) { $sql .= ' AND t.user_id = ?'; $params[] = $user['id']; }
+  $st = $db->prepare($sql);
+  $st->execute($params);
+  return (int)$st->fetchColumn();
 }
 function admin_count() {
   global $db;
@@ -1052,6 +1104,8 @@ case 'admin_user_action': {
       /* Support-Tickets des Nutzers (und alle Nachrichten darin) */
       $db->prepare('DELETE FROM ticket_messages WHERE ticket_id IN (SELECT id FROM tickets WHERE user_id = ?)')->execute([$id]);
       $db->prepare('DELETE FROM ticket_messages WHERE author_id = ?')->execute([$id]);
+      $db->prepare('DELETE FROM ticket_seen WHERE ticket_id IN (SELECT id FROM tickets WHERE user_id = ?)')->execute([$id]);
+      $db->prepare('DELETE FROM ticket_seen WHERE user_id = ?')->execute([$id]);
       $db->prepare('DELETE FROM tickets WHERE user_id = ?')->execute([$id]);
       $db->prepare('DELETE FROM tokens WHERE user_id = ?')->execute([$id]);
       $db->prepare('DELETE FROM users  WHERE id = ?')->execute([$id]);
@@ -1375,6 +1429,7 @@ case 'round_my_chars': {
 /* ===================== Support-/Ticketsystem ===================== */
 case 'ticket_create': {
   $user = auth();
+  ticket_check_limits($user, true);
   $subject = trim((string)inp('subject', ''));
   $msgBody = trim((string)inp('body', ''));
   $cat = (string)inp('category', 'other');
@@ -1396,21 +1451,27 @@ case 'ticket_create': {
 case 'ticket_list': {
   $user = auth();
   $admin = is_admin($user);
+  /* unread = Nachrichten der Gegenseite, die jünger sind als mein letzter Besuch */
+  $sql = "SELECT t.id, t.subject, t.category, t.status, t.updated,
+            (SELECT COUNT(*) FROM ticket_messages m WHERE m.ticket_id = t.id) AS msgs,
+            (SELECT COUNT(*) FROM ticket_messages m2 WHERE m2.ticket_id = t.id AND m2.is_admin = ?
+               AND m2.created > COALESCE((SELECT s.seen FROM ticket_seen s
+                                          WHERE s.user_id = ? AND s.ticket_id = t.id), 0)) AS unread";
+  $params = [$admin ? 0 : 1, $user['id']];
   if ($admin) {
-    $st = $db->query("SELECT t.id, t.subject, t.category, t.status, t.updated, u.username AS owner,
-                      (SELECT COUNT(*) FROM ticket_messages m WHERE m.ticket_id = t.id) AS msgs
-                      FROM tickets t JOIN users u ON u.id = t.user_id ORDER BY t.updated DESC");
+    $sql .= ", u.username AS owner FROM tickets t JOIN users u ON u.id = t.user_id ORDER BY t.updated DESC";
   } else {
-    $st = $db->prepare("SELECT t.id, t.subject, t.category, t.status, t.updated,
-                        (SELECT COUNT(*) FROM ticket_messages m WHERE m.ticket_id = t.id) AS msgs
-                        FROM tickets t WHERE t.user_id = ? ORDER BY t.updated DESC");
-    $st->execute([$user['id']]);
+    $sql .= " FROM tickets t WHERE t.user_id = ? ORDER BY t.updated DESC";
+    $params[] = $user['id'];
   }
+  $st = $db->prepare($sql);
+  $st->execute($params);
   $out = [];
   foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
     $out[] = ['id' => (int)$r['id'], 'subject' => $r['subject'], 'category' => $r['category'],
               'status' => $r['status'], 'updated' => (int)$r['updated'],
-              'owner' => isset($r['owner']) ? $r['owner'] : $user['username'], 'messages' => (int)$r['msgs']];
+              'owner' => isset($r['owner']) ? $r['owner'] : $user['username'],
+              'messages' => (int)$r['msgs'], 'unread' => (int)$r['unread']];
   }
   json_out(['tickets' => $out, 'isAdmin' => $admin]);
 }
@@ -1432,6 +1493,8 @@ case 'ticket_get': {
     $msgs[] = ['author' => $m['author'], 'isAdmin' => (int)$m['is_admin'] === 1,
                'body' => $m['body'], 'image' => $m['image'] ? $m['image'] : null, 'created' => (int)$m['created']];
   }
+  /* Öffnen gilt als gelesen – der Hinweis verschwindet nur für mich. */
+  ticket_mark_seen($user['id'], $id);
   json_out(['id' => (int)$tk['id'], 'subject' => $tk['subject'], 'category' => $tk['category'],
             'status' => $tk['status'], 'messages' => $msgs]);
 }
@@ -1445,6 +1508,11 @@ case 'ticket_reply': {
   if (!$tk) fail('Ticket not found', 404);
   $admin = is_admin($user);
   if ((int)$tk['user_id'] !== (int)$user['id'] && !$admin) fail('No access to this ticket', 403);
+  ticket_check_limits($user, false);
+  /* Endlos lange Fäden begrenzen (jede Nachricht kann ein Bild tragen). */
+  $st = $db->prepare('SELECT COUNT(*) FROM ticket_messages WHERE ticket_id = ?');
+  $st->execute([$id]);
+  if ((int)$st->fetchColumn() >= 100) fail('This ticket has reached the maximum number of messages (100)');
   $msgBody = trim((string)inp('body', ''));
   if ($msgBody === '') fail('Message is required');
   if (strlen($msgBody) > 8000) fail('Message too long (max 8000 characters)');
@@ -1469,6 +1537,13 @@ case 'ticket_close': {
   $status = inp('reopen') ? 'open' : 'closed';
   $db->prepare('UPDATE tickets SET status = ?, updated = ? WHERE id = ?')->execute([$status, time(), $id]);
   json_out(['ok' => true, 'status' => $status]);
+}
+
+/* Nur die Anzahl – wird von jeder Seite für den Hinweis am ☁-Knopf abgefragt. */
+case 'ticket_status': {
+  $user = auth();
+  $admin = is_admin($user);
+  json_out(['unread' => ticket_unread_count($user, $admin), 'isAdmin' => $admin]);
 }
 
 default:
