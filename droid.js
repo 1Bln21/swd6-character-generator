@@ -58,12 +58,12 @@ Object.assign(T.de, {
   dr_cp_auto: 'Durch Steigerungen ausgegeben',
   dr_equipment: 'Ausrüstung', dr_weapons: 'Waffen (getragen)',
   dr_template: 'Droiden-Vorlage aus den Regelwerken', dr_template_pick: '– Droide wählen –',
-  dr_template_hint: 'Fertige Droidenmodelle aus den Fan-Sammelbänden. Übernimmt Attribute, Fertigkeiten und Ausstattung als Startpunkt. Die Funktionsgruppe ist aus Name und Typ abgeleitet – eine Näherung, keine Buchangabe.',
+  dr_template_hint: 'Fertige Droidenmodelle aus den Fan-Sammelbänden. Übernimmt Attribute, Fertigkeiten, Ausstattung und den Grad als Startpunkt. Der Grad stammt aus der Kapitel-Einteilung des Droid Compendium; mit ≈ markierte Einträge kommen aus anderen Quellen und sind daraus abgeleitet.',
   dr_template_apply: 'Vorlage übernehmen', dr_template_applied: 'Vorlage übernommen ✔',
-  dr_tpl_degree: 'Funktionsgruppe', dr_deg_all: 'Alle Gruppen',
-  dr_deg_d1: '1. Grad (Medizin/Wissenschaft)', dr_deg_d2: '2. Grad (Technik/Wartung)',
-  dr_deg_d3: '3. Grad (Sozial/Service)', dr_deg_d4: '4. Grad (Sicherheit/Militär)',
-  dr_deg_d5: '5. Grad (Arbeit)', dr_deg_other: 'Sonstige',
+  dr_tpl_degree: 'Grad', dr_deg_all: 'Alle Grade',
+  dr_deg_d1: '1. Grad', dr_deg_d2: '2. Grad',
+  dr_deg_d3: '3. Grad', dr_deg_d4: '4. Grad',
+  dr_deg_d5: '5. Grad', dr_deg_other: 'Sonstige',
   dr_template_overwrite: 'Aktuelle Werte durch „{name}“ ersetzen?',
   dr_tpl_equip_note: 'Ausstattung laut Vorlage (als Notiz übernommen – passende Modifikationen bitte im Tab „Modifikationen“ auswählen):',
   pdf_catalog: 'Erweiterter Katalog aus den Regelwerken', pdf_search: 'Suchen', pdf_add: '+ Übernehmen',
@@ -121,12 +121,12 @@ Object.assign(T.en, {
   dr_cp_auto: 'Spent on improvements',
   dr_equipment: 'Equipment', dr_weapons: 'Weapons (carried)',
   dr_template: 'Droid template from the sourcebooks', dr_template_pick: '– choose droid –',
-  dr_template_hint: 'Ready-made droid models from the fan compilations. Applies attributes, skills and equipment as a starting point. The function group is derived from name and type – an approximation, not a sourcebook value.',
+  dr_template_hint: 'Ready-made droid models from the fan compilations. Applies attributes, skills, equipment and the degree as a starting point. The degree comes from the chapter layout of the Droid Compendium; entries marked ≈ are from other sources and were inferred from those.',
   dr_template_apply: 'Apply template', dr_template_applied: 'Template applied ✔',
-  dr_tpl_degree: 'Function group', dr_deg_all: 'All groups',
-  dr_deg_d1: '1st degree (medical/science)', dr_deg_d2: '2nd degree (technical)',
-  dr_deg_d3: '3rd degree (social/service)', dr_deg_d4: '4th degree (security/military)',
-  dr_deg_d5: '5th degree (labor)', dr_deg_other: 'Other',
+  dr_tpl_degree: 'Degree', dr_deg_all: 'All degrees',
+  dr_deg_d1: '1st degree', dr_deg_d2: '2nd degree',
+  dr_deg_d3: '3rd degree', dr_deg_d4: '4th degree',
+  dr_deg_d5: '5th degree', dr_deg_other: 'Other',
   dr_template_overwrite: 'Replace the current values with "{name}"?',
   dr_tpl_equip_note: 'Equipment per template (added as a note – pick matching modifications on the "Modifications" tab):',
   pdf_catalog: 'Extended catalog from the sourcebooks', pdf_search: 'Search', pdf_add: '+ Add',
@@ -335,11 +335,15 @@ function poolBanner() {
 /* ---------------- Vorlagen und erweiterte Kataloge (PDF) ---------------- */
 let tplFilter = '', tplMsg = '', tplDegree = '';
 
-/* Die Fan-Sammelbände nennen den Degree nur bei 6 von 350 Droiden, deshalb
-   leiten wir die Funktionsgruppe aus Name und Typbeschreibung ab. Das ist
-   eine Näherung (im Zweifel „Sonstige“) und ersetzt keine Buchangabe – die
-   Reihenfolge der Prüfung entscheidet, welche Gruppe bei Mehrdeutigkeit
-   gewinnt: Medizin vor Militär vor Sozial vor Technik vor Arbeit. */
+/* Der Grad steht im Droid Compendium nicht im Statblock, sondern als
+   Kapitelüberschrift („1st Degree Droids“ …) – 267 der 350 Katalogeinträge
+   tragen ihn deshalb als `degree` direkt aus dem Buch. Die übrigen 83 (aus
+   anderen Quellen) wurden daraus abgeleitet und mit `degreeDerived` markiert.
+   Die Stichwortliste unten greift nur noch, wenn beides fehlt. */
+const DEGREE_KEY = {
+  'First Degree': 'd1', 'Second Degree': 'd2', 'Third Degree': 'd3',
+  'Fourth Degree': 'd4', 'Fifth Degree': 'd5',
+};
 const DROID_FUNC = [
   ['d1', ['medical', 'surgical', 'biolog', 'physician', 'chemist', 'pharma', 'science',
           'analysis', 'research', 'laborator', 'diagnos', 'nurse', 'emergency', '2-1b', '1-1b']],
@@ -353,6 +357,7 @@ const DROID_FUNC = [
           'power droid', 'gonk', 'menial', 'worker', 'scrub', 'harvest', 'cargo', 'construction']],
 ];
 function droidFunctionOf(d) {
+  if (d.degree && DEGREE_KEY[d.degree]) return DEGREE_KEY[d.degree];
   const hay = ((d.name || '') + ' ' + String(d.type || '').slice(0, 120)).toLowerCase();
   for (const [key, words] of DROID_FUNC) if (words.some(w => hay.includes(w))) return key;
   return 'other';
@@ -398,7 +403,8 @@ function templateCard() {
         </select></div>
       <div style="flex:1; min-width:240px"><label>${t('dr_template_pick')}</label>
         <select id="tplSelect">${hits.map(([x, n]) =>
-          `<option value="${n}">${esc(x.name)} — ${t('dr_deg_' + droidFunctionOf(x))}</option>`).join('')}</select></div>
+          `<option value="${n}">${esc(x.name)} — ${t('dr_deg_' + droidFunctionOf(x))}${
+            x.degreeDerived ? ' ≈' : ''}</option>`).join('')}</select></div>
       <div><button class="accent" data-act="applyTemplate">${t('dr_template_apply')}</button></div>
     </div>
     ${tplMsg ? `<p class="ok" style="margin-top:8px">${esc(tplMsg)}</p>` : ''}
@@ -424,10 +430,9 @@ function applyDroidTemplate() {
   const i = C.info;
   i.name = src.name;
   if (src.type) i.manufacturer = templateManufacturer(src.type) || i.manufacturer;
-  /* Degree aus der Funktionsgruppe übernehmen – er bestimmt die CP-Kosten je
-     Attribut, blieb bisher auf dem vorher eingestellten Wert stehen. Über den
-     Index statt über den Namen, damit ein Tippfehler in den Daten nicht still
-     auf den ersten Eintrag zurückfällt. */
+  /* Grad übernehmen – er bestimmt die CP-Kosten je Attribut. Über den Index in
+     DROID_DATA.degrees statt über den Namen, damit eine abweichende Schreibweise
+     nicht still auf den ersten Eintrag zurückfällt. */
   const degIdx = { d1: 0, d2: 1, d3: 2, d4: 3, d5: 4 }[droidFunctionOf(src)];
   if (degIdx != null && DROID_DATA.degrees[degIdx]) i.degree = DROID_DATA.degrees[degIdx].name;
   const mv = /(\d+)/.exec(src.move || '');
