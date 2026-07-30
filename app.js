@@ -726,10 +726,25 @@ function autosave() {
 }
 /* Kompaktes Wurf-Profil für die Würfelseite: Attribute + trainierte Skills
    als fertige Pip-Pools. Die Würfelseite liest nur diese Datei. */
-function noteBonusPips(txt) {
-  txt = String(txt || '');
-  let m = /(?:adds?\s+)?\+?(\d+)D(?:\+(\d+))?/i.exec(txt);
-  return m ? (+m[1]) * 3 + (m[2] ? +m[2] : 0) : 0;
+/* Würfel-Bonus eines Ausrüstungsstücks aus Name und Beschreibung lesen.
+   Früher galt jede Würfelangabe als Bonus – dadurch boten Magnacuffs
+   („Strength 6D+2“ zum Losreißen), Sklavenhalsbänder („2D-5D Schaden“) und
+   ein Umhang („has a Strength of 1D+2“) auf der Würfelseite Boni an, die es
+   gar nicht gibt. Jetzt zählt nur, was ausdrücklich als Zugewinn dasteht. */
+function noteBonusPips(txt, name) {
+  const val = (d, p) => (+d) * 3 + (p ? +p : 0);
+  /* 1) Bonus steckt im Namen: „Portable Computer (Power 2D)“ – die Notiz sagt
+        dort nur „Add the power rating to any Computer Programming checks“. */
+  let m = /\(\s*(?:power|rating|level|stufe)\s*\+?\s*(\d+)D(?:\+(\d+))?\s*\)/i.exec(String(name || ''));
+  if (m) return val(m[1], m[2]);
+  const t = String(txt || '');
+  /* 2) ausdrücklich als Plus geschrieben: „Adds +1D“, „gain +2D+1“ */
+  m = /\+\s*(\d+)D(?:\+(\d+))?/.exec(t);
+  if (m) return val(m[1], m[2]);
+  /* 3) als Erleichterung formuliert: „reduces the difficulty by 2D“ */
+  m = /(?:reduc|lower|decreas)[a-z]*\s+(?:the\s+)?[a-z ]{0,24}difficulty[^.]{0,40}?by\s+(\d+)D(?:\+(\d+))?/i.exec(t);
+  if (m) return val(m[1], m[2]);
+  return 0;
 }
 function buildRollProfile() {
   try {
@@ -747,12 +762,12 @@ function buildRollProfile() {
       const it = catByName(DATA.equipment, n)
         || (typeof PDF_EQUIPMENT !== 'undefined' && catByName(PDF_EQUIPMENT, n));
       const note = it ? (it.notes || it.note || '') : '';
-      const pips = noteBonusPips(note);
+      const pips = noteBonusPips(note, n);
       if (pips > 0) { seenG[n] = 1; gear.push({ label: n, pips: pips, hint: note.slice(0, 80) }); }
     });
     (C.customEquipment || []).forEach(e => {
       if (!e || !e.name || (+e.qty || 0) <= 0) return;
-      const pips = noteBonusPips(e.note || e.notes || '');
+      const pips = noteBonusPips(e.note || e.notes || '', e.name);
       if (pips > 0) gear.push({ label: e.name, pips: pips, hint: String(e.note || e.notes || '').slice(0, 80) });
     });
     localStorage.setItem('swd6_roll_char', JSON.stringify({ name: (C.info && C.info.name) || '', entries, gear }));

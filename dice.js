@@ -19,6 +19,8 @@ const T = {
     wild_die: 'Wild Die (explodiert auf 6, Komplikation auf 1)',
     roll: '🎲 Würfeln', roll_again: 'Nochmal',
     from_char: 'Aus geladenem Charakter', from_ship: 'Aus geladenem Schiff',
+    from_droid: 'Aus geladenem Droiden',
+    no_droid: 'Kein Droide geladen.',
     no_char: 'Kein Charakter geladen. Öffne den Charakter-Generator, ein Wurf-Profil wird automatisch gespeichert.',
     no_ship: 'Kein Schiff geladen.',
     reload: '↻ Profile neu laden',
@@ -39,6 +41,8 @@ const T = {
     wild_die: 'Wild Die (explodes on 6, complication on 1)',
     roll: '🎲 Roll', roll_again: 'Roll again',
     from_char: 'From loaded character', from_ship: 'From loaded ship',
+    from_droid: 'From loaded droid',
+    no_droid: 'No droid loaded.',
     no_char: 'No character loaded. Open the character generator; a roll profile is saved automatically.',
     no_ship: 'No ship loaded.',
     reload: '↻ Reload profiles',
@@ -139,12 +143,17 @@ function render() {
   document.title = t('title');
   document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.dataset.i18n); });
   document.querySelectorAll('input[name="langOpt"]').forEach(r => r.checked = (r.value === LANG));
-  const ch = profile('swd6_roll_char'), sh = profile('swd6_roll_ship');
+  const ch = profile('swd6_roll_char'), sh = profile('swd6_roll_ship'),
+        dr = profile('swd6_roll_droid');
   document.getElementById('charName').textContent = ch && ch.name ? ' – ' + ch.name : '';
   document.getElementById('shipName').textContent = sh && sh.name ? ' – ' + sh.name : '';
+  document.getElementById('droidName').textContent = dr && dr.name ? ' – ' + dr.name : '';
   document.getElementById('charPools').innerHTML = poolButtons(ch) || `<p class="hint">${t('no_char')}</p>`;
   document.getElementById('shipPools').innerHTML = poolButtons(sh) || `<p class="hint">${t('no_ship')}</p>`;
-  const gear = (ch && ch.gear) || [];
+  document.getElementById('droidPools').innerHTML = poolButtons(dr) || `<p class="hint">${t('no_droid')}</p>`;
+  /* Ausrüstung beider Blätter anbieten – der Spieler hakt an, was gerade zählt. */
+  const gear = ((ch && ch.gear) || []).concat((dr && dr.gear) || [])
+    .filter((g, i, a) => a.findIndex(x => x.label === g.label && x.pips === g.pips) === i);
   document.getElementById('gearPools').innerHTML = gear.length
     ? gear.map(g => `<label class="opt-row gear-row" style="text-transform:none" title="${esc(g.hint || '')}">
         <input type="checkbox" data-pips="${g.pips}"> ${esc(g.label)} <b>+${fmtD(g.pips)}</b></label>`).join('')

@@ -316,6 +316,54 @@ function skillsFor(attr) {
   return rows;
 }
 
+/* ---------------- Wurf-Profil für die Würfelseite ----------------
+   Droiden sind spielbare Figuren, also gehören sie genauso auf die Würfelseite
+   wie Charaktere. genshared.js ruft buildRollProfile() beim Autospeichern auf,
+   sobald es hier definiert ist. Die Bonus-Erkennung ist eine Kopie aus app.js –
+   dieses Skript läuft auf der Droidenseite nicht mit. */
+function noteBonusPips(txt, name) {
+  const val = (d, p) => (+d) * 3 + (p ? +p : 0);
+  let m = /\(\s*(?:power|rating|level|stufe)\s*\+?\s*(\d+)D(?:\+(\d+))?\s*\)/i.exec(String(name || ''));
+  if (m) return val(m[1], m[2]);
+  const t2 = String(txt || '');
+  m = /\+\s*(\d+)D(?:\+(\d+))?/.exec(t2);
+  if (m) return val(m[1], m[2]);
+  m = /(?:reduc|lower|decreas)[a-z]*\s+(?:the\s+)?[a-z ]{0,24}difficulty[^.]{0,40}?by\s+(\d+)D(?:\+(\d+))?/i.exec(t2);
+  if (m) return val(m[1], m[2]);
+  return 0;
+}
+function buildRollProfile() {
+  try {
+    const entries = [], seen = {};
+    ATTRS.forEach(a => entries.push({ label: a.name, pips: attrTotal(a.key), kind: 'attr' }));
+    ATTRS.forEach(a => skillsFor(a.key).forEach(r => {
+      const key = skillKey(a.key, r.name);
+      if (!seen[key] && ((C.skills[key] || {}).c || (C.skills[key] || {}).cp)) {
+        seen[key] = 1;
+        entries.push({ label: (r.spec ? '↳ ' : '') + skillName(r.name), pips: skillTotal(key), kind: 'skill' });
+      }
+    }));
+    /* Getragene Ausrüstung mit Würfel-Bonus – dieselbe Logik wie beim Charakter */
+    const gear = [], seenG = {};
+    const byName = (list, n) => (list || []).find(x => x.name === n);
+    Object.keys(C.equipment || {}).forEach(n => {
+      if ((C.equipment[n] || 0) <= 0 || seenG[n]) return;
+      const it = byName(DATA.equipment, n)
+        || (typeof PDF_EQUIPMENT !== 'undefined' && byName(PDF_EQUIPMENT, n));
+      const note = it ? (it.notes || it.note || '') : '';
+      const pips = noteBonusPips(note, n);
+      if (pips > 0) { seenG[n] = 1; gear.push({ label: n, pips: pips, hint: String(note).slice(0, 80) }); }
+    });
+    (C.customEquipment || []).forEach(e => {
+      if (!e || !e.name || (+e.qty || 0) <= 0) return;
+      const pips = noteBonusPips(e.note || e.notes || '', e.name);
+      if (pips > 0) gear.push({ label: e.name, pips: pips, hint: String(e.note || e.notes || '').slice(0, 80) });
+    });
+    localStorage.setItem('swd6_roll_droid',
+      JSON.stringify({ name: (C.info && C.info.name) || '', entries, gear }));
+  } catch (e) {}
+}
+
 /* ---------------- Ansichten ---------------- */
 function selOpts(list, sel, noneLabel) {
   let out = noneLabel != null ? `<option value="">${noneLabel}</option>` : '';
@@ -734,7 +782,12 @@ function viewGear() {
       <td>${esc(r.close)}/${esc(r.short)}/${esc(r.medium)}/${esc(r.long)}</td>
       <td><button class="mini danger" data-act="delOwn" data-list="ranged" data-idx="${i2}">×</button></td></tr>`;
   }).join('');
-  const mCat = DATA.melee.map((m, i2) => `<option value="${i2}">${esc(m.name)} (STR+${fmtD(m.dmg)}, ${fmtCr(m.cost)} Cr.)</option>`).join('');
+  /* Lichtschwerter bleiben aus dem Droiden-Katalog: Droiden sind nicht
+     machtsensitiv. (Bereits eingetragene Waffen werden nicht angetastet – wer
+     einen Grievous bauen will, trägt sie unter „Eigene Einträge“ ein.) */
+  const mCat = DATA.melee.map((m, i2) => [m, i2])
+    .filter(([m]) => !/lightsaber|lichtschwert/i.test(m.name))
+    .map(([m, i2]) => `<option value="${i2}">${esc(m.name)} (STR+${fmtD(m.dmg)}, ${fmtCr(m.cost)} Cr.)</option>`).join('');
   const rCat = DATA.ranged.map((r, i2) => `<option value="${i2}">${esc(r.name)} (${fmtD(r.dmg)}, ${fmtCr(r.cost)} Cr.)</option>`).join('');
   return `
   <div class="card"><h2>${t('dr_weapons')}</h2>
