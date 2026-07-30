@@ -29,7 +29,7 @@ Object.assign(T.de, {
   tab_model: 'Modell', tab_attrs: 'Attribute', tab_skills: 'Fertigkeiten',
   tab_mods: 'Modifikationen', tab_gear: 'Ausrüstung', tab_sheet: 'Droidenbogen',
   dr_model: 'Modell-Daten', dr_name: 'Bezeichnung / Name', dr_player: 'Spielername',
-  dr_degree: 'Degree (Klasse)', dr_manufacturer: 'Hersteller', dr_body: 'Chassis (Bauform)',
+  dr_degree: 'Degree (Klasse)', dr_manufacturer: 'Hersteller',
   dr_locomotion: 'Fortbewegung', dr_scale: 'Größenklasse', dr_move: 'Move (m)',
   dr_matrix: 'Persönlichkeits-Matrix', dr_height: 'Höhe (m)', dr_weight: 'Gewicht (kg)',
   dr_quote: 'Zitat', dr_fp: 'Machtpunkte',
@@ -92,7 +92,7 @@ Object.assign(T.en, {
   tab_model: 'Model', tab_attrs: 'Attributes', tab_skills: 'Skills',
   tab_mods: 'Modifications', tab_gear: 'Equipment', tab_sheet: 'Droid Sheet',
   dr_model: 'Model Data', dr_name: 'Designation / Name', dr_player: 'Player Name',
-  dr_degree: 'Degree', dr_manufacturer: 'Manufacturer', dr_body: 'Body Type',
+  dr_degree: 'Degree', dr_manufacturer: 'Manufacturer',
   dr_locomotion: 'Locomotion', dr_scale: 'Scale', dr_move: 'Move (m)',
   dr_matrix: 'Personality Matrix', dr_height: 'Height (m)', dr_weight: 'Weight (kg)',
   dr_quote: 'A Quote', dr_fp: 'Force Points',
@@ -154,7 +154,7 @@ function emptyDoc() {
     version: 1, kind: 'droid',
     info: {
       name: '', player: '', degree: 'First Degree', manufacturer: '',
-      bodyType: '', locomotion: 'Legs (2)', scale: 'Character', move: 10,
+      locomotion: 'Legs (2)', scale: 'Character', move: 10,
       matrix: 'Simple', height: '', weight: '', quote: '', forcePoints: 1,
       description: '', history: '', personality: '', objectives: '',
       portrait: '', notes: '',
@@ -189,6 +189,7 @@ function migrate(obj) {
      das <select> fiele stillschweigend auf „First Degree“ zurück – mit anderen
      CP-Kosten je Attribut. */
   if (m.info.degree === 'Fouth Degree') m.info.degree = 'Fourth Degree';
+  delete m.info.bodyType;          // bis v3.5.0 ein reines Deko-Feld
   m.kind = 'droid';
   return m;
 }
@@ -613,7 +614,6 @@ function viewModel() {
           <div><label>${t('dr_manufacturer')}</label>
             <input type="text" list="makers" data-bind="info.manufacturer" value="${esc(i.manufacturer)}">
             <datalist id="makers">${DROID_DATA.manufacturers.map(m => `<option value="${esc(m)}">`).join('')}</datalist></div>
-          <div><label>${t('dr_body')}</label><select data-bind="info.bodyType">${selOpts(DROID_DATA.bodyTypes, i.bodyType, '–')}</select></div>
           <div><label>${t('dr_locomotion')}</label><select data-bind="info.locomotion">${selOpts(DROID_DATA.locomotion, i.locomotion)}</select></div>
           <div><label>${t('dr_scale')}</label><select data-bind="info.scale">${selOpts(DROID_DATA.scales, i.scale)}</select></div>
           <div><label>${t('dr_move')}</label>${inputN('info.move', i.move, 'style="width:80px"')}</div>
@@ -782,12 +782,10 @@ function viewGear() {
       <td>${esc(r.close)}/${esc(r.short)}/${esc(r.medium)}/${esc(r.long)}</td>
       <td><button class="mini danger" data-act="delOwn" data-list="ranged" data-idx="${i2}">×</button></td></tr>`;
   }).join('');
-  /* Lichtschwerter bleiben aus dem Droiden-Katalog: Droiden sind nicht
-     machtsensitiv. (Bereits eingetragene Waffen werden nicht angetastet – wer
-     einen Grievous bauen will, trägt sie unter „Eigene Einträge“ ein.) */
-  const mCat = DATA.melee.map((m, i2) => [m, i2])
-    .filter(([m]) => !/lightsaber|lichtschwert/i.test(m.name))
-    .map(([m, i2]) => `<option value="${i2}">${esc(m.name)} (STR+${fmtD(m.dmg)}, ${fmtCr(m.cost)} Cr.)</option>`).join('');
+  /* Lichtschwerter sind hier absichtlich dabei: „lightsaber“ ist im D6-System
+     eine Geschicklichkeits-Fertigkeit, keine Macht-Fertigkeit – Grievous und
+     die HK-Serie führen kanonisch welche, ohne machtsensitiv zu sein. */
+  const mCat = DATA.melee.map((m, i2) => `<option value="${i2}">${esc(m.name)} (STR+${fmtD(m.dmg)}, ${fmtCr(m.cost)} Cr.)</option>`).join('');
   const rCat = DATA.ranged.map((r, i2) => `<option value="${i2}">${esc(r.name)} (${fmtD(r.dmg)}, ${fmtCr(r.cost)} Cr.)</option>`).join('');
   return `
   <div class="card"><h2>${t('dr_weapons')}</h2>
@@ -877,9 +875,8 @@ function renderSheet() {
     <div class="sp-grid" style="flex:1; align-content:start">
       ${sheetField(t('dr_name'), i.name, 6)}
       ${sheetField(t('dr_player'), i.player, 6)}
-      ${sheetField(t('dr_degree'), i.degree, 4)}
-      ${sheetField(t('dr_manufacturer'), i.manufacturer, 4)}
-      ${sheetField(t('dr_body'), i.bodyType, 4)}
+      ${sheetField(t('dr_degree'), i.degree, 6)}
+      ${sheetField(t('dr_manufacturer'), i.manufacturer, 6)}
       ${sheetField(t('dr_locomotion'), i.locomotion, 4)}
       ${sheetField(t('dr_scale'), i.scale, 2)}
       ${sheetField(t('dr_move'), String(i.move || 0), 2)}

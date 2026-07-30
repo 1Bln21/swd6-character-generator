@@ -14,7 +14,7 @@
    ===================================================================== */
 'use strict';
 
-const APP_VERSION = '3.5.0';
+const APP_VERSION = '3.5.1';
 
 /* ---------------- Übersetzungen ---------------- */
 Object.assign(T.de, {
