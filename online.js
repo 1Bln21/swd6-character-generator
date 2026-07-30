@@ -7,7 +7,7 @@
 
 /* ---------------- Übersetzungen ergänzen ---------------- */
 Object.assign(T.de, {
-  btn_online: '☁ Online',
+  btn_online: '☁ Login / Registrieren',
   online_title: 'Online-Konto',
   online_login: 'Anmelden', online_register: 'Registrieren',
   online_username: 'Benutzername', online_password: 'Passwort',
@@ -91,7 +91,7 @@ Object.assign(T.de, {
   online_resetcode_for: 'Einmal-Code für „{name}“ (24 h gültig) – bitte persönlich weitergeben:',
 });
 Object.assign(T.en, {
-  btn_online: '☁ Online',
+  btn_online: '☁ Login / Register',
   online_title: 'Online Account',
   online_login: 'Sign in', online_register: 'Register',
   online_username: 'Username', online_password: 'Password',

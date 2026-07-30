@@ -45,15 +45,25 @@ Object.assign(T.de, {
   dr_degree_hint: 'Der Degree bestimmt die CP-Steigerungskosten je Attribut (Multiplikator in %): ',
   dr_cp_cost: 'CP-Kauf',
   dr_skills_hint: 'Fertigkeiten kosten 1 Pip je Steigerung (max. +2D bei der Erschaffung) und bauen auf dem Attribut auf. ★-Kosten nach der Erschaffung: aktuelle Würfelzahl in CP.',
+  specialization: '(Spezialisierung)', add_spec_title: 'Spezialisierung hinzufügen',
+  prompt_spec: 'Name der Spezialisierung (z. B. "Blaster: Welding Tools"):',
   dr_mods: 'Modifikationen', dr_mod_hint: 'Kosten in Pips aus dem Startpool (auch halbe Pips). Späterer Einbau kostet die angegebenen CP.',
   dr_pips: 'Pips', dr_cp_later: 'CP (später)',
+  dr_mod_stock: 'Ab Werk', dr_mod_retrofit: 'Nachgerüstet',
+  dr_mod_cap: 'Nachrüst-Kapazität (Pips)', dr_mod_cp_used: 'CP für Nachrüstung',
+  dr_mod_cap_override: 'Kapazität überschreiben:',
+  dr_mod_cap_hint: 'Ab Werk = Pips aus dem Startpool. Nachgerüstet = kostet CP und belegt Einbauplatz; Standard ist ein Drittel des Startpools.',
   dr_custom_mods: 'Eigene Modifikationen',
   dr_points: 'Charakterpunkte', dr_cp_earned: 'Verdient (gesamt)', dr_cp_other: 'Sonstig ausgegeben',
   dr_cp_auto: 'Durch Steigerungen ausgegeben',
   dr_equipment: 'Ausrüstung', dr_weapons: 'Waffen (getragen)',
   dr_template: 'Droiden-Vorlage aus den Regelwerken', dr_template_pick: '– Droide wählen –',
-  dr_template_hint: 'Fertige Droidenmodelle aus den Fan-Sammelbänden. Übernimmt Attribute, Fertigkeiten und Ausstattung als Startpunkt.',
+  dr_template_hint: 'Fertige Droidenmodelle aus den Fan-Sammelbänden. Übernimmt Attribute, Fertigkeiten und Ausstattung als Startpunkt. Die Funktionsgruppe ist aus Name und Typ abgeleitet – eine Näherung, keine Buchangabe.',
   dr_template_apply: 'Vorlage übernehmen', dr_template_applied: 'Vorlage übernommen ✔',
+  dr_tpl_degree: 'Funktionsgruppe', dr_deg_all: 'Alle Gruppen',
+  dr_deg_d1: '1. Grad (Medizin/Wissenschaft)', dr_deg_d2: '2. Grad (Technik/Wartung)',
+  dr_deg_d3: '3. Grad (Sozial/Service)', dr_deg_d4: '4. Grad (Sicherheit/Militär)',
+  dr_deg_d5: '5. Grad (Arbeit)', dr_deg_other: 'Sonstige',
   dr_template_overwrite: 'Aktuelle Werte durch „{name}“ ersetzen?',
   dr_tpl_equip_note: 'Ausstattung laut Vorlage (als Notiz übernommen – passende Modifikationen bitte im Tab „Modifikationen“ auswählen):',
   pdf_catalog: 'Erweiterter Katalog aus den Regelwerken', pdf_search: 'Suchen', pdf_add: '+ Übernehmen',
@@ -98,15 +108,25 @@ Object.assign(T.en, {
   dr_degree_hint: 'The degree sets the CP upgrade cost per attribute (multiplier in %): ',
   dr_cp_cost: 'CP buy',
   dr_skills_hint: 'Skills cost 1 pip per raise (max. +2D at creation) and build on the attribute. ★ cost after creation: current die code in CP.',
+  specialization: '(specialization)', add_spec_title: 'Add specialization',
+  prompt_spec: 'Name of the specialization (e.g. "Blaster: Welding Tools"):',
   dr_mods: 'Modifications', dr_mod_hint: 'Costs in pips from the starting pool (half pips allowed). Installing later costs the listed CP.',
   dr_pips: 'Pips', dr_cp_later: 'CP (later)',
+  dr_mod_stock: 'Factory', dr_mod_retrofit: 'Retrofitted',
+  dr_mod_cap: 'Retrofit capacity (pips)', dr_mod_cp_used: 'CP spent on retrofits',
+  dr_mod_cap_override: 'Override capacity:',
+  dr_mod_cap_hint: 'Factory = pips from the starting pool. Retrofitted = costs CP and takes up install space; the default is one third of the starting pool.',
   dr_custom_mods: 'Custom modifications',
   dr_points: 'Character Points', dr_cp_earned: 'Earned (total)', dr_cp_other: 'Spent elsewhere',
   dr_cp_auto: 'Spent on improvements',
   dr_equipment: 'Equipment', dr_weapons: 'Weapons (carried)',
   dr_template: 'Droid template from the sourcebooks', dr_template_pick: '– choose droid –',
-  dr_template_hint: 'Ready-made droid models from the fan compilations. Applies attributes, skills and equipment as a starting point.',
+  dr_template_hint: 'Ready-made droid models from the fan compilations. Applies attributes, skills and equipment as a starting point. The function group is derived from name and type – an approximation, not a sourcebook value.',
   dr_template_apply: 'Apply template', dr_template_applied: 'Template applied ✔',
+  dr_tpl_degree: 'Function group', dr_deg_all: 'All groups',
+  dr_deg_d1: '1st degree (medical/science)', dr_deg_d2: '2nd degree (technical)',
+  dr_deg_d3: '3rd degree (social/service)', dr_deg_d4: '4th degree (security/military)',
+  dr_deg_d5: '5th degree (labor)', dr_deg_other: 'Other',
   dr_template_overwrite: 'Replace the current values with "{name}"?',
   dr_tpl_equip_note: 'Equipment per template (added as a note – pick matching modifications on the "Modifications" tab):',
   pdf_catalog: 'Extended catalog from the sourcebooks', pdf_search: 'Search', pdf_add: '+ Add',
@@ -144,10 +164,11 @@ function emptyDoc() {
     attrsCP: { dex: 0, kno: 0, mec: 0, per: 0, str: 0, tec: 0 },
     skills: {},          // "attr|Name" -> {c, cp}
     extraSkills: [],     // {name, attr, spec}
-    mods: {},            // Modifikationsname -> Anzahl
+    mods: {},            // ab Werk verbaut: Name -> Anzahl (kostet Pips aus dem Startpool)
+    modsCP: {},          // später nachgerüstet: Name -> Anzahl (kostet CP + Einbauplatz)
     customMods: [],      // {name, desc, pips, note}
     points: { cpEarned: 0, cpSpentOther: 0 },
-    overrides: { startDice: null },
+    overrides: { startDice: null, modCapacity: null },
     equipment: {}, customEquipment: [],
     melee: [], ranged: [], customMelee: [], customRanged: [],
   };
@@ -160,7 +181,7 @@ function migrate(obj) {
   m.points = Object.assign(emptyDoc().points, obj.points || {});
   m.overrides = Object.assign(emptyDoc().overrides, obj.overrides || {});
   ['attrs', 'attrsCP'].forEach(k => m[k] = Object.assign(emptyDoc()[k], obj[k] || {}));
-  ['skills', 'mods', 'equipment'].forEach(k => { if (!m[k] || typeof m[k] !== 'object') m[k] = {}; });
+  ['skills', 'mods', 'modsCP', 'equipment'].forEach(k => { if (!m[k] || typeof m[k] !== 'object') m[k] = {}; });
   ['extraSkills', 'customMods', 'customEquipment', 'melee', 'ranged', 'customMelee', 'customRanged']
     .forEach(k => { if (!Array.isArray(m[k])) m[k] = []; });
   m.kind = 'droid';
@@ -196,6 +217,40 @@ function poolSpent() {
 }
 function poolLeft() { return poolTotal() - poolSpent(); }
 
+/* ---------------- Nachrüsten (Modifikationen nach der Erschaffung) ----------
+   Ab Werk verbaute Modifikationen kosten Pips aus dem Startpool. Wer später
+   etwas einbauen lässt, zahlt stattdessen Charakterpunkte – und der Droide
+   braucht Platz dafür: die Nachrüst-Kapazität begrenzt, wie viele Pips an
+   Hardware nachträglich hineinpassen (Standard: ein Drittel des Startpools,
+   je Droide überschreibbar). Für die 116 Katalogeinträge ohne CP-Angabe gilt
+   der Umrechnungsfaktor aus den vorhandenen Werten: CP = Pips × 1,5. */
+function modCpCost(m) {
+  if (!m) return 1;
+  if (m.cp) return m.cp;
+  return Math.max(1, Math.ceil((+m.pips || 0) * 1.5));
+}
+function modCapacity() {
+  const o = C.overrides.modCapacity;
+  return (o != null && o !== '') ? Math.max(0, +o) : Math.floor(poolTotal() / 3);
+}
+function modCapUsed() {
+  let p = 0;
+  for (const [n, q] of Object.entries(C.modsCP)) {
+    const m = DROID_DATA.mods.find(x => x.name === n);
+    if (m && q > 0) p += (+m.pips || 0) * q;
+  }
+  return p;
+}
+function modCapLeft() { return modCapacity() - modCapUsed(); }
+function modsCpSpent() {
+  let cp = 0;
+  for (const [n, q] of Object.entries(C.modsCP)) {
+    const m = DROID_DATA.mods.find(x => x.name === n);
+    if (m && q > 0) cp += modCpCost(m) * q;
+  }
+  return cp;
+}
+
 function skillKey(attr, name) { return attr + '|' + name; }
 function skillEntry(key) {
   if (!C.skills[key]) C.skills[key] = { c: 0, cp: 0 };
@@ -206,13 +261,24 @@ function skillTotal(key) {
   const s = C.skills[key] || { c: 0, cp: 0 };
   return attrTotal(attr) + (s.c || 0) + (s.cp || 0);
 }
-function skillCpCost(key) { return Math.max(1, Math.floor(skillTotal(key) / 3)); }
+/* Spezialisierung? (extraSkills-Eintrag mit gesetztem spec-Elternskill) –
+   sie kosten laut Grundregelwerk die halben CP der Fertigkeit, genau wie beim
+   Charaktergenerator. */
+function isSpecKey(key) {
+  const parts = key.split('|'); const attr = parts[0], name = parts[1];
+  return C.extraSkills.some(e => e.attr === attr && e.spec && e.name === name);
+}
+function cpDieCost(key, d) {
+  if (isSpecKey(key)) return Math.max(1, Math.ceil(d / 2));
+  return d;
+}
+function skillCpCost(key) { return cpDieCost(key, Math.max(1, Math.floor(skillTotal(key) / 3))); }
 function skillCpSpent(key) {
   const s = C.skills[key]; if (!s || !s.cp) return 0;
   const attr = key.split('|')[0];
   const base = attrTotal(attr) - (C.attrsCP[attr] || 0) + (s.c || 0);
   let cost = 0;
-  for (let i = 0; i < s.cp; i++) cost += Math.max(1, Math.floor((base + i) / 3));
+  for (let i = 0; i < s.cp; i++) cost += cpDieCost(key, Math.max(1, Math.floor((base + i) / 3)));
   return cost;
 }
 /* Attribut-Steigerung per CP: 20 CP je Pip × Degree-Multiplikator */
@@ -227,12 +293,21 @@ function cpSpentAuto() {
   let t2 = 0;
   ATTRS.forEach(a => t2 += attrCpSpent(a.key));
   Object.keys(C.skills).forEach(k => t2 += skillCpSpent(k));
+  t2 += modsCpSpent();                    // nachgerüstete Modifikationen
   return t2;
 }
 function cpLeft() { return (+C.points.cpEarned || 0) - cpSpentAuto() - (+C.points.cpSpentOther || 0); }
 function skillsFor(attr) {
-  const rows = (DATA.skills[attr] || []).map(n => ({ name: n, attr }));
-  C.extraSkills.filter(e => e.attr === attr).forEach(e => rows.push({ name: e.name, attr, extra: true }));
+  const rows = [];
+  const std = DATA.skills[attr] || [];
+  std.forEach(n => {
+    rows.push({ name: n, attr, spec: null, std: true });
+    /* Spezialisierungen hängen unter ihrem Grundskill */
+    C.extraSkills.filter(e => e.attr === attr && e.spec === n)
+      .forEach(e => rows.push({ name: e.name, attr, spec: n }));
+  });
+  C.extraSkills.filter(e => e.attr === attr && !e.spec && !std.includes(e.name))
+    .forEach(e => rows.push({ name: e.name, attr, spec: null, extra: true }));
   return rows;
 }
 
@@ -253,7 +328,30 @@ function poolBanner() {
 }
 
 /* ---------------- Vorlagen und erweiterte Kataloge (PDF) ---------------- */
-let tplFilter = '', tplMsg = '';
+let tplFilter = '', tplMsg = '', tplDegree = '';
+
+/* Die Fan-Sammelbände nennen den Degree nur bei 6 von 350 Droiden, deshalb
+   leiten wir die Funktionsgruppe aus Name und Typbeschreibung ab. Das ist
+   eine Näherung (im Zweifel „Sonstige“) und ersetzt keine Buchangabe – die
+   Reihenfolge der Prüfung entscheidet, welche Gruppe bei Mehrdeutigkeit
+   gewinnt: Medizin vor Militär vor Sozial vor Technik vor Arbeit. */
+const DROID_FUNC = [
+  ['d1', ['medical', 'surgical', 'biolog', 'physician', 'chemist', 'pharma', 'science',
+          'analysis', 'research', 'laborator', 'diagnos', 'nurse', 'emergency', '2-1b', '1-1b']],
+  ['d4', ['assassin', 'battle', 'war ', 'warfare', 'combat', 'security', 'guard', 'sentry',
+          'military', 'bounty', 'gladiat', 'destroyer', 'commando', 'police', 'interrogat', 'sniper']],
+  ['d3', ['protocol', 'translat', 'servant', 'tutor', 'teacher', 'nanny', 'valet', 'bartend',
+          'entertain', 'diplomat', 'etiquette', 'interpret', 'hospitality', 'secretar', 'courier']],
+  ['d2', ['astromech', 'repair', 'engineer', 'technic', 'mechanic', 'maintenance', 'utility',
+          'navigation', 'pilot', 'computer', 'systems control', 'r2-', 'r4-', 'r5-']],
+  ['d5', ['labor', 'mining', 'sanitation', 'janitor', 'load lifter', 'lifter', 'agricultur',
+          'power droid', 'gonk', 'menial', 'worker', 'scrub', 'harvest', 'cargo', 'construction']],
+];
+function droidFunctionOf(d) {
+  const hay = ((d.name || '') + ' ' + String(d.type || '').slice(0, 120)).toLowerCase();
+  for (const [key, words] of DROID_FUNC) if (words.some(w => hay.includes(w))) return key;
+  return 'other';
+}
 const pdfFilter = { melee: '', ranged: '', equip: '' };
 const pdfEra = { melee: '', ranged: '', equip: '' };
 
@@ -273,18 +371,44 @@ function templateCard() {
   const f = tplFilter.toLowerCase().trim();
   const hits = src.map((x, n) => [x, n])
     .filter(([x]) => !f || x.name.toLowerCase().includes(f) || (x.type || '').toLowerCase().includes(f))
+    .filter(([x]) => !tplDegree || droidFunctionOf(x) === tplDegree)
+    .sort((a, b) => {
+      /* nach Funktionsgruppe, darin alphabetisch – so liegen ähnliche Droiden
+         beieinander statt in der Reihenfolge der Quellbücher */
+      const ga = droidFunctionOf(a[0]), gb = droidFunctionOf(b[0]);
+      if (ga !== gb) return ga.localeCompare(gb);
+      return a[0].name.localeCompare(b[0].name);
+    })
     .slice(0, 400);
   return `<div class="card"><h2>${t('dr_template')}</h2>
     <p class="hint">${t('dr_template_hint')}</p>
     <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end">
       <div style="flex:0 0 200px"><label>${t('pdf_search')}</label>
         <input type="text" id="tplSearch" value="${esc(tplFilter)}" placeholder="R2, Protocol, Medical …"></div>
+      <div style="flex:0 0 190px"><label>${t('dr_tpl_degree')}</label>
+        <select id="tplDegree">
+          <option value="">${t('dr_deg_all')}</option>
+          ${['d1', 'd2', 'd3', 'd4', 'd5', 'other'].map(k =>
+            `<option value="${k}" ${tplDegree === k ? 'selected' : ''}>${t('dr_deg_' + k)}</option>`).join('')}
+        </select></div>
       <div style="flex:1; min-width:240px"><label>${t('dr_template_pick')}</label>
-        <select id="tplSelect">${hits.map(([x, n]) => `<option value="${n}">${esc(x.name)}</option>`).join('')}</select></div>
+        <select id="tplSelect">${hits.map(([x, n]) =>
+          `<option value="${n}">${esc(x.name)} — ${t('dr_deg_' + droidFunctionOf(x))}</option>`).join('')}</select></div>
       <div><button class="accent" data-act="applyTemplate">${t('dr_template_apply')}</button></div>
     </div>
     ${tplMsg ? `<p class="ok" style="margin-top:8px">${esc(tplMsg)}</p>` : ''}
   </div>`;
+}
+/* Der Hersteller steckt am Anfang der type-Zeile ("Cybot Galactica GY-I
+   Information Analysis Unit"). Bei 40 der 350 Katalogeinträge hängt aber der
+   komplette Statblock hinten dran, weil die PDF-Extraktion Typ- und Werteblock
+   nicht trennen konnte — dann landete früher "… Unit DEXTERITY 2D KNOWLEDGE 2D"
+   im Herstellerfeld. Deshalb zuerst beim ersten Attributnamen abschneiden. */
+function templateManufacturer(type) {
+  let s = String(type).split(/\b(?:DEXTERITY|KNOWLEDGE|MECHANICAL|PERCEPTION|STRENGTH|TECHNICAL)\b/)[0];
+  s = s.split(/model|droid/i)[0].trim().replace(/[,;:]+$/, '');
+  if (s.length > 60) s = s.slice(0, 60).replace(/\s+\S*$/, '');   // Notbremse
+  return s.trim();
 }
 function applyDroidTemplate() {
   const sel = document.getElementById('tplSelect');
@@ -294,7 +418,7 @@ function applyDroidTemplate() {
   if (!confirm(t('dr_template_overwrite').replace('{name}', src.name))) return;
   const i = C.info;
   i.name = src.name;
-  if (src.type) i.manufacturer = src.type.split(/model|droid/i)[0].trim() || i.manufacturer;
+  if (src.type) i.manufacturer = templateManufacturer(src.type) || i.manufacturer;
   const mv = /(\d+)/.exec(src.move || '');
   if (mv) i.move = +mv[1];
   /* Attribute: Vorlagenwerte als Erschaffungs-Pips über dem 1D-Minimum */
@@ -314,16 +438,35 @@ function applyDroidTemplate() {
   ATTRS.forEach(a => (DATA.skills[a.key] || []).forEach(n => { skillIndex[norm(n)] = [a.key, n]; }));
   const flat = (src.skills || []).join(' ').replace(/\s+/g, ' ');
   /* Alle "Name … 4D+2"-Paare im Fließtext einsammeln (auch mehrere je Zeile) */
-  const pairRe = /([A-Za-z][A-Za-z \/'\-\(\)]*?)\s*(\d+D(?:\+\d)?)/g;
+  /* Der Doppelpunkt gehört mit in den Namen, sonst wird aus
+     "blaster: welding tools 7D" nur "welding tools" – kein bekannter Skill,
+     die Fertigkeit fiel früher ersatzlos weg. */
+  const pairRe = /([A-Za-z][A-Za-z :\/'\-\(\)]*?)\s*(\d+D(?:\+\d)?)/g;
   let pm;
   while ((pm = pairRe.exec(flat)) !== null) {
-    let nm = pm[1].replace(/\(A\)/ig, '').trim();
-    if (nm.includes(':')) nm = nm.split(':')[0];       // Spezialisierung -> Grundskill
-    nm = nm.replace(/^[,;\s]+/, '');
+    let nm = pm[1].replace(/\(A\)/ig, '').trim().replace(/^[,;\s]+/, '');
+    const pips = dicePipsD(pm[2]);
+    if (nm.includes(':')) {
+      const cut = nm.indexOf(':');
+      const parentRaw = nm.slice(0, cut).trim();
+      const rest = nm.slice(cut + 1).trim();
+      const ph = skillIndex[norm(parentRaw)];
+      if (ph) {
+        /* Echte Spezialisierung – als eigene Fertigkeit unter dem Grundskill */
+        const [attr, parentName] = ph;
+        const specName = parentName + ': ' + rest.charAt(0).toUpperCase() + rest.slice(1);
+        if (!C.extraSkills.some(e => e.attr === attr && e.name === specName))
+          C.extraSkills.push({ name: specName, attr, spec: parentName });
+        const overS = pips - attrTotal(attr);
+        if (overS > 0) C.skills[skillKey(attr, specName)] = { c: overS, cp: 0 };
+        continue;
+      }
+      nm = rest;              // z. B. "Skills: blaster" → "blaster"
+    }
     const hit = skillIndex[norm(nm)];
     if (!hit) continue;
     const [attr, canonical] = hit;
-    const over = dicePipsD(pm[2]) - attrTotal(attr);
+    const over = pips - attrTotal(attr);
     if (over > 0) C.skills[skillKey(attr, canonical)] = { c: over, cp: 0 };
   }
   const notes = [];
@@ -477,14 +620,17 @@ function viewSkills() {
       const e = C.skills[key] || { c: 0, cp: 0 };
       const total = skillTotal(key);
       const extraIdx = C.extraSkills.findIndex(x => x.attr === a.key && x.name === r.name);
-      return `<div class="skill-row">
-        <span class="sname">${esc(skillName(r.name))}</span>
+      return `<div class="skill-row ${r.spec ? 'spec' : ''}">
+        <span class="sname">${r.spec ? '↳ ' : ''}${esc(skillName(r.name))}
+          ${r.spec ? `<span class="tag">${t('specialization')}</span>` : ''}
+        </span>
+        ${r.std ? `<button class="mini" data-act="addSpec" data-attr="${a.key}" data-parent="${esc(r.name)}" title="${t('add_spec_title')}">S+</button>` : ''}
         ${stepper('skill', `data-key="${esc(key)}"`, e.c > 0, left >= 1 && e.c < 6)}
         <span class="dice ${total > attrTotal(a.key) ? '' : 'plain'}">${fmtD(total)}</span>
         <span class="cost-hint">CP (${skillCpCost(key)}):</span>
         ${stepper('skillCP', `data-key="${esc(key)}"`, e.cp > 0, true)}
         ${e.cp ? `<span class="badge">+${e.cp} · ${skillCpSpent(key)} CP</span>` : ''}
-        ${r.extra ? `<button class="mini danger" data-act="delExtra" data-idx="${extraIdx}">×</button>` : ''}
+        ${(r.extra || r.spec) ? `<button class="mini danger" data-act="delExtra" data-idx="${extraIdx}">×</button>` : ''}
       </div>`;
     }).join('');
     const spentHere = skillsFor(a.key).reduce((tt, r) => {
@@ -511,22 +657,35 @@ function viewMods() {
   const blocks = cats.map(cat => {
     const rows = DROID_DATA.mods.filter(m => m.cat === cat).map(m => {
       const q = C.mods[m.name] || 0;
-      return `<tr ${q ? 'style="background:#1b2038"' : ''}>
+      const qc = C.modsCP[m.name] || 0;
+      return `<tr ${(q || qc) ? 'style="background:#1b2038"' : ''}>
         <td>${esc(m.name)}${m.desc ? `<br><span class="hint">${esc(m.desc)}</span>` : ''}</td>
-        <td class="num">${m.pips}</td><td class="num">${m.cp || '–'}</td>
+        <td class="num">${m.pips}</td><td class="num">${modCpCost(m)}</td>
         <td class="num"><input type="number" min="0" data-modqty="${esc(m.name)}" value="${q}" style="width:64px"></td>
+        <td class="num"><input type="number" min="0" data-modcpqty="${esc(m.name)}" value="${qc}" style="width:64px"></td>
       </tr>`;
     }).join('');
     return `<div class="card"><h2>${esc(cat)}</h2><div class="table-scroll">
-      <table class="list"><tr><th>${t('dr_mods')}</th><th class="num">${t('dr_pips')}</th><th class="num">${t('dr_cp_later')}</th><th class="num">${t('qty')}</th></tr>${rows}</table></div></div>`;
+      <table class="list"><tr><th>${t('dr_mods')}</th><th class="num">${t('dr_pips')}</th><th class="num">${t('dr_cp_later')}</th>
+        <th class="num">${t('dr_mod_stock')}</th><th class="num">${t('dr_mod_retrofit')}</th></tr>${rows}</table></div></div>`;
   }).join('');
   const customRows = C.customMods.map((cm, i2) => `<tr>
     <td>${inputT('customMods.' + i2 + '.name', cm.name)}</td>
     <td>${inputT('customMods.' + i2 + '.desc', cm.desc)}</td>
     <td class="num">${inputN('customMods.' + i2 + '.pips', cm.pips, 'data-rerender="1" style="width:80px"')}</td>
     <td><button class="mini danger" data-act="delCustomMod" data-idx="${i2}">×</button></td></tr>`).join('');
+  const capLeft = modCapLeft(), cpUsed = modsCpSpent();
+  const retroBanner = `<div class="pool-banner ${capLeft < 0 ? 'neg' : ''}">
+    <span>${t('dr_mod_cap')}: <b>${modCapacity()}</b></span>
+    <span class="${capLeft < 0 ? 'neg' : ''}">${t('left')}: <b>${capLeft % 1 ? capLeft.toFixed(1) : capLeft}</b></span>
+    <span>${t('dr_mod_cp_used')}: <b>${cpUsed}</b></span>
+    <span class="hint">${t('dr_mod_cap_hint')}</span>
+    <span style="margin-left:auto"><label style="display:inline">${t('dr_mod_cap_override')}</label>
+      ${inputN('overrides.modCapacity', C.overrides.modCapacity, 'data-rerender="1" style="width:70px"')}</span>
+  </div>`;
   return `
   ${poolBanner()}
+  ${retroBanner}
   <p class="hint">${t('dr_mod_hint')}</p>
   ${blocks}
   <div class="card"><h2>${t('dr_custom_mods')}</h2>
@@ -607,7 +766,7 @@ function renderSheet() {
     const rows = skillsFor(a.key).filter(r => {
       const e = C.skills[skillKey(a.key, r.name)];
       return e && ((e.c || 0) + (e.cp || 0)) > 0;
-    }).map(r => `<div class="sp-skill"><span>${esc(skillName(r.name))}</span><span class="d">${fmtD(skillTotal(skillKey(a.key, r.name)))}</span></div>`).join('');
+    }).map(r => `<div class="sp-skill"><span>${r.spec ? '↳ ' : ''}${esc(skillName(r.name))}</span><span class="d">${fmtD(skillTotal(skillKey(a.key, r.name)))}</span></div>`).join('');
     return `<div class="sp-attr">
       <div class="ah"><span>${a.name}</span><span>${fmtD(attrTotal(a.key))}</span></div>${rows}</div>`;
   };
@@ -616,6 +775,14 @@ function renderSheet() {
     if (q > 0) {
       const m = DROID_DATA.mods.find(x => x.name === n);
       modRows.push(`<tr><td>${esc(n)}${q > 1 ? ' ×' + q : ''}</td><td>${esc(m ? m.desc : '')}</td></tr>`);
+    }
+  }
+  /* Nachgerüstetes getrennt ausweisen – für den GM am Tisch der Unterschied
+     zwischen „ab Werk“ und „später eingebaut“. */
+  for (const [n, q] of Object.entries(C.modsCP)) {
+    if (q > 0) {
+      const m = DROID_DATA.mods.find(x => x.name === n);
+      modRows.push(`<tr><td>${esc(n)}${q > 1 ? ' ×' + q : ''} <i>(${t('dr_mod_retrofit')})</i></td><td>${esc(m ? m.desc : '')}</td></tr>`);
     }
   }
   C.customMods.forEach(cm => { if (cm.name) modRows.push(`<tr><td>${esc(cm.name)}</td><td>${esc(cm.desc || '')}</td></tr>`); });
@@ -733,9 +900,17 @@ function pageAction(el) {
     case 'toggleSec':
       collapsedSecs[el.dataset.sec] = !collapsedSecs[el.dataset.sec];
       update(); break;
+    case 'addSpec': {
+      const name = prompt(t('prompt_spec'));
+      if (name) {
+        C.extraSkills.push({ name: name.trim(), attr: el.dataset.attr, spec: el.dataset.parent });
+        update();
+      }
+      break;
+    }
     case 'addCustomSkill': {
       const name = prompt(t('prompt_doc_name'));
-      if (name) { C.extraSkills.push({ name: name.trim(), attr: el.dataset.attr }); update(); }
+      if (name) { C.extraSkills.push({ name: name.trim(), attr: el.dataset.attr, spec: null }); update(); }
       break;
     }
     case 'delExtra': {
@@ -767,6 +942,10 @@ function pageAction(el) {
   }
 }
 function pageChange(el) {
+  if (el.id === 'tplDegree') {
+    tplDegree = el.value; tplMsg = ''; update('model');
+    return true;
+  }
   if (el.id === 'tplSearch') {
     tplFilter = el.value; tplMsg = ''; update('model');
     const a = document.getElementById('tplSearch');
@@ -788,6 +967,12 @@ function pageChange(el) {
   if (el.dataset.modqty != null) {
     const q = Math.max(0, +el.value || 0);
     if (q) C.mods[el.dataset.modqty] = q; else delete C.mods[el.dataset.modqty];
+    update();
+    return true;
+  }
+  if (el.dataset.modcpqty != null) {
+    const q = Math.max(0, +el.value || 0);
+    if (q) C.modsCP[el.dataset.modcpqty] = q; else delete C.modsCP[el.dataset.modcpqty];
     update();
     return true;
   }

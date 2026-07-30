@@ -110,7 +110,7 @@ de: {
   movement: 'Bewegung', base_species: 'Basis (Spezies)', improvement: 'Verbesserung (+)', total: 'Gesamt',
   /* Skills-Tab */
   skill_pool: 'Fertigkeits-Pool',
-  skill_hint: 'max. +2D pro Fertigkeit bei der Erschaffung · ★ = typische Spezies-Fertigkeit',
+  skill_hint: 'max. +2D pro Fertigkeit bei der Erschaffung · ★ = typische Spezies-Fertigkeit: 2 für 1 (ein Pool-Pip bringt zwei Pips, steigt daher in Zweierschritten)',
   override_skill: 'Override Skillwürfel (D):',
   spent: 'verteilt:', add_custom_skill: '+ Eigene Fertigkeit',
   adv_skills: 'Fortgeschrittene Fertigkeiten', requirement: 'Voraussetzung',
@@ -283,7 +283,7 @@ en: {
   movement: 'Movement', base_species: 'Base (species)', improvement: 'Improvement (+)', total: 'Total',
   /* Skills tab */
   skill_pool: 'Skill Pool',
-  skill_hint: 'max. +2D per skill at creation · ★ = typical species skill',
+  skill_hint: 'max. +2D per skill at creation · ★ = typical species skill: 2 for 1 (one pool pip buys two pips, so it steps in twos)',
   override_skill: 'Override skill dice (D):',
   spent: 'spent:', add_custom_skill: '+ Custom skill',
   adv_skills: 'Advanced Skills', requirement: 'Requirement',
@@ -557,9 +557,15 @@ function skillPoolTotal() {
     return Math.round(C.overrides.skillDice * 3);
   return 21;
 }
+/* Spezies-Fertigkeiten (★, DATA.skillImprove) gehen bei der Erschaffung im
+   Verhältnis 2 zu 1: ein Pip aus dem Startpool bringt zwei Pips auf der
+   Fertigkeit. Deshalb zählt hier nur die Hälfte der gutgeschriebenen Pips. */
+function improvedRate(key) { return isImproved(key.split('|')[1]) ? 2 : 1; }
 function skillPoolLeft() {
   let spent = 0;
-  Object.values(C.skills).forEach(s => spent += (s.c || 0));
+  Object.entries(C.skills).forEach(([k, s]) => {
+    spent += Math.ceil((s.c || 0) / improvedRate(k));
+  });
   return skillPoolTotal() - spent;
 }
 
@@ -2046,7 +2052,9 @@ content.addEventListener('click', e => {
     }
     case 'skill': {
       const s = skillEntry(el.dataset.key);
-      s.c = Math.max(0, Math.min(6, (s.c || 0) + dir));
+      /* ★-Fertigkeiten steigen in Zweierschritten – ein Pool-Pip, zwei Pips. */
+      const step = improvedRate(el.dataset.key);
+      s.c = Math.max(0, Math.min(6, (s.c || 0) + dir * step));
       update(); break;
     }
     case 'skillCP': {

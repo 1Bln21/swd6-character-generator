@@ -41,6 +41,7 @@ Object.assign(T.de, {
   npc_empty: 'Noch keine NPCs. Stelle oben die Gruppe ein und klicke „Gruppe erzeugen“.',
   npc_move: 'Bew.',
   npc_weapon: 'Waffe', npc_gear: 'Ausrüstung', npc_armor: 'Panzerung',
+  npc_loot: 'Beute', npc_credits: 'Credits',
   npc_skills: 'Fertigkeiten',
   npc_species_col: 'Spezies',
   npc_count_hint: '1–30 NPCs pro Gruppe.',
@@ -89,6 +90,7 @@ Object.assign(T.en, {
   npc_empty: 'No NPCs yet. Set up the group above and click “Generate group”.',
   npc_move: 'Move',
   npc_weapon: 'Weapon', npc_gear: 'Gear', npc_armor: 'Armor',
+  npc_loot: 'Loot', npc_credits: 'credits',
   npc_skills: 'Skills',
   npc_species_col: 'Species',
   npc_count_hint: '1–30 NPCs per group.',
@@ -326,6 +328,51 @@ function genAttrs(sp, targetPips, focus) {
   }
   return pips;
 }
+/* ---------------- Beute ----------------
+   Was die Gruppe findet, wenn sie den NPC durchsucht. Credits nach
+   Gefährlichkeit (ein Grünschnabel trägt keine 2000 Credits spazieren),
+   dazu ein bis zwei Fundstücke aus dem Fraktions- und dem allgemeinen Topf. */
+const NPC_LOOT_CREDITS = {
+  green:   [5, 50],
+  average: [25, 200],
+  veteran: [100, 600],
+  elite:   [250, 1500],
+};
+const NPC_LOOT_ITEMS = {
+  imperial: [['Imperialer Codezylinder', 'Imperial code cylinder'],
+             ['Dienstmarke mit Rangabzeichen', 'Service badge with rank insignia'],
+             ['Rationen (2 Tage)', 'Field rations (2 days)']],
+  rebel:    [['Verschlüsselter Datenchip', 'Encrypted data chip'],
+             ['Ersatz-Gaskartuschen', 'Spare power packs'],
+             ['Gefälschte Ausweispapiere', 'Forged identification']],
+  pirate:   [['Beutesack mit Schmuck', 'Pouch of looted jewelry'],
+             ['Gestohlener Komlink', 'Stolen comlink'],
+             ['Sternenkarte mit Schmuggelrouten', 'Star chart with smuggling routes']],
+  cis:      [['Droiden-Ersatzteile', 'Droid spare parts'],
+             ['Separatisten-Signalgeber', 'Separatist signal beacon']],
+  bounty:   [['Kopfgeld-Datapad mit Zielen', 'Bounty datapad with targets'],
+             ['Handfesseln', 'Binders'], ['Betäubungsgranate', 'Stun grenade']],
+  crime:    [['Credit-Chips (nicht registriert)', 'Unregistered credit chips'],
+             ['Päckchen Spice', 'Packet of spice'], ['Schuldschein', 'IOU note']],
+  merc:     [['Söldnervertrag', 'Mercenary contract'], ['Medpac', 'Medpac']],
+  civilian: [['Familienfoto-Holo', 'Family holo'], ['Hausschlüssel-Chip', 'Door key chip']],
+  common:   [['Komlink', 'Comlink'], ['Trinkflasche', 'Canteen'],
+             ['Werkzeugsatz', 'Tool kit'], ['Datapad', 'Datapad'],
+             ['Glücksbringer', 'Lucky charm']],
+};
+function genLoot(factionId, threatId) {
+  const rangeC = NPC_LOOT_CREDITS[threatId] || NPC_LOOT_CREDITS.average;
+  const credits = Math.round(rngRange(rangeC[0], rangeC[1]) / 5) * 5;
+  const pot = (NPC_LOOT_ITEMS[factionId] || []).concat(NPC_LOOT_ITEMS.common);
+  const picked = [];
+  const want = 1 + rngInt(2);                      // 1 oder 2 Fundstücke
+  while (picked.length < want && picked.length < pot.length) {
+    const cand = pot[rngInt(pot.length)];
+    if (!picked.includes(cand)) picked.push(cand);
+  }
+  return { credits, itemsDe: picked.map(x => x[0]), itemsEn: picked.map(x => x[1]) };
+}
+
 function genNPC(speciesName, factionId, threatId) {
   const sp = npcSpecies(speciesName);
   const fac = NPC_FACTIONS[factionId] || NPC_FACTIONS.imperial;
@@ -343,6 +390,7 @@ function genNPC(speciesName, factionId, threatId) {
     move: sp.move || 10,
     armor: fac.armor || 0,
     gearDe: fac.gear.de, gearEn: fac.gear.en,
+    loot: genLoot(factionId, threatId),
   };
 }
 
@@ -471,6 +519,9 @@ function npcCard(npc, i, editable) {
     <div class="npc-line"><b>${t('npc_skills')}:</b> ${skillsText(npc)}</div>
     <div class="npc-line"><b>${t('npc_weapon')}:</b> ${weaponText(npc)}${npc.armor ? ` · <b>${t('npc_armor')}:</b> +${fmtD(npc.armor)}` : ''}</div>
     <div class="npc-line"><b>${t('npc_gear')}:</b> ${esc(LANG === 'de' ? npc.gearDe : npc.gearEn)}</div>
+    ${npc.loot ? `<div class="npc-line"><b>${t('npc_loot')}:</b> ${npc.loot.credits} ${t('npc_credits')}${
+      (LANG === 'de' ? npc.loot.itemsDe : npc.loot.itemsEn).length
+        ? ' · ' + esc((LANG === 'de' ? npc.loot.itemsDe : npc.loot.itemsEn).join(', ')) : ''}</div>` : ''}
   </div>`;
 }
 
