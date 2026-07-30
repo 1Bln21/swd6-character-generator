@@ -14,7 +14,7 @@
    ===================================================================== */
 'use strict';
 
-const APP_VERSION = '3.5.1';
+const APP_VERSION = '3.5.2';
 
 /* ---------------- Übersetzungen ---------------- */
 Object.assign(T.de, {
@@ -24,6 +24,7 @@ Object.assign(T.de, {
   about_created: 'Erstellt von', about_license: 'Lizenz', about_repo: 'Quellcode',
   about_replay: '↻ Crawl wiederholen', about_close: 'Schließen',
   about_music: 'Musik', about_music_track: '„Invasion March – Star Wars Style Cinematic Music“',
+  about_mute: '🔇 Stumm', about_unmute: '🔊 Ton an',
   about_music_by: 'von Luis Humanoid · lizenzfrei',
   about_disclaimer: 'Nicht-kommerzielles Fan-Projekt. Nicht verbunden mit Lucasfilm Ltd., Disney oder West End Games. „Star Wars“ ist eine Marke der jeweiligen Rechteinhaber.',
   about_crawl: [
@@ -46,6 +47,7 @@ Object.assign(T.en, {
   about_created: 'Created by', about_license: 'License', about_repo: 'Source code',
   about_replay: '↻ Replay crawl', about_close: 'Close',
   about_music: 'Music', about_music_track: '“Invasion March – Star Wars Style Cinematic Music”',
+  about_mute: '🔇 Mute', about_unmute: '🔊 Unmute',
   about_music_by: 'by Luis Humanoid · royalty-free',
   about_disclaimer: 'Non-commercial fan project. Not affiliated with Lucasfilm Ltd., Disney or West End Games. “Star Wars” is a trademark of its respective owners.',
   about_crawl: [
@@ -70,14 +72,56 @@ function aboutModal() {
     m.className = 'modal-overlay no-print hidden';
     m.innerHTML = '<div class="modal-box about-box" id="aboutBox"></div>';
     document.body.appendChild(m);
-    m.addEventListener('click', e => { if (e.target === m) m.classList.add('hidden'); });
+    m.addEventListener('click', e => { if (e.target === m) closeAbout(); });
   }
   return m;
 }
-function openAbout() { aboutModal().classList.remove('hidden'); renderAbout(); }
+
+/* ---------------- Musik ----------------
+   Der Titel läuft, solange das Fenster offen ist, und hört beim Schließen auf –
+   sonst dudelt er weiter, während man am Charakter arbeitet. Die Stummschaltung
+   merkt sich der Browser, damit niemand sie bei jedem Öffnen neu drücken muss. */
+const LS_CREDITS_MUTED = 'swd6_credits_muted';
+function creditsAudio() { return document.getElementById('creditsAudio'); }
+function creditsMuted() { return localStorage.getItem(LS_CREDITS_MUTED) === '1'; }
+function startCreditsMusic() {
+  const a = creditsAudio();
+  if (!a) return;
+  a.muted = creditsMuted();
+  /* Das Öffnen ist ein Klick, also erlauben Browser das Abspielen. Wird es
+     doch abgelehnt (z. B. strenge Autoplay-Regeln), bleibt der Player sichtbar
+     und man startet ihn von Hand – deshalb den Fehler nur schlucken. */
+  const p = a.play();
+  if (p && p.catch) p.catch(() => {});
+}
+function stopCreditsMusic() {
+  const a = creditsAudio();
+  if (!a) return;
+  a.pause();
+  try { a.currentTime = 0; } catch (e) {}
+}
+function toggleCreditsMute() {
+  const a = creditsAudio();
+  const next = !creditsMuted();
+  localStorage.setItem(LS_CREDITS_MUTED, next ? '1' : '0');
+  if (a) a.muted = next;
+  const b = document.getElementById('btnCreditsMute');
+  if (b) b.textContent = next ? t('about_unmute') : t('about_mute');
+}
+function closeAbout() {
+  const m = document.getElementById('aboutModal');
+  if (m) m.classList.add('hidden');
+  stopCreditsMusic();
+}
+function openAbout() { aboutModal().classList.remove('hidden'); renderAbout(); startCreditsMusic(); }
 window.renderAbout = function renderAbout() {
   const box = document.getElementById('aboutBox');
   if (!box) return;
+  /* Beim Sprachwechsel wird der Kasten neu aufgebaut – das ersetzt auch das
+     <audio>-Element. Position und Zustand vorher merken, damit der Titel nicht
+     mittendrin abbricht und von vorne anfängt. */
+  const old = creditsAudio();
+  const keep = old ? { at: old.currentTime, playing: !old.paused } : null;
   const crawl = t('about_crawl');
   const title = crawl[0];
   const paras = crawl.slice(1).map(p => `<p>${esc(p)}</p>`).join('');
@@ -94,8 +138,11 @@ window.renderAbout = function renderAbout() {
       <p><b>${esc(t('app_name'))}</b> · v${APP_VERSION}</p>
       <p>${t('about_created')} <b>1Bln21</b> · ${t('about_license')}:
         <a href="LICENSE" target="_blank" rel="noopener">MIT</a></p>
-      <p>${t('about_music')}: <b>${t('about_music_track')}</b> ${t('about_music_by')}</p>
-      <audio controls preload="none" src="credits-theme.mp3" style="width:100%; margin-bottom:8px"></audio>
+      <p>${t('about_music')}: <b>${t('about_music_track')}</b> ${t('about_music_by')}
+        <button class="mini" id="btnCreditsMute" data-about="mute">${
+          creditsMuted() ? t('about_unmute') : t('about_mute')}</button></p>
+      <audio id="creditsAudio" controls loop preload="none" src="credits-theme.mp3"
+             style="width:100%; margin-bottom:8px"></audio>
       <p class="hint">${t('about_repo')}: github.com/1Bln21/swd6-character-generator</p>
       <p class="hint">${t('about_disclaimer')}</p>
     </div>
@@ -103,6 +150,15 @@ window.renderAbout = function renderAbout() {
       <button data-about="replay">${t('about_replay')}</button>
       <button class="accent" data-about="close">${t('about_close')}</button>
     </p>`;
+  /* Wiedergabe über den Neuaufbau hinweg fortsetzen */
+  if (keep) {
+    const a = creditsAudio();
+    if (a) {
+      a.muted = creditsMuted();
+      try { a.currentTime = keep.at; } catch (e) {}
+      if (keep.playing) { const p = a.play(); if (p && p.catch) p.catch(() => {}); }
+    }
+  }
 };
 const btnAbout = document.getElementById('btnAbout');
 if (btnAbout) btnAbout.addEventListener('click', () => {
@@ -116,13 +172,13 @@ document.addEventListener('click', e => {
   const el = e.target.closest('[data-about]');
   if (!el) return;
   const act = el.dataset.about;
-  const m = document.getElementById('aboutModal');
-  if (act === 'close' && m) m.classList.add('hidden');
+  if (act === 'close') closeAbout();
+  if (act === 'mute') toggleCreditsMute();
   if (act === 'replay') {
     const c = document.getElementById('swCrawl');
     if (c) { c.style.animation = 'none'; void c.offsetWidth; c.style.animation = ''; }
   }
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { const m = document.getElementById('aboutModal'); if (m) m.classList.add('hidden'); }
+  if (e.key === 'Escape') closeAbout();
 });
