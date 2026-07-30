@@ -387,17 +387,21 @@ function register_mode() {
 
 /* ---------------- Eingabe ---------------- */
 $action = isset($_GET['action']) ? $_GET['action'] : '';
-$body = [];
+/* Die dekodierte Anfrage heißt bewusst $INPUT und nicht $body: die Aktionen
+   unten laufen auf Skript-Ebene, ein lokales "$body = trim(inp('body'))" würde
+   sonst die gesamte Eingabe überschreiben – alle späteren inp()-Aufrufe liefen
+   dann ins Leere (genau dieser Fehler verschluckte v3.1.0 die Screenshots). */
+$INPUT = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $raw = file_get_contents('php://input');
   if ($raw !== '' && $raw !== false) {
-    $body = json_decode($raw, true);
-    if (!is_array($body)) $body = [];
+    $INPUT = json_decode($raw, true);
+    if (!is_array($INPUT)) $INPUT = [];
   }
 }
 function inp($key, $default = null) {
-  global $body;
-  if (isset($body[$key])) return $body[$key];
+  global $INPUT;
+  if (isset($INPUT[$key])) return $INPUT[$key];
   if (isset($_GET[$key])) return $_GET[$key];
   return $default;
 }
@@ -1372,20 +1376,20 @@ case 'round_my_chars': {
 case 'ticket_create': {
   $user = auth();
   $subject = trim((string)inp('subject', ''));
-  $body = trim((string)inp('body', ''));
+  $msgBody = trim((string)inp('body', ''));
   $cat = (string)inp('category', 'other');
   if (!in_array($cat, ['ship', 'species', 'droid', 'bug', 'other'], true)) $cat = 'other';
   if ($subject === '') fail('Subject is required');
   if (strlen($subject) > 150) fail('Subject too long (max 150 characters)');
-  if ($body === '') fail('Message is required');
-  if (strlen($body) > 8000) fail('Message too long (max 8000 characters)');
+  if ($msgBody === '') fail('Message is required');
+  if (strlen($msgBody) > 8000) fail('Message too long (max 8000 characters)');
   $img = valid_ticket_image(inp('image'));
   $now = time();
   $db->prepare('INSERT INTO tickets (user_id, subject, category, status, created, updated) VALUES (?,?,?,?,?,?)')
      ->execute([$user['id'], $subject, $cat, 'open', $now, $now]);
   $tid = last_id('tickets');
   $db->prepare('INSERT INTO ticket_messages (ticket_id, author_id, is_admin, body, image, created) VALUES (?,?,?,?,?,?)')
-     ->execute([$tid, $user['id'], is_admin($user) ? 1 : 0, $body, $img, $now]);
+     ->execute([$tid, $user['id'], is_admin($user) ? 1 : 0, $msgBody, $img, $now]);
   json_out(['id' => $tid]);
 }
 
@@ -1441,13 +1445,13 @@ case 'ticket_reply': {
   if (!$tk) fail('Ticket not found', 404);
   $admin = is_admin($user);
   if ((int)$tk['user_id'] !== (int)$user['id'] && !$admin) fail('No access to this ticket', 403);
-  $body = trim((string)inp('body', ''));
-  if ($body === '') fail('Message is required');
-  if (strlen($body) > 8000) fail('Message too long (max 8000 characters)');
+  $msgBody = trim((string)inp('body', ''));
+  if ($msgBody === '') fail('Message is required');
+  if (strlen($msgBody) > 8000) fail('Message too long (max 8000 characters)');
   $img = valid_ticket_image(inp('image'));
   $now = time();
   $db->prepare('INSERT INTO ticket_messages (ticket_id, author_id, is_admin, body, image, created) VALUES (?,?,?,?,?,?)')
-     ->execute([$id, $user['id'], $admin ? 1 : 0, $body, $img, $now]);
+     ->execute([$id, $user['id'], $admin ? 1 : 0, $msgBody, $img, $now]);
   /* Admin-Antwort → „beantwortet"; Nutzer-Antwort → wieder „offen". */
   $db->prepare('UPDATE tickets SET status = ?, updated = ? WHERE id = ?')
      ->execute([$admin ? 'answered' : 'open', $now, $id]);
