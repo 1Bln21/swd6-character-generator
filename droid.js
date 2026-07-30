@@ -184,6 +184,11 @@ function migrate(obj) {
   ['skills', 'mods', 'modsCP', 'equipment'].forEach(k => { if (!m[k] || typeof m[k] !== 'object') m[k] = {}; });
   ['extraSkills', 'customMods', 'customEquipment', 'melee', 'ranged', 'customMelee', 'customRanged']
     .forEach(k => { if (!Array.isArray(m[k])) m[k] = []; });
+  /* Bis v3.3.0 hieß der vierte Grad in den Daten „Fouth Degree“. Ohne diese
+     Umschreibung fänden ältere Droiden ihren Grad nicht mehr in der Liste und
+     das <select> fiele stillschweigend auf „First Degree“ zurück – mit anderen
+     CP-Kosten je Attribut. */
+  if (m.info.degree === 'Fouth Degree') m.info.degree = 'Fourth Degree';
   m.kind = 'droid';
   return m;
 }
@@ -419,6 +424,12 @@ function applyDroidTemplate() {
   const i = C.info;
   i.name = src.name;
   if (src.type) i.manufacturer = templateManufacturer(src.type) || i.manufacturer;
+  /* Degree aus der Funktionsgruppe übernehmen – er bestimmt die CP-Kosten je
+     Attribut, blieb bisher auf dem vorher eingestellten Wert stehen. Über den
+     Index statt über den Namen, damit ein Tippfehler in den Daten nicht still
+     auf den ersten Eintrag zurückfällt. */
+  const degIdx = { d1: 0, d2: 1, d3: 2, d4: 3, d5: 4 }[droidFunctionOf(src)];
+  if (degIdx != null && DROID_DATA.degrees[degIdx]) i.degree = DROID_DATA.degrees[degIdx].name;
   const mv = /(\d+)/.exec(src.move || '');
   if (mv) i.move = +mv[1];
   /* Attribute: Vorlagenwerte als Erschaffungs-Pips über dem 1D-Minimum */

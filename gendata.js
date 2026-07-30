@@ -37,7 +37,7 @@ const DROID_DATA = {
    ]
   },
   {
-   "name": "Fouth Degree",
+   "name": "Fourth Degree",
    "mult": [
     50,
     150,
