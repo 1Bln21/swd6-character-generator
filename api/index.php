@@ -280,6 +280,26 @@ $db->exec("CREATE TABLE IF NOT EXISTS round_chars (
   approved_at BIGINT DEFAULT 0,
   UNIQUE(round_id, char_id)
 )$SUF");
+/* Support-/Ticketsystem: angemeldete Nutzer melden Bugs oder schlagen
+   Schiffe/Spezies/Droiden vor, Admins antworten. Bilder als Base64. */
+$db->exec("CREATE TABLE IF NOT EXISTS tickets (
+  id $PK,
+  user_id INT NOT NULL,
+  subject $STR NOT NULL,
+  category VARCHAR(16) DEFAULT 'other',
+  status VARCHAR(12) DEFAULT 'open',
+  created BIGINT,
+  updated BIGINT
+)$SUF");
+$db->exec("CREATE TABLE IF NOT EXISTS ticket_messages (
+  id $PK,
+  ticket_id INT NOT NULL,
+  author_id INT NOT NULL,
+  is_admin INT DEFAULT 0,
+  body $TXT,
+  image $TXT,
+  created BIGINT
+)$SUF");
 
 /* Spalten einer Tabelle ermitteln (für Migration und Selbstprüfung) */
 function table_columns($table) {
@@ -429,6 +449,15 @@ function round_is_gm($roundId, $userId) {
   $st = $db->prepare("SELECT 1 FROM round_members WHERE round_id = ? AND user_id = ? AND role = 'gm'");
   $st->execute([$roundId, $userId]);
   return (bool)$st->fetch();
+}
+/* Ticket-Screenshot prüfen: nur data:image/(png|jpeg|webp), bis ~1 MB binär
+   (Base64 ist ~1.37× größer → 1,5 MB Grenze). Leer erlaubt. */
+function valid_ticket_image($img) {
+  $img = (string)$img;
+  if ($img === '') return '';
+  if (!preg_match('#^data:image/(png|jpe?g|webp);base64,#i', $img)) fail('Unsupported image format (PNG/JPEG/WebP only)');
+  if (strlen($img) > 1500000) fail('Screenshot too large (max ~1 MB)');
+  return $img;
 }
 function admin_count() {
   global $db;
@@ -723,6 +752,21 @@ case 'my_data': {
                       JOIN users gu ON gu.id = r.gm_id WHERE m.user_id = ? ORDER BY " . ci('r.name'));
   $st->execute([$user['id']]);
   $rounds = $st->fetchAll(PDO::FETCH_ASSOC);
+  /* Support-Tickets des Nutzers inkl. Nachrichten */
+  $st = $db->prepare('SELECT id, subject, category, status, created FROM tickets WHERE user_id = ? ORDER BY created');
+  $st->execute([$user['id']]);
+  $tickets = [];
+  foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $tk) {
+    $ms = $db->prepare('SELECT is_admin, body, created, (image IS NOT NULL AND image <> \'\') AS has_image
+                        FROM ticket_messages WHERE ticket_id = ? ORDER BY created, id');
+    $ms->execute([$tk['id']]);
+    $tickets[] = ['subject' => $tk['subject'], 'category' => $tk['category'], 'status' => $tk['status'],
+                  'created' => (int)$tk['created'],
+                  'messages' => array_map(function ($m) {
+                    return ['fromAdmin' => (int)$m['is_admin'] === 1, 'body' => $m['body'],
+                            'created' => (int)$m['created'], 'hasImage' => (bool)$m['has_image']];
+                  }, $ms->fetchAll(PDO::FETCH_ASSOC))];
+  }
   json_out([
     'exportedAt' => time(),
     'account'    => $account,
@@ -730,6 +774,7 @@ case 'my_data': {
     'sharesGiven'    => $sharesGiven,
     'sharesReceived' => $sharesReceived,
     'rounds'     => $rounds,
+    'tickets'    => $tickets,
     'note' => 'This is all data stored about your account. Password, MFA and recovery codes are stored only as irreversible hashes and are never included.',
   ]);
 }
@@ -1000,6 +1045,10 @@ case 'admin_user_action': {
       $db->prepare('DELETE FROM round_chars WHERE round_id IN (SELECT id FROM rounds WHERE gm_id = ?)')->execute([$id]);
       $db->prepare('DELETE FROM round_members WHERE round_id IN (SELECT id FROM rounds WHERE gm_id = ?)')->execute([$id]);
       $db->prepare('DELETE FROM rounds WHERE gm_id = ?')->execute([$id]);
+      /* Support-Tickets des Nutzers (und alle Nachrichten darin) */
+      $db->prepare('DELETE FROM ticket_messages WHERE ticket_id IN (SELECT id FROM tickets WHERE user_id = ?)')->execute([$id]);
+      $db->prepare('DELETE FROM ticket_messages WHERE author_id = ?')->execute([$id]);
+      $db->prepare('DELETE FROM tickets WHERE user_id = ?')->execute([$id]);
       $db->prepare('DELETE FROM tokens WHERE user_id = ?')->execute([$id]);
       $db->prepare('DELETE FROM users  WHERE id = ?')->execute([$id]);
       break;
@@ -1317,6 +1366,105 @@ case 'round_my_chars': {
     $out[] = ['id' => (int)$r['id'], 'name' => $r['name'], 'kind' => $r['kind'] ? $r['kind'] : 'char',
               'approved' => (int)$r['approved'] === 1];
   json_out(['chars' => $out]);
+}
+
+/* ===================== Support-/Ticketsystem ===================== */
+case 'ticket_create': {
+  $user = auth();
+  $subject = trim((string)inp('subject', ''));
+  $body = trim((string)inp('body', ''));
+  $cat = (string)inp('category', 'other');
+  if (!in_array($cat, ['ship', 'species', 'droid', 'bug', 'other'], true)) $cat = 'other';
+  if ($subject === '') fail('Subject is required');
+  if (strlen($subject) > 150) fail('Subject too long (max 150 characters)');
+  if ($body === '') fail('Message is required');
+  if (strlen($body) > 8000) fail('Message too long (max 8000 characters)');
+  $img = valid_ticket_image(inp('image'));
+  $now = time();
+  $db->prepare('INSERT INTO tickets (user_id, subject, category, status, created, updated) VALUES (?,?,?,?,?,?)')
+     ->execute([$user['id'], $subject, $cat, 'open', $now, $now]);
+  $tid = last_id('tickets');
+  $db->prepare('INSERT INTO ticket_messages (ticket_id, author_id, is_admin, body, image, created) VALUES (?,?,?,?,?,?)')
+     ->execute([$tid, $user['id'], is_admin($user) ? 1 : 0, $body, $img, $now]);
+  json_out(['id' => $tid]);
+}
+
+case 'ticket_list': {
+  $user = auth();
+  $admin = is_admin($user);
+  if ($admin) {
+    $st = $db->query("SELECT t.id, t.subject, t.category, t.status, t.updated, u.username AS owner,
+                      (SELECT COUNT(*) FROM ticket_messages m WHERE m.ticket_id = t.id) AS msgs
+                      FROM tickets t JOIN users u ON u.id = t.user_id ORDER BY t.updated DESC");
+  } else {
+    $st = $db->prepare("SELECT t.id, t.subject, t.category, t.status, t.updated,
+                        (SELECT COUNT(*) FROM ticket_messages m WHERE m.ticket_id = t.id) AS msgs
+                        FROM tickets t WHERE t.user_id = ? ORDER BY t.updated DESC");
+    $st->execute([$user['id']]);
+  }
+  $out = [];
+  foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+    $out[] = ['id' => (int)$r['id'], 'subject' => $r['subject'], 'category' => $r['category'],
+              'status' => $r['status'], 'updated' => (int)$r['updated'],
+              'owner' => isset($r['owner']) ? $r['owner'] : $user['username'], 'messages' => (int)$r['msgs']];
+  }
+  json_out(['tickets' => $out, 'isAdmin' => $admin]);
+}
+
+case 'ticket_get': {
+  $user = auth();
+  $id = (int)inp('id', 0);
+  $st = $db->prepare('SELECT * FROM tickets WHERE id = ?');
+  $st->execute([$id]);
+  $tk = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$tk) fail('Ticket not found', 404);
+  if ((int)$tk['user_id'] !== (int)$user['id'] && !is_admin($user)) fail('No access to this ticket', 403);
+  $st = $db->prepare("SELECT m.is_admin, m.body, m.image, m.created, u.username AS author
+                      FROM ticket_messages m JOIN users u ON u.id = m.author_id
+                      WHERE m.ticket_id = ? ORDER BY m.created, m.id");
+  $st->execute([$id]);
+  $msgs = [];
+  foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $m) {
+    $msgs[] = ['author' => $m['author'], 'isAdmin' => (int)$m['is_admin'] === 1,
+               'body' => $m['body'], 'image' => $m['image'] ? $m['image'] : null, 'created' => (int)$m['created']];
+  }
+  json_out(['id' => (int)$tk['id'], 'subject' => $tk['subject'], 'category' => $tk['category'],
+            'status' => $tk['status'], 'messages' => $msgs]);
+}
+
+case 'ticket_reply': {
+  $user = auth();
+  $id = (int)inp('id', 0);
+  $st = $db->prepare('SELECT user_id FROM tickets WHERE id = ?');
+  $st->execute([$id]);
+  $tk = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$tk) fail('Ticket not found', 404);
+  $admin = is_admin($user);
+  if ((int)$tk['user_id'] !== (int)$user['id'] && !$admin) fail('No access to this ticket', 403);
+  $body = trim((string)inp('body', ''));
+  if ($body === '') fail('Message is required');
+  if (strlen($body) > 8000) fail('Message too long (max 8000 characters)');
+  $img = valid_ticket_image(inp('image'));
+  $now = time();
+  $db->prepare('INSERT INTO ticket_messages (ticket_id, author_id, is_admin, body, image, created) VALUES (?,?,?,?,?,?)')
+     ->execute([$id, $user['id'], $admin ? 1 : 0, $body, $img, $now]);
+  /* Admin-Antwort → „beantwortet"; Nutzer-Antwort → wieder „offen". */
+  $db->prepare('UPDATE tickets SET status = ?, updated = ? WHERE id = ?')
+     ->execute([$admin ? 'answered' : 'open', $now, $id]);
+  json_out(['ok' => true]);
+}
+
+case 'ticket_close': {
+  $user = auth();
+  $id = (int)inp('id', 0);
+  $st = $db->prepare('SELECT user_id FROM tickets WHERE id = ?');
+  $st->execute([$id]);
+  $tk = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$tk) fail('Ticket not found', 404);
+  if ((int)$tk['user_id'] !== (int)$user['id'] && !is_admin($user)) fail('No access to this ticket', 403);
+  $status = inp('reopen') ? 'open' : 'closed';
+  $db->prepare('UPDATE tickets SET status = ?, updated = ? WHERE id = ?')->execute([$status, time(), $id]);
+  json_out(['ok' => true, 'status' => $status]);
 }
 
 default:

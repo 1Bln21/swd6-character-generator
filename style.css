@@ -472,6 +472,14 @@ table.sp-table td.num { text-align: right; white-space: nowrap; }
   .sheet-page:last-child { page-break-after: auto; }
 }
 
+/* ---------- Support-/Ticketsystem ---------- */
+.tk-thread { display: flex; flex-direction: column; gap: 10px; margin: 8px 0; }
+.tk-msg { background: var(--card2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+.tk-msg.tk-admin { border-color: var(--accent-dim); }
+.tk-meta { font-size: 12px; margin-bottom: 4px; }
+.tk-text { line-height: 1.45; }
+.tk-img { max-width: 100%; max-height: 320px; margin-top: 6px; border-radius: 6px; border: 1px solid var(--border); display: block; }
+
 /* ---------- Würfelseite ---------- */
 .roll-pools { display: flex; flex-wrap: wrap; gap: 6px; }
 .roll-pool { background: var(--card2); border: 1px solid var(--border); border-radius: 6px;

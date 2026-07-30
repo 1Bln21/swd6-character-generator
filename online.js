@@ -219,6 +219,16 @@ Object.assign(T.de, {
   rounds_wrong_page: 'In der passenden Generator-Seite öffnen ({kind}).',
   rounds_kind_char: 'Charakter', rounds_kind_droid: 'Droide', rounds_kind_ship: 'Schiff',
   sheet_round_stamp: 'Für Runde „{round}“ freigegeben — GM {gm}',
+  tk_open: '🎫 Support / Kontakt', tk_title: 'Support / Kontakt',
+  tk_new: 'Neues Ticket', tk_subject: 'Betreff', tk_category: 'Kategorie', tk_message: 'Nachricht',
+  tk_screenshot: '📎 Screenshot anhängen', tk_img_ready: 'Bild angehängt ✔', tk_img_toobig: 'Bild zu groß / ungültig',
+  tk_send: 'Absenden', tk_mine: 'Meine Tickets', tk_all: 'Alle Tickets', tk_none: 'Noch keine Tickets.',
+  tk_reply: 'Antworten', tk_close: 'Schließen', tk_close_confirm: 'Ticket schließen?',
+  tk_reopen: 'Wieder öffnen', tk_closed_note: 'Dieses Ticket ist geschlossen.',
+  tk_need_fields: 'Bitte Betreff und Nachricht ausfüllen.', tk_need_msg: 'Bitte eine Nachricht eingeben.',
+  tk_cat_ship: 'Schiff-Vorschlag', tk_cat_species: 'Spezies-Vorschlag', tk_cat_droid: 'Droiden-Vorschlag',
+  tk_cat_bug: 'Fehlermeldung', tk_cat_other: 'Sonstiges',
+  tk_status_open: 'offen', tk_status_answered: 'beantwortet', tk_status_closed: 'geschlossen',
 });
 Object.assign(T.en, {
   online_rounds: 'Game rounds',
@@ -263,6 +273,16 @@ Object.assign(T.en, {
   rounds_wrong_page: 'Open it in the matching generator page ({kind}).',
   rounds_kind_char: 'character', rounds_kind_droid: 'droid', rounds_kind_ship: 'ship',
   sheet_round_stamp: 'Approved for round “{round}” — GM {gm}',
+  tk_open: '🎫 Support / Contact', tk_title: 'Support / Contact',
+  tk_new: 'New ticket', tk_subject: 'Subject', tk_category: 'Category', tk_message: 'Message',
+  tk_screenshot: '📎 Attach screenshot', tk_img_ready: 'Image attached ✔', tk_img_toobig: 'Image too large / invalid',
+  tk_send: 'Send', tk_mine: 'My tickets', tk_all: 'All tickets', tk_none: 'No tickets yet.',
+  tk_reply: 'Reply', tk_close: 'Close', tk_close_confirm: 'Close this ticket?',
+  tk_reopen: 'Reopen', tk_closed_note: 'This ticket is closed.',
+  tk_need_fields: 'Please fill in subject and message.', tk_need_msg: 'Please enter a message.',
+  tk_cat_ship: 'Ship suggestion', tk_cat_species: 'Species suggestion', tk_cat_droid: 'Droid suggestion',
+  tk_cat_bug: 'Bug report', tk_cat_other: 'Other',
+  tk_status_open: 'open', tk_status_answered: 'answered', tk_status_closed: 'closed',
 });
 
 /* ---------------- Zustand & API ---------------- */
@@ -778,6 +798,159 @@ async function roundsClick(el) {
   renderRounds();
 }
 
+/* ================= Support-/Ticketsystem =======================
+   Angemeldete Nutzer melden Bugs oder schlagen Schiffe/Spezies/Droiden vor;
+   Admins sehen alle Tickets und antworten. Screenshots als Base64 (≤~1 MB). */
+let supportData = null, supportSel = null, supportDetail = null, supportMsg = '';
+let supportImg = '';            // ausstehender Screenshot (Erstellen)
+let supportReplyImg = '';       // ausstehender Screenshot (Antwort)
+
+function supportModal() {
+  let m = document.getElementById('supportModal');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'supportModal';
+    m.className = 'modal-overlay no-print hidden';
+    m.innerHTML = '<div class="modal-box admin-box" id="supportBox"></div>';
+    document.body.appendChild(m);
+    m.addEventListener('click', e => { if (e.target === m) closeSupport(); });
+  }
+  return m;
+}
+async function openSupport() {
+  supportMsg = ''; supportSel = null; supportDetail = null; supportImg = ''; supportReplyImg = '';
+  supportModal().classList.remove('hidden');
+  renderSupport();
+  try { supportData = await api('ticket_list'); }
+  catch (e) { supportMsg = t('online_error') + e.message; }
+  renderSupport();
+}
+function closeSupport() { supportModal().classList.add('hidden'); }
+
+/* Screenshot auf ≤~1 MB verkleinern (max 1600 px, JPEG-Qualität herunter). */
+function resizeTicketImage(file, cb) {
+  if (!file || !file.type || !file.type.startsWith('image/')) { cb(''); return; }
+  const rd = new FileReader();
+  rd.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 1600, scale = Math.min(1, max / img.width, max / img.height);
+      const w = Math.max(1, Math.round(img.width * scale)), h = Math.max(1, Math.round(img.height * scale));
+      const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+      const ctx = cv.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); ctx.drawImage(img, 0, 0, w, h);
+      let q = 0.9, out = cv.toDataURL('image/jpeg', q);
+      while (out.length > 1300000 && q > 0.3) { q -= 0.1; out = cv.toDataURL('image/jpeg', q); }
+      cb(out.length > 1300000 ? '' : out);
+    };
+    img.onerror = () => cb('');
+    img.src = rd.result;
+  };
+  rd.readAsDataURL(file);
+}
+
+function ticketCatOpts(sel) {
+  return ['ship', 'species', 'droid', 'bug', 'other'].map(c =>
+    `<option value="${c}" ${sel === c ? 'selected' : ''}>${t('tk_cat_' + c)}</option>`).join('');
+}
+function supportBody() {
+  if (!supportData) return `<p class="hint">${t('online_loading')}</p>`;
+  if (supportSel) return ticketDetailBody();
+  const admin = supportData.isAdmin;
+  const rows = (supportData.tickets || []).map(tk => `<tr>
+      <td><a href="#" data-sact="open" data-id="${tk.id}">${esc(tk.subject)}</a>
+        <span class="hint">· ${t('tk_cat_' + tk.category)}${admin ? ' · ' + esc(tk.owner) : ''}</span></td>
+      <td class="hint">${fmtDate(tk.updated)}</td>
+      <td><span class="badge ${tk.status === 'answered' ? 'gold' : ''}">${t('tk_status_' + tk.status)}</span></td>
+    </tr>`).join('');
+  const createForm = admin ? '' : `
+    <h3>${t('tk_new')}</h3>
+    <div class="formgrid">
+      <div><label>${t('tk_subject')}</label><input type="text" id="tkSubject" autocomplete="off" maxlength="150"></div>
+      <div><label>${t('tk_category')}</label><select id="tkCat">${ticketCatOpts('other')}</select></div>
+    </div>
+    <label>${t('tk_message')}</label><textarea id="tkBody" maxlength="8000"></textarea>
+    <p><label class="filebtn">${t('tk_screenshot')}<input type="file" id="tkImg" accept="image/*" hidden></label>
+       <span class="hint" id="tkImgName">${supportImg ? t('tk_img_ready') : ''}</span></p>
+    <p><button class="accent" data-sact="create">${t('tk_send')}</button></p>`;
+  return `${createForm}
+    <h3>${admin ? t('tk_all') : t('tk_mine')}</h3>
+    <table class="list">${rows || `<tr><td class="hint">${t('tk_none')}</td></tr>`}</table>`;
+}
+function ticketDetailBody() {
+  const d = supportDetail;
+  const back = `<p><button class="mini" data-sact="back">← ${t('rounds_back')}</button></p>`;
+  if (!d) return back + `<p class="hint">${t('online_loading')}</p>`;
+  const thread = (d.messages || []).map(m => `<div class="tk-msg ${m.isAdmin ? 'tk-admin' : ''}">
+      <div class="tk-meta"><b>${esc(m.author)}</b>${m.isAdmin ? ` <span class="badge gold">${t('online_badge_admin')}</span>` : ''} · <span class="hint">${fmtDate(m.created)}</span></div>
+      <div class="tk-text">${esc(m.body).replace(/\n/g, '<br>')}</div>
+      ${m.image ? `<a href="${esc(m.image)}" target="_blank" rel="noopener"><img class="tk-img" src="${esc(m.image)}" alt=""></a>` : ''}
+    </div>`).join('');
+  const closed = d.status === 'closed';
+  return `${back}
+    <h2>${esc(d.subject)} <span class="badge ${d.status === 'answered' ? 'gold' : ''}">${t('tk_status_' + d.status)}</span></h2>
+    <p class="hint">${t('tk_category')}: ${t('tk_cat_' + d.category)}</p>
+    <div class="tk-thread">${thread}</div>
+    ${closed ? `<p class="hint">${t('tk_closed_note')}</p>
+        <p><button class="mini" data-sact="reopen" data-id="${d.id}">${t('tk_reopen')}</button></p>`
+      : `<h3>${t('tk_reply')}</h3>
+        <textarea id="tkReplyBody" maxlength="8000"></textarea>
+        <p><label class="filebtn">${t('tk_screenshot')}<input type="file" id="tkReplyImg" accept="image/*" hidden></label>
+           <span class="hint" id="tkReplyImgName">${supportReplyImg ? t('tk_img_ready') : ''}</span></p>
+        <p><button class="accent" data-sact="reply" data-id="${d.id}">${t('tk_send')}</button>
+           <button class="mini danger" data-sact="close" data-id="${d.id}">${t('tk_close')}</button></p>`}`;
+}
+function renderSupport() {
+  const box = document.getElementById('supportBox');
+  if (!box) return;
+  box.innerHTML = `<div class="modal-head"><h2>${t('tk_title')}</h2>
+      <button class="mini" data-sact="close-win">✕</button></div>`
+    + (supportMsg ? `<p class="modal-msg">${esc(supportMsg)}</p>` : '')
+    + supportBody();
+}
+async function openTicket(id) {
+  supportSel = id; supportDetail = null; supportReplyImg = ''; supportMsg = '';
+  renderSupport();
+  try { supportDetail = await api('ticket_get', undefined, { id }); }
+  catch (e) { supportMsg = t('online_error') + e.message; }
+  renderSupport();
+}
+async function supportClick(el) {
+  const act = el.dataset.sact;
+  supportMsg = '';
+  try {
+    switch (act) {
+      case 'close-win': closeSupport(); return;
+      case 'back': supportSel = null; supportDetail = null; break;
+      case 'open': await openTicket(+el.dataset.id); return;
+      case 'create': {
+        const subject = (document.getElementById('tkSubject').value || '').trim();
+        const category = document.getElementById('tkCat').value;
+        const body = (document.getElementById('tkBody').value || '').trim();
+        if (!subject || !body) { supportMsg = t('tk_need_fields'); break; }
+        const res = await api('ticket_create', { subject, category, body, image: supportImg || undefined });
+        supportImg = '';
+        supportData = await api('ticket_list');
+        await openTicket(res.id); return;
+      }
+      case 'reply': {
+        const body = (document.getElementById('tkReplyBody').value || '').trim();
+        if (!body) { supportMsg = t('tk_need_msg'); break; }
+        await api('ticket_reply', { id: +el.dataset.id, body, image: supportReplyImg || undefined });
+        supportReplyImg = '';
+        await openTicket(+el.dataset.id); return;
+      }
+      case 'close':
+        if (!confirm(t('tk_close_confirm'))) return;
+        await api('ticket_close', { id: +el.dataset.id });
+        await openTicket(+el.dataset.id); return;
+      case 'reopen':
+        await api('ticket_close', { id: +el.dataset.id, reopen: true });
+        await openTicket(+el.dataset.id); return;
+    }
+  } catch (e) { supportMsg = t('online_error') + e.message; }
+  renderSupport();
+}
+
 function renderOnline() {
   const box = document.getElementById('onlineBox');
   if (!box) return;
@@ -866,7 +1039,8 @@ function renderOnline() {
     <h3>${t('online_shared_chars')}</h3>
     <table class="list">${shared || `<tr><td class="hint">${t('online_none')}</td></tr>`}</table>
     <p class="hint">${t('online_readonly_hint')}</p>
-    <p><button data-oact="openRounds">${t('rounds_open')}</button></p>
+    <p><button data-oact="openRounds">${t('rounds_open')}</button>
+       <button data-oact="openSupport">${t('tk_open')}</button></p>
     ${ONLINE.isAdmin ? `<p><button data-oact="openAdmin">${t('online_admin_open')}</button></p>` : ''}
     <p><button data-oact="myData">${t('online_mydata')}</button>
        <span class="hint">${t('online_mydata_hint')}</span></p>
@@ -977,6 +1151,10 @@ async function onlineAction(el) {
       case 'openRounds':
         closeOnline();
         openRounds();
+        return;
+      case 'openSupport':
+        closeOnline();
+        openSupport();
         return;
       case 'myData': {
         const data = await api('my_data');
@@ -1172,8 +1350,31 @@ document.addEventListener('click', e => {
   e.preventDefault();
   roundsClick(el);
 });
+/* ---- Support-Fenster: eigene Handler (nur innerhalb #supportModal) ---- */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-sact]');
+  if (!el || !el.closest('#supportModal')) return;
+  if (el.tagName === 'SELECT') return;
+  e.preventDefault();
+  supportClick(el);
+});
+document.addEventListener('change', e => {
+  const el = e.target;
+  if (!el.closest || !el.closest('#supportModal')) return;
+  if (el.id === 'tkImg') {
+    resizeTicketImage(el.files && el.files[0], img => {
+      supportImg = img; const n = document.getElementById('tkImgName');
+      if (n) n.textContent = img ? t('tk_img_ready') : t('tk_img_toobig');
+    });
+  } else if (el.id === 'tkReplyImg') {
+    resizeTicketImage(el.files && el.files[0], img => {
+      supportReplyImg = img; const n = document.getElementById('tkReplyImgName');
+      if (n) n.textContent = img ? t('tk_img_ready') : t('tk_img_toobig');
+    });
+  }
+});
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeOnline(); closeAdmin(); closeRounds(); }
+  if (e.key === 'Escape') { closeOnline(); closeAdmin(); closeRounds(); closeSupport(); }
   if (e.key === 'Enter' && e.target.closest && e.target.closest('#onlineModal')) {
     const box = document.getElementById('onlineBox');
     const primary = box && box.querySelector('button.accent[data-oact]');
@@ -1232,6 +1433,8 @@ setLang = function (l) {
   if (am && !am.classList.contains('hidden')) renderAdmin();
   const rm = document.getElementById('roundsModal');
   if (rm && !rm.classList.contains('hidden')) renderRounds();
+  const sm = document.getElementById('supportModal');
+  if (sm && !sm.classList.contains('hidden')) renderSupport();
 };
 
 /* Server-Erkennung beim Start */
