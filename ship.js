@@ -748,10 +748,10 @@ function applyTemplate() {
   const firstNum = s2 => { const m = /(\d+)/.exec(String(s2 || '')); return m ? +m[1] : 0; };
   const isVaried = s2 => /,|\(/.test(String(s2 || ''));
   const hyperOk = SHIP_DATA.hyperMults.includes(src.hyper);
-  if (src.hyper) {
-    if (hyperOk) i.hyper = src.hyper;
-    else varied.push(t('sh_hyper') + ': ' + src.hyper);
-  }
+  const noHyper = !src.hyper || /^(no|none|0|-|kein)/i.test(String(src.hyper).trim());
+  if (hyperOk) i.hyper = src.hyper;
+  else if (noHyper) i.hyper = 'None';                 // Vorlage nennt keinen → keiner (nicht der x2-Default)
+  else varied.push(t('sh_hyper') + ': ' + src.hyper);
   if (src.hyperBackup) {
     if (SHIP_DATA.hyperMults.includes(src.hyperBackup)) i.hyperBackup = src.hyperBackup;
     else varied.push(t('sh_hyperbackup') + ': ' + src.hyperBackup);
