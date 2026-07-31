@@ -100,6 +100,7 @@ de: {
   start_dice: 'Startwürfel', override_attr: 'Override Startwürfel (D):',
   attrs_heading: 'Attribute (+/− in Pips, 3 Pips = 1D)',
   cp_buy: 'CP-Kauf', pips_bought: 'Pip(s)',
+  cp_left: 'CP übrig',
   attr_over_max: 'über Speziesmaximum',
   attr_over_max_hint: 'Das Maximum der Spezies gilt laut Grundregelwerk nur bei der Erschaffung. Später darf mit Charakterpunkten darüber hinaus gesteigert werden – der dafür vorgesehene Wurf gegen das Maximum bleibt Sache des Spielleiters.',
   force_skills_heading: 'Machtfertigkeiten (aus Attributs-Pool, 3 Pips = 1D)',
@@ -275,6 +276,7 @@ en: {
   start_dice: 'starting dice', override_attr: 'Override starting dice (D):',
   attrs_heading: 'Attributes (+/− in pips, 3 pips = 1D)',
   cp_buy: 'CP buy', pips_bought: 'pip(s)',
+  cp_left: 'CP left',
   attr_over_max: 'above species maximum',
   attr_over_max_hint: 'The species maximum is a hard limit only at character creation. Afterwards an attribute may be raised beyond it with Character Points – the roll against the maximum that the rules call for stays with the gamemaster.',
   force_skills_heading: 'Force Skills (paid from attribute pool, 3 pips = 1D)',
@@ -1281,6 +1283,9 @@ function viewSkills() {
   <div class="pool-banner ${left < 0 ? 'neg' : ''}">
     <span>${t('skill_pool')}: <b>${fmtD(skillPoolTotal())}</b></span>
     <span class="${left < 0 ? 'neg' : ''}">${t('left')}: <b>${fmtD(left)}</b> ${left === 0 ? '<span class="ok">✔</span>' : ''}</span>
+    ${/* Auf diesem Reiter werden Fertigkeiten auch mit CP gesteigert – dann
+          gehört der CP-Rest hierher und nicht nur auf den Punkte-Reiter. */''}
+    <span>${t('cp_left')}: <b class="${cpLeft() < 0 ? 'warn' : 'ok'}">${cpLeft()}</b></span>
     <span class="hint">${t('skill_hint')}</span>
     <span style="margin-left:auto"><label style="display:inline">${t('override_skill')}</label>
       ${inputN('overrides.skillDice', C.overrides.skillDice, 'data-rerender="1" style="width:70px"')}</span>

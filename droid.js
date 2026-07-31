@@ -45,6 +45,7 @@ Object.assign(T.de, {
   dr_attrs_heading: 'Attribute (Start je 1D, Maximum 13D · +/− in Pips)',
   dr_degree_hint: 'Der Degree bestimmt die CP-Steigerungskosten je Attribut (Multiplikator in %): ',
   dr_cp_cost: 'CP-Kauf',
+  cp_left: 'CP übrig',
   dr_skills_hint: 'Fertigkeiten kosten 1 Pip je Steigerung (max. +2D bei der Erschaffung) und bauen auf dem Attribut auf. ★-Kosten nach der Erschaffung: aktuelle Würfelzahl in CP.',
   specialization: '(Spezialisierung)', add_spec_title: 'Spezialisierung hinzufügen',
   prompt_spec: 'Name der Spezialisierung (z. B. "Blaster: Welding Tools"):',
@@ -109,6 +110,7 @@ Object.assign(T.en, {
   dr_attrs_heading: 'Attributes (each starts at 1D, maximum 13D · +/− in pips)',
   dr_degree_hint: 'The degree sets the CP upgrade cost per attribute (multiplier in %): ',
   dr_cp_cost: 'CP buy',
+  cp_left: 'CP left',
   dr_skills_hint: 'Skills cost 1 pip per raise (max. +2D at creation) and build on the attribute. ★ cost after creation: current die code in CP.',
   specialization: '(specialization)', add_spec_title: 'Add specialization',
   prompt_spec: 'Name of the specialization (e.g. "Blaster: Welding Tools"):',
@@ -377,6 +379,9 @@ function poolBanner() {
   return `<div class="pool-banner ${left < 0 ? 'neg' : ''}">
     <span>${t('dr_pool')}: <b>${fmtD(poolTotal())}</b></span>
     <span class="${left < 0 ? 'neg' : ''}">${t('left')}: <b>${left % 1 ? left.toFixed(1) : fmtD(left)}</b> ${left === 0 ? '<span class="ok">✔</span>' : ''}</span>
+    ${/* Attribute, Fertigkeiten und Nachrüstungen kosten hier auch CP –
+          der Rest gehört deshalb neben den Startpool. */''}
+    <span>${t('cp_left')}: <b class="${cpLeft() < 0 ? 'warn' : 'ok'}">${cpLeft()}</b></span>
     <span class="hint">${t('dr_pool_hint')}</span>
     <span style="margin-left:auto"><label style="display:inline">${t('dr_override')}</label>
       ${inputN('overrides.startDice', C.overrides.startDice, 'data-rerender="1" style="width:70px"')}</span>
