@@ -3,8 +3,10 @@
    Achtziger (Vectrex/Battlezone: eine Strichfarbe, kein Füllen, alles Linien).
    ---------------------------------------------------------------------
    Start: Doppelklick auf die Überschrift „Optionen“ im ⚙-Menü.
-   Steuerung: WASD zielen, Leertaste Laser, Alt Rakete (eine regeneriert
-   alle 30 Sekunden). Läuft endlos, bis der Schild aufgebraucht ist.
+   Steuerung: Maus oder WASD zielen, linke Maustaste/Leertaste Laser, rechte
+   Maustaste/Alt Rakete (eine regeneriert alle 30 Sekunden). Die Maus wird im
+   Fenster gefangen; Escape gibt sie frei und pausiert, ein zweites Escape
+   schließt. Läuft endlos, bis der Schild aufgebraucht ist.
 
    Der Ton kommt aus einem einzelnen Rechteck-Oszillator – so klang der
    PC-Lautsprecher, und es braucht keine Audiodateien.
@@ -53,6 +55,7 @@
     keys: {}, foes: [], shots: [], rockets: [], sparks: [],
     aimX: 0, aimY: 0, score: 0, shield: 0, ammo: 0, ammoAt: 0,
     wave: 0, spawnAt: 0, over: false, name: '', top: [], sent: false, msg: '',
+    paused: false,
   };
   const MAX_AMMO = 4, AMMO_MS = 30000;
 
@@ -61,6 +64,30 @@
     S.aimX = 0; S.aimY = 0; S.score = 0; S.shield = 5;
     S.ammo = MAX_AMMO; S.ammoAt = performance.now();
     S.wave = 0; S.spawnAt = 0; S.over = false; S.name = ''; S.sent = false; S.msg = '';
+    S.paused = false;
+  }
+
+  /* ---------------- Maus ----------------
+     Die Maus wird im Fenster gefangen (Pointer Lock), damit man beim Zielen
+     nicht aus dem Bild fährt. Escape gibt sie frei – das macht der Browser
+     selbst, wir pausieren dann, sonst stirbt man beim Loslassen. */
+  function lockMouse() { if (cv && cv.requestPointerLock) cv.requestPointerLock(); }
+  function mouseLocked() { return document.pointerLockElement === cv; }
+  function onPointerLockChange() {
+    if (!running) return;
+    if (!mouseLocked() && !S.over) S.paused = true;
+  }
+  function onMouseMove(e) {
+    if (!mouseLocked() || S.paused || S.over) return;
+    S.aimX = Math.max(-1, Math.min(1, S.aimX + e.movementX / (W * 0.45)));
+    S.aimY = Math.max(-1, Math.min(1, S.aimY + e.movementY / (H * 0.45)));
+  }
+  function onMouseDown(e) {
+    if (S.over) return;
+    e.preventDefault();
+    if (!mouseLocked() || S.paused) { S.paused = false; lockMouse(); return; }
+    if (e.button === 0) fireLaser();
+    if (e.button === 2) fireRocket();
   }
 
   /* Gegner kommen aus der Tiefe: z läuft von 1 (fern) auf 0 (Cockpit). */
@@ -250,6 +277,14 @@
     });
     drawCockpit();
     drawHud();
+    if (S.paused && !S.over) {
+      ctx.textAlign = 'center';
+      ctx.font = '20px monospace';
+      ctx.fillText('PAUSED', W / 2, H / 2 - 14);
+      ctx.font = '13px monospace';
+      ctx.fillText('CLICK TO RESUME  ·  ESC AGAIN TO QUIT', W / 2, H / 2 + 12);
+      ctx.textAlign = 'left';
+    }
     if (S.over) drawOver();
   }
 
@@ -327,7 +362,7 @@
       '<div class="arcade-head"><span>TIE BREAKER</span>' +
       '<button class="mini" id="arcadeClose">✕</button></div>' +
       '<canvas id="arcadeCv" width="' + W + '" height="' + H + '"></canvas>' +
-      '<div class="arcade-help">WASD = AIM &nbsp; SPACE = LASER &nbsp; ALT = MISSILE &nbsp; ESC = QUIT</div>' +
+      '<div class="arcade-help">MOUSE / WASD = AIM &nbsp; LMB / SPACE = LASER &nbsp; RMB / ALT = MISSILE &nbsp; ESC = RELEASE MOUSE, AGAIN = QUIT</div>' +
       '</div>';
     document.body.appendChild(box);
     cv = document.getElementById('arcadeCv');
@@ -336,13 +371,18 @@
     box.addEventListener('click', e => { if (e.target === box) close(); });
     document.addEventListener('keydown', onKeyDown, true);
     document.addEventListener('keyup', onKeyUp, true);
+    cv.addEventListener('mousedown', onMouseDown);
+    cv.addEventListener('contextmenu', e => e.preventDefault());  // Rechtsklick = Rakete
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('pointerlockchange', onPointerLockChange);
     reset(); loadTop();
+    lockMouse();
     running = true;
     let last = performance.now();
     const loop = now => {
       if (!running) return;
       const dt = Math.min(0.05, (now - last) / 1000); last = now;
-      if (!S.over) step(dt, now);
+      if (!S.over && !S.paused) step(dt, now);
       draw();
       raf = requestAnimationFrame(loop);
     };
@@ -353,13 +393,21 @@
     cancelAnimationFrame(raf);
     document.removeEventListener('keydown', onKeyDown, true);
     document.removeEventListener('keyup', onKeyUp, true);
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('pointerlockchange', onPointerLockChange);
+    if (document.exitPointerLock && document.pointerLockElement) document.exitPointerLock();
     if (box && box.parentNode) box.parentNode.removeChild(box);
     box = null;
   }
 
   function onKeyDown(e) {
     if (!running) return;
-    if (e.key === 'Escape') { close(); e.preventDefault(); return; }
+    /* Escape gibt zuerst die Maus frei (das erledigt der Browser selbst und
+       pausiert dadurch); erst das zweite Escape schließt das Fenster. */
+    if (e.key === 'Escape') {
+      if (mouseLocked()) return;          // Browser hebt den Fang auf → Pause
+      close(); e.preventDefault(); return;
+    }
     if (S.over) {
       if (!S.sent) {
         if (/^[a-zA-Z]$/.test(e.key) && S.name.length < 3) S.name += e.key.toUpperCase();
