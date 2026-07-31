@@ -37,6 +37,10 @@ Object.assign(T.de, {
   online_shared_chars: 'Für mich freigegeben',
   online_upload: '⬆ {doc} hochladen',
   online_load: 'Laden', online_delete: 'Löschen', online_share: 'Freigeben',
+  online_replace: 'Ersetzen',
+  online_replace_hint: 'Den aktuell geöffneten Bogen in dieses Online-Dokument speichern – Freigaben in Spielrunden bleiben erhalten.',
+  online_replace_confirm: '„{name}“ online durch den aktuell geöffneten Bogen ersetzen?',
+  online_dup_ask: 'Online gibt es bereits „{name}“. Diesen Eintrag ersetzen (OK) oder einen zweiten anlegen (Abbrechen)?',
   online_from: 'von', online_none: '– keine –',
   online_share_title: 'Freigeben an Benutzer:',
   online_share_add: 'Freigeben',
@@ -121,6 +125,10 @@ Object.assign(T.en, {
   online_shared_chars: 'Shared with me',
   online_upload: '⬆ Upload current {doc}',
   online_load: 'Load', online_delete: 'Delete', online_share: 'Share',
+  online_replace: 'Replace',
+  online_replace_hint: 'Save the sheet you have open into this online document – approvals in game rounds stay intact.',
+  online_replace_confirm: 'Replace “{name}” online with the sheet you have open?',
+  online_dup_ask: '“{name}” already exists online. Replace that entry (OK) or add a second one (Cancel)?',
   online_from: 'by', online_none: '– none –',
   online_share_title: 'Share with user:',
   online_share_add: 'Share',
@@ -1089,6 +1097,8 @@ function renderOnline() {
       <tr><td>${esc(c.name)}</td><td class="hint">${fmtDate(c.updated)}</td>
         <td class="nowrap">
           <button class="mini" data-oact="load" data-id="${c.id}">${t('online_load')}</button>
+          <button class="mini" data-oact="replace" data-id="${c.id}" data-name="${esc(c.name)}"
+                  title="${t('online_replace_hint')}">${t('online_replace')}</button>
           <button class="mini" data-oact="shareOpen" data-id="${c.id}">${t('online_share')}</button>
           <button class="mini danger" data-oact="delete" data-id="${c.id}" data-name="${esc(c.name)}">×</button>
         </td></tr>
@@ -1259,6 +1269,15 @@ async function onlineAction(el) {
         delete payload._cloudId;
         delete payload._rounds;          // Freigaben sind Server-Live-Status, nie mitspeichern
         let id = C._cloudId || 0;
+        /* Ohne Verknüpfung zum Online-Dokument (lokal gespeicherter Bogen von
+           früher, Import, anderer Browser) entstünde beim Hochladen ein zweiter
+           Eintrag – und die Spielrunde zeigte weiter den alten. Deshalb hier
+           nachfragen, statt still zu verdoppeln. */
+        if (!id) {
+          const same = (onlineData.mine || []).filter(x => x.name === name);
+          if (same.length === 1 && confirm(t('online_dup_ask').replace('{name}', name)))
+            id = same[0].id;
+        }
         try {
           const res = await api('char_save', { id, name, kind: DOC_KIND, data: payload });
           C._cloudId = res.id;
@@ -1268,6 +1287,23 @@ async function onlineAction(el) {
             C._cloudId = res.id;
           } else throw e;
         }
+        autosave();
+        onlineMsg = t('online_saved');
+        onlineData = await api('chars', undefined, { kind: DOC_KIND });
+        break;
+      }
+      case 'replace': {
+        /* Den offenen Bogen ausdrücklich in ein bestimmtes Online-Dokument
+           schreiben. Rettet den Fall, in dem die Verknüpfung verlorenging –
+           die Runden-Freigabe hängt am Dokument und bleibt so bestehen. */
+        const name = (C.info.name || '').trim();
+        if (!name) { onlineMsg = t('online_no_name'); break; }
+        if (!confirm(t('online_replace_confirm').replace('{name}', el.dataset.name))) return;
+        const payload = JSON.parse(JSON.stringify(C));
+        delete payload._cloudId;
+        delete payload._rounds;
+        await api('char_save', { id: +el.dataset.id, name, kind: DOC_KIND, data: payload });
+        C._cloudId = +el.dataset.id;
         autosave();
         onlineMsg = t('online_saved');
         onlineData = await api('chars', undefined, { kind: DOC_KIND });

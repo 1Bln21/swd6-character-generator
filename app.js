@@ -100,6 +100,8 @@ de: {
   start_dice: 'Startwürfel', override_attr: 'Override Startwürfel (D):',
   attrs_heading: 'Attribute (+/− in Pips, 3 Pips = 1D)',
   cp_buy: 'CP-Kauf', pips_bought: 'Pip(s)',
+  attr_over_max: 'über Speziesmaximum',
+  attr_over_max_hint: 'Das Maximum der Spezies gilt laut Grundregelwerk nur bei der Erschaffung. Später darf mit Charakterpunkten darüber hinaus gesteigert werden – der dafür vorgesehene Wurf gegen das Maximum bleibt Sache des Spielleiters.',
   force_skills_heading: 'Machtfertigkeiten (aus Attributs-Pool, 3 Pips = 1D)',
   force_skill: 'Machtfertigkeit',
   force_skills_hint: 'Machtfertigkeiten werden bei der Erschaffung aus den Attributswürfeln bezahlt (1D Attribut = 1D Machtfertigkeit).',
@@ -273,6 +275,8 @@ en: {
   start_dice: 'starting dice', override_attr: 'Override starting dice (D):',
   attrs_heading: 'Attributes (+/− in pips, 3 pips = 1D)',
   cp_buy: 'CP buy', pips_bought: 'pip(s)',
+  attr_over_max: 'above species maximum',
+  attr_over_max_hint: 'The species maximum is a hard limit only at character creation. Afterwards an attribute may be raised beyond it with Character Points – the roll against the maximum that the rules call for stays with the gamemaster.',
   force_skills_heading: 'Force Skills (paid from attribute pool, 3 pips = 1D)',
   force_skill: 'Force skill',
   force_skills_hint: 'At character creation, Force skills are paid for with attribute dice (1D of attributes = 1D of Force skill).',
@@ -1147,8 +1151,13 @@ function viewAttrs() {
       ${stepper('attr', `data-a="${a.key}"`, canMinus, canPlus)}
       <span class="dice">${fmtD(total)}</span>
       <span class="cost-hint">${t('cp_buy')} (${cpCost} CP):</span>
-      ${stepper('attrCP', `data-a="${a.key}"`, C.attrsCP[a.key] > 0, (min + C.attrs[a.key] + C.attrsCP[a.key] + 1) <= max)}
+      ${/* Das Speziesmaximum ist laut Grundregelwerk nur bei der Erschaffung
+            hart. Danach darf ein Charakter mit Charakterpunkten darüber hinaus
+            steigern – der Wurf gegen das Maximum, den die Regel dafür vorsieht,
+            bleibt am Spieltisch und wird hier nicht abgebildet. */''}
+      ${stepper('attrCP', `data-a="${a.key}"`, C.attrsCP[a.key] > 0, true)}
       ${C.attrsCP[a.key] ? `<span class="badge">+${C.attrsCP[a.key]} ${t('pips_bought')} · ${attrCpSpent(a.key)} CP</span>` : ''}
+      ${total > max ? `<span class="badge danger" title="${t('attr_over_max_hint')}">${t('attr_over_max')}</span>` : ''}
     </div>`;
   }).join('');
 
