@@ -278,6 +278,7 @@ $db->exec("CREATE TABLE IF NOT EXISTS round_chars (
   approved INT DEFAULT 0,
   approved_by INT DEFAULT 0,
   approved_at BIGINT DEFAULT 0,
+  note $TXT,
   UNIQUE(round_id, char_id)
 )$SUF");
 /* Support-/Ticketsystem: angemeldete Nutzer melden Bugs oder schlagen
@@ -346,6 +347,12 @@ foreach ($addCols as $col => $colDef) {
 /* chars: Dokumenttyp kam mit den Droiden-/Schiffs-Generatoren dazu */
 if (!in_array('kind', table_columns('chars'), true)) {
   try { $db->exec("ALTER TABLE chars ADD COLUMN kind VARCHAR(16) DEFAULT 'char'"); }
+  catch (Exception $e) { $alterError = $e->getMessage(); }
+}
+/* round_chars: Begründung des GM bei einer Ablehnung (kam mit dem Reject-Knopf) */
+$rcCols = table_columns('round_chars');
+if ($rcCols && !in_array('note', $rcCols, true)) {
+  try { $db->exec("ALTER TABLE round_chars ADD COLUMN note $TXT"); }
   catch (Exception $e) { $alterError = $e->getMessage(); }
 }
 
@@ -1373,16 +1380,28 @@ case 'round_approve': {
   $st = $db->prepare('SELECT 1 FROM round_chars WHERE round_id = ? AND char_id = ?');
   $st->execute([$id, $charId]);
   if (!$st->fetch()) fail('Character is not assigned to this round', 404);
+  /* Drei Zustände: 1 = freigegeben, 0 = wartet, -1 = abgelehnt. Abgelehnt ist
+     bewusst etwas anderes als „wartet“ – der Spieler soll sehen, dass der GM
+     schon hingeschaut und Nein gesagt hat, statt weiter zu warten. */
   $a = inp('approved', true);
-  $approve = ($a === true || $a === 1 || $a === '1' || $a === 'true');
-  if ($approve) {
-    $db->prepare('UPDATE round_chars SET approved = 1, approved_by = ?, approved_at = ? WHERE round_id = ? AND char_id = ?')
-       ->execute([$user['id'], time(), $id, $charId]);
+  if ($a === -1 || $a === '-1' || $a === 'reject') $state = -1;
+  elseif ($a === true || $a === 1 || $a === '1' || $a === 'true') $state = 1;
+  else $state = 0;
+  /* Kurze Begründung, damit der Spieler weiß, was er ändern soll. Nur bei einer
+     Ablehnung sinnvoll – bei Freigabe oder Zurücksetzen wird sie geleert. */
+  $note = trim((string)inp('note', ''));
+  if (strlen($note) > 500) $note = substr($note, 0, 500);
+  if ($state !== -1) $note = '';
+  if ($state === 0) {
+    $db->prepare('UPDATE round_chars SET approved = 0, approved_by = 0, approved_at = 0, note = ? WHERE round_id = ? AND char_id = ?')
+       ->execute(['', $id, $charId]);
   } else {
-    $db->prepare('UPDATE round_chars SET approved = 0, approved_by = 0, approved_at = 0 WHERE round_id = ? AND char_id = ?')
-       ->execute([$id, $charId]);
+    /* Auch die Ablehnung mit Zeitstempel festhalten – sonst weiß niemand, wann
+       und von wem sie kam. */
+    $db->prepare('UPDATE round_chars SET approved = ?, approved_by = ?, approved_at = ?, note = ? WHERE round_id = ? AND char_id = ?')
+       ->execute([$state, $user['id'], time(), $note, $id, $charId]);
   }
-  json_out(['ok' => true, 'approved' => $approve]);
+  json_out(['ok' => true, 'approved' => $state === 1, 'state' => $state]);
 }
 
 case 'round_chars': {
@@ -1394,7 +1413,7 @@ case 'round_chars': {
   if (!$round) fail('Round not found', 404);
   if (!round_is_gm($id, $user['id'])) fail('Only a GM can view round characters', 403);
   $st = $db->prepare("SELECT c.id, c.name, c.kind, c.updated, u.username AS owner,
-                      rc.approved, rc.approved_at
+                      rc.approved, rc.approved_at, rc.note
                       FROM round_chars rc JOIN chars c ON c.id = rc.char_id
                       JOIN users u ON u.id = c.user_id
                       WHERE rc.round_id = ? ORDER BY " . ci('u.username') . ", " . ci('c.name'));
@@ -1403,7 +1422,16 @@ case 'round_chars': {
   foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
     $out[] = ['id' => (int)$r['id'], 'name' => $r['name'], 'kind' => $r['kind'] ? $r['kind'] : 'char',
               'owner' => $r['owner'], 'updated' => (int)$r['updated'],
-              'approved' => (int)$r['approved'] === 1, 'approvedAt' => (int)$r['approved_at']];
+              /* approved bleibt als Wahrheitswert erhalten (alte Clients), state
+                 trägt den echten Zustand: 1 frei, 0 wartet, -1 abgelehnt. */
+              'approved' => (int)$r['approved'] === 1, 'state' => (int)$r['approved'],
+              'approvedAt' => (int)$r['approved_at'], 'note' => (string)$r['note'],
+              /* Wurde der Bogen nach der Freigabe noch bearbeitet? Der Spieler
+                 speichert in dasselbe Dokument, der GM sieht also immer den
+                 aktuellen Stand - dieser Hinweis sagt ihm, dass sich etwas
+                 geaendert hat, ohne die Freigabe zu erzwingen. */
+              'changedSince' => ((int)$r['approved'] === 1
+                                 && (int)$r['updated'] > (int)$r['approved_at'])];
   }
   json_out(['chars' => $out]);
 }
@@ -1415,14 +1443,15 @@ case 'round_my_chars': {
   $st = $db->prepare('SELECT 1 FROM round_members WHERE round_id = ? AND user_id = ?');
   $st->execute([$id, $user['id']]);
   if (!$st->fetch()) fail('Not a member of this round', 403);
-  $st = $db->prepare("SELECT c.id, c.name, c.kind, rc.approved FROM round_chars rc
+  $st = $db->prepare("SELECT c.id, c.name, c.kind, rc.approved, rc.note FROM round_chars rc
                       JOIN chars c ON c.id = rc.char_id
                       WHERE rc.round_id = ? AND c.user_id = ? ORDER BY " . ci('c.name'));
   $st->execute([$id, $user['id']]);
   $out = [];
   foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r)
     $out[] = ['id' => (int)$r['id'], 'name' => $r['name'], 'kind' => $r['kind'] ? $r['kind'] : 'char',
-              'approved' => (int)$r['approved'] === 1];
+              'approved' => (int)$r['approved'] === 1, 'state' => (int)$r['approved'],
+              'note' => (string)$r['note']];
   json_out(['chars' => $out]);
 }
 

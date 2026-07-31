@@ -174,6 +174,10 @@ main { padding: 18px 20px 60px; max-width: 1500px; margin: 0 auto; }
 .hint { color: var(--muted); font-size: 12.5px; }
 .warn { color: var(--red); font-weight: 600; }
 .ok { color: var(--green); font-weight: 600; }
+/* Gegenstück zu .ok – abgelehnte Bögen in den Spielrunden. Bewusst hier und
+   nicht als allgemeines .neg: das ist innerhalb der Pool-Banner schon vergeben. */
+.no { color: var(--red); font-weight: 600; }
+.badge.danger { color: var(--red); border-color: var(--red); }
 .badge {
   display: inline-block; background: var(--inset); border: 1px solid var(--border);
   border-radius: 5px; padding: 1px 8px; font-size: 12px; color: var(--muted); margin: 1px 2px;

@@ -209,6 +209,10 @@ Object.assign(T.de, {
   rounds_party: 'Charaktere der Runde',
   rounds_approve: 'Freigeben',
   rounds_revoke: 'Freigabe zurücknehmen',
+  rounds_reject: 'Ablehnen', rounds_rejected: 'abgelehnt',
+  rounds_reject_prompt: '„{name}“ ablehnen. Kurze Begründung für den Spieler (optional):',
+  rounds_reject_note: 'Begründung des GM',
+  rounds_changed: '✱ seit der Freigabe geändert',
   rounds_delete: 'Runde löschen',
   rounds_delete_confirm: 'Runde „{name}“ mit allen Freigaben wirklich löschen?',
   rounds_leave: 'Runde verlassen',
@@ -265,6 +269,10 @@ Object.assign(T.en, {
   rounds_party: 'Round characters',
   rounds_approve: 'Approve',
   rounds_revoke: 'Revoke approval',
+  rounds_reject: 'Reject', rounds_rejected: 'rejected',
+  rounds_reject_prompt: 'Reject “{name}”. Short reason for the player (optional):',
+  rounds_reject_note: 'GM’s reason',
+  rounds_changed: '✱ changed since approval',
   rounds_delete: 'Delete round',
   rounds_delete_confirm: 'Really delete round “{name}” and all its approvals?',
   rounds_leave: 'Leave round',
@@ -676,12 +684,18 @@ function roundDetailBody() {
 
   /* Eigene Charaktere anmelden / abmelden (GM wie Spieler) */
   const assigned = new Set((d.myChars || []).map(c => c.id));
-  const mineRows = (d.myChars || []).map(c => `<tr>
-      <td>${esc(c.name)} ${c.approved
-          ? `<span class="badge gold">✔ ${t('rounds_approved')}</span>`
-          : `<span class="badge">${t('rounds_pending')}</span>`}</td>
+  const mineRows = (d.myChars || []).map(c => {
+    const st = (typeof c.state === 'number') ? c.state : (c.approved ? 1 : 0);
+    const badge = st === 1 ? `<span class="badge gold">✔ ${t('rounds_approved')}</span>`
+                : st === -1 ? `<span class="badge danger">✖ ${t('rounds_rejected')}</span>`
+                : `<span class="badge">${t('rounds_pending')}</span>`;
+    const why = (st === -1 && c.note)
+      ? `<br><span class="hint">${t('rounds_reject_note')}: ${esc(c.note)}</span>` : '';
+    return `<tr>
+      <td>${esc(c.name)} ${badge}${why}</td>
       <td class="nowrap"><button class="mini danger" data-ract="unassign" data-id="${r.id}" data-cid="${c.id}">${t('rounds_unassign')}</button></td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
   const opts = (d.myDocs || []).filter(c => !assigned.has(c.id))
       .map(c => `<option value="${c.id}">${esc(c.name)} (${t('rounds_kind_' + c.kind)})</option>`).join('');
   html += `<h3>${t('rounds_my_chars')}</h3>
@@ -697,11 +711,24 @@ function roundDetailBody() {
       const viewBtn = c.kind === DOC_KIND
         ? `<button class="mini" data-ract="view" data-cid="${c.id}">${t('online_load')}</button>`
         : `<button class="mini" data-ract="viewElsewhere" data-cid="${c.id}" data-kind="${esc(c.kind)}">↗ ${t('rounds_kind_' + c.kind)}</button>`;
+      /* state: 1 freigegeben, 0 wartet, -1 abgelehnt. Nicht c.approved prüfen –
+         das ist nur ein Wahrheitswert und kennt „abgelehnt“ nicht. */
+      const st = (typeof c.state === 'number') ? c.state : (c.approved ? 1 : 0);
+      const status = st === 1 ? `<span class="ok">✔ ${t('rounds_approved')}</span>`
+                   : st === -1 ? `<span class="no">✖ ${t('rounds_rejected')}</span>`
+                   : `<span class="hint">${t('rounds_pending')}</span>`;
+      /* Der Spieler speichert in dasselbe Dokument, der GM sieht also stets den
+         aktuellen Bogen – dieser Vermerk zeigt nur, dass sich seit der Freigabe
+         etwas getan hat. */
+      const changed = c.changedSince ? ` <span class="hint">${t('rounds_changed')}</span>` : '';
+      const noteRow = (st === -1 && c.note)
+        ? `<br><span class="hint">${t('rounds_reject_note')}: ${esc(c.note)}</span>` : '';
       return `<tr>
-        <td>${esc(c.name)} <span class="hint">(${esc(c.owner)})</span></td>
-        <td>${c.approved ? `<span class="ok">✔ ${t('rounds_approved')}</span>` : `<span class="hint">${t('rounds_pending')}</span>`}</td>
+        <td>${esc(c.name)} <span class="hint">(${esc(c.owner)})</span>${noteRow}</td>
+        <td>${status}${changed}</td>
         <td class="nowrap">${viewBtn}
-          <button class="mini ${c.approved ? '' : 'accent'}" data-ract="approve" data-id="${r.id}" data-cid="${c.id}" data-appr="${c.approved ? 0 : 1}">${c.approved ? t('rounds_revoke') : t('rounds_approve')}</button>
+          <button class="mini ${st === 1 ? '' : 'accent'}" data-ract="approve" data-id="${r.id}" data-cid="${c.id}" data-appr="${st === 1 ? 0 : 1}">${st === 1 ? t('rounds_revoke') : t('rounds_approve')}</button>
+          ${st === -1 ? '' : `<button class="mini danger" data-ract="reject" data-id="${r.id}" data-cid="${c.id}" data-name="${esc(c.name)}">${t('rounds_reject')}</button>`}
         </td></tr>`;
     }).join('');
     html += `<h3>${t('rounds_party')}</h3>
@@ -757,6 +784,15 @@ async function roundsClick(el) {
       case 'approve':
         await api('round_approve', { id: +el.dataset.id, charId: +el.dataset.cid, approved: el.dataset.appr === '1' });
         await openRoundDetail(+el.dataset.id); return;
+      case 'reject': {
+        /* Kurze Begründung mitgeben – Abbrechen im Dialog bricht auch die
+           Ablehnung ab, leer lassen ist erlaubt. */
+        const note = prompt(t('rounds_reject_prompt').replace('{name}', el.dataset.name), '');
+        if (note === null) return;
+        await api('round_approve', { id: +el.dataset.id, charId: +el.dataset.cid,
+                                     approved: -1, note: note.slice(0, 500) });
+        await openRoundDetail(+el.dataset.id); return;
+      }
       case 'kick':
         if (!confirm(t('rounds_kick_confirm').replace('{name}', el.dataset.user))) return;
         await api('round_remove_member', { id: +el.dataset.id, username: el.dataset.user });

@@ -32,6 +32,7 @@ Object.assign(T.de, {
   dr_degree: 'Degree (Klasse)', dr_manufacturer: 'Hersteller',
   dr_locomotion: 'Fortbewegung', dr_scale: 'Größenklasse', dr_move: 'Move (m)',
   dr_matrix: 'Persönlichkeits-Matrix', dr_height: 'Höhe (m)', dr_weight: 'Gewicht (kg)',
+  dr_matrix_hint: 'Steht in keiner Quelle und wird nicht aus der Vorlage übernommen – bitte selbst wählen und vom Spielleiter absegnen lassen. Ein Lastenheber ist „Simple“, ein Taktik- oder Protokolldroide deutlich mehr.',
   dr_quote: 'Zitat', dr_fp: 'Machtpunkte',
   dr_desc: 'Beschreibung', dr_history: 'Kurze Geschichte',
   dr_personality: 'Persönlichkeit', dr_objectives: 'Motivation / Ziele',
@@ -95,6 +96,7 @@ Object.assign(T.en, {
   dr_degree: 'Degree', dr_manufacturer: 'Manufacturer',
   dr_locomotion: 'Locomotion', dr_scale: 'Scale', dr_move: 'Move (m)',
   dr_matrix: 'Personality Matrix', dr_height: 'Height (m)', dr_weight: 'Weight (kg)',
+  dr_matrix_hint: 'Not given in any source and not taken from the template – pick it yourself and have your GM approve it. A load lifter is “Simple”, a tactical or protocol droid clearly more.',
   dr_quote: 'A Quote', dr_fp: 'Force Points',
   dr_desc: 'Physical Description', dr_history: 'Short History',
   dr_personality: 'Personality', dr_objectives: 'Motivation / Objectives',
@@ -617,7 +619,8 @@ function viewModel() {
           <div><label>${t('dr_locomotion')}</label><select data-bind="info.locomotion">${selOpts(DROID_DATA.locomotion, i.locomotion)}</select></div>
           <div><label>${t('dr_scale')}</label><select data-bind="info.scale">${selOpts(DROID_DATA.scales, i.scale)}</select></div>
           <div><label>${t('dr_move')}</label>${inputN('info.move', i.move, 'style="width:80px"')}</div>
-          <div><label>${t('dr_matrix')}</label><select data-bind="info.matrix">${selOpts(DROID_DATA.matrix, i.matrix)}</select></div>
+          <div><label>${t('dr_matrix')}</label><select data-bind="info.matrix">${selOpts(DROID_DATA.matrix, i.matrix)}</select>
+            <span class="hint">${t('dr_matrix_hint')}</span></div>
           <div><label>${t('dr_height')}</label>${inputT('info.height', i.height)}</div>
           <div><label>${t('dr_weight')}</label>${inputT('info.weight', i.weight)}</div>
           <div><label>${t('dr_fp')}</label>${inputN('info.forcePoints', i.forcePoints, 'style="width:80px"')}</div>
