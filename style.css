@@ -123,6 +123,29 @@ label { color: var(--muted); font-size: 12px; display: block; margin-bottom: 3px
   color: var(--accent); font-weight: 700; font-size: 13px;
   letter-spacing: 1px; text-transform: uppercase;
   border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 8px;
+  /* Kein Zeiger, kein Hover: die Überschrift soll nicht nach Knopf aussehen.
+     Nur die Textmarkierung beim Doppelklick unterbinden. */
+  user-select: none; -webkit-user-select: none;
+}
+
+/* ---------- Vektor-Fenster (versteckte Zugabe) ---------- */
+.arcade-box {
+  background: #000; border: 2px solid #39ff7a; border-radius: 6px;
+  padding: 8px; box-shadow: 0 0 24px rgba(57, 255, 122, .25);
+  max-width: 96vw;
+}
+.arcade-head {
+  display: flex; align-items: center; justify-content: space-between;
+  color: #39ff7a; font-family: monospace; letter-spacing: 3px;
+  font-size: 14px; margin-bottom: 6px;
+}
+.arcade-box canvas {
+  display: block; background: #000; width: 640px; height: 480px;
+  max-width: 92vw; max-height: 69vw;      /* 4:3 bleibt erhalten */
+}
+.arcade-help {
+  color: #39ff7a; opacity: .7; font-family: monospace; font-size: 11px;
+  text-align: center; margin-top: 6px;
 }
 #optionsMenu .opt-section { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; margin: 6px 0 4px; }
 #optionsMenu .opt-row {

@@ -301,6 +301,15 @@ $db->exec("CREATE TABLE IF NOT EXISTS ticket_messages (
   image $TXT,
   created BIGINT
 )$SUF");
+/* Bestenliste der versteckten Zugabe. Bewusst ohne Kontobindung: drei
+   Buchstaben und eine Zahl, mehr wird nicht gespeichert – kein Bezug zu einem
+   Nutzer, keine IP, nichts, was jemanden identifiziert. */
+$db->exec("CREATE TABLE IF NOT EXISTS arcade_scores (
+  id $PK,
+  name VARCHAR(3) NOT NULL,
+  score INT NOT NULL,
+  created BIGINT
+)$SUF");
 /* Wer hat welches Ticket wann zuletzt gelesen? Pro Nutzer eine Zeile je Ticket –
    so bleibt der Hinweis für jeden Admin einzeln stehen, statt dass ein Admin ihn
    für alle wegklickt. Fehlt eine Zeile, gilt das Ticket als nie gelesen. */
@@ -1566,6 +1575,41 @@ case 'ticket_close': {
   $status = inp('reopen') ? 'open' : 'closed';
   $db->prepare('UPDATE tickets SET status = ?, updated = ? WHERE id = ?')->execute([$status, time(), $id]);
   json_out(['ok' => true, 'status' => $status]);
+}
+
+/* ---- Bestenliste der versteckten Zugabe (ohne Anmeldung) ---- */
+case 'arcade_top': {
+  $st = $db->query('SELECT name, score FROM arcade_scores ORDER BY score DESC, id ASC LIMIT 10');
+  $out = [];
+  foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r)
+    $out[] = ['name' => $r['name'], 'score' => (int)$r['score']];
+  json_out(['scores' => $out]);
+}
+case 'arcade_add': {
+  /* Offen für alle, deshalb eng geführt: nur drei Großbuchstaben, eine Zahl
+     in plausibler Höhe, und höchstens ein Eintrag alle paar Sekunden. Die
+     Tabelle wird auf 100 Zeilen gestutzt, damit sie nicht wächst. */
+  $name = strtoupper(trim((string)inp('name', '')));
+  if (!preg_match('/^[A-Z]{3}$/', $name)) fail('Three letters A-Z required');
+  $score = (int)inp('score', 0);
+  if ($score <= 0 || $score > 1000000) fail('Invalid score');
+  $now = time();
+  $st = $db->prepare('SELECT COUNT(*) FROM arcade_scores WHERE created > ?');
+  $st->execute([$now - 5]);
+  if ((int)$st->fetchColumn() >= 3) fail('Too many entries – please wait a moment', 429);
+  $db->prepare('INSERT INTO arcade_scores (name, score, created) VALUES (?,?,?)')
+     ->execute([$name, $score, $now]);
+  $keep = $db->query('SELECT id FROM arcade_scores ORDER BY score DESC, id ASC LIMIT 100')
+             ->fetchAll(PDO::FETCH_COLUMN);
+  if ($keep) {
+    $in = implode(',', array_map('intval', $keep));
+    $db->exec('DELETE FROM arcade_scores WHERE id NOT IN (' . $in . ')');
+  }
+  $st = $db->query('SELECT name, score FROM arcade_scores ORDER BY score DESC, id ASC LIMIT 10');
+  $out = [];
+  foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r)
+    $out[] = ['name' => $r['name'], 'score' => (int)$r['score']];
+  json_out(['ok' => true, 'scores' => $out]);
 }
 
 /* Nur die Anzahl – wird von jeder Seite für den Hinweis am ☁-Knopf abgefragt. */

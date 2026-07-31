@@ -2325,4 +2325,9 @@ document.querySelectorAll('input[name="langOpt"]').forEach(r => {
      ersetzt die Feld-Elemente durch frische, die dieser Analyse entgehen
      (genau das passiert auch beim manuellen Reiterwechsel). */
   requestAnimationFrame(() => requestAnimationFrame(() => renderTab(activeTab)));
+  /* Dieses init() läuft beim Parsen von app.js – credits.js und online.js sind
+     da noch nicht geladen, ihre Schlüssel (opt_about, about_open, online_admin)
+     fehlen im Wörterbuch und landeten roh im ⚙-Menü. Nach dem Laden aller
+     Skripte deshalb noch einmal übersetzen. */
+  document.addEventListener('DOMContentLoaded', applyStaticI18n);
 })();
