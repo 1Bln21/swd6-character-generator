@@ -63,9 +63,9 @@ const SKILLS_DE = {
   'Archaic Starship Pilot.': 'Archaische Raumschiffe',
   'Astrogation': 'Astrogation',
   'Beast Riding': 'Reiten',
-  'Capital Ship Gun.': 'Sternenschiffartillerie',
-  'Capital Ship Piloting': 'Sternenschiffe',
-  'Capital Ship Shields': 'Sternenschiffdeflektoren',
+  'Capital Ship Gun.': 'Großkampfschiff-Artillerie',   // Buch: „Sternenschiffartillerie“
+  'Capital Ship Piloting': 'Großkampfschiffe',         // Buch: „Sternenschiffe“
+  'Capital Ship Shields': 'Großkampfschiff-Deflektoren', // Buch: „Sternenschiffdeflektoren“
   'Communications': 'Kommunikation',
   'Ground Vehicle Op.': 'Bodenfahrzeuge',
   'Hover Vehicle Op.': 'Schweber',
@@ -106,9 +106,9 @@ const SKILLS_DE = {
      <Gerät>-Reparatur gebildet. */
   'Armor Repair': 'Panzerungs-Reparatur',              // abgeleitet
   'Blaster Repair': 'Blaster-Reparatur',               // abgeleitet
-  'Capital Ship Repair': 'Sternenschiff-Reparatur',    // abgeleitet
-  'Capital Ship Weap. Rep.': 'Sternenschiffwaffen-Reparatur',  // abgeleitet
-  'Computer Prog. / Rep.': 'Computer',
+  'Capital Ship Repair': 'Großkampfschiff-Reparatur',  // abgeleitet
+  'Capital Ship Weap. Rep.': 'Großkampfschiffwaffen-Reparatur',  // abgeleitet
+  'Computer Prog. / Rep.': 'Computerprogrammierung/-reparatur',
   'Demolition': 'Sprengtechnik',
   'Droid Prog.': 'Droidenprogrammierung',
   'Droid Repair': 'Droiden-Reparatur',                 // abgeleitet
@@ -129,7 +129,7 @@ const SKILLS_DE = {
   'Medicine': 'Medizin',
   'Repair': 'Reparatur',
   'Computer Programming': 'Computerprogrammierung',
-  'Capital Ship Gunnery': 'Sternenschiffartillerie',
+  'Capital Ship Gunnery': 'Großkampfschiff-Artillerie',
   'Space Transports': 'Raumtransporter',
   /* Die Excel-Vorlagen kürzen unterschiedlich ab – dieselbe Fertigkeit
      heißt im Charakterbogen "Archaic Starship Pilot.", in der Schiffs-Crew
