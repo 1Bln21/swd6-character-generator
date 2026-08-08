@@ -535,6 +535,19 @@ table.sp-table td.num { text-align: right; white-space: nowrap; }
 .roll-warn { color: var(--red); font-weight: 600; margin: 6px 0; }
 
 /* ---------- NPC-Gruppengenerator: kompakte Karten ---------- */
+/* Flottenzusammenstellung im NPC-Schiffsgenerator: je Klasse eine Zeile aus
+   Anzahl, „baugleich“ und der Zahl verfügbarer Vorlagen. Kein eigenes Farb-
+   schema – die Felder erben Akzentfarbe und Zeilenhöhe der übrigen Optionen. */
+.npc-fleet { grid-column: 1 / -1; }
+.npc-fleet-rows { display: flex; flex-direction: column; gap: 6px; padding: 6px 0 2px; }
+.npc-fleet-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.npc-fleet-name { min-width: 9em; font-weight: bold; }
+.npc-fleet-row input[type="number"] { width: 5em; }
+.npc-fleet-avail { color: var(--muted); font-size: 12px; }
+.npc-size-opt { display: inline-flex; align-items: center; gap: 6px; font-weight: normal; cursor: pointer; }
+.npc-size-opt input { width: auto; margin: 0; accent-color: var(--accent); }
+.npc-fleet-row input:disabled, .npc-fleet-row input:disabled + span { opacity: .45; cursor: not-allowed; }
+
 .npc-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 10px; margin-top: 14px;

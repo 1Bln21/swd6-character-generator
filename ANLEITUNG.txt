@@ -120,7 +120,7 @@ FRACHTRAUM UND UMBAUTEN
                   Aussenlast-Halterungen o. ae. zulassen
 
 VORLAGEN AUS DEN REGELWERKEN
-  * Schiffe: 1.163 fertige Raumschiffe und Fahrzeuge – auswählen, und
+  * Schiffe: 1.255 fertige Raumschiffe und Fahrzeuge – auswählen, und
     alle Grundwerte samt Bewaffnung sind gefüllt. Darunter seit 2.4.2
     16 von Hand ergänzte Schiffe aus der Community (im Dropdown als
     "Community Additions" gekennzeichnet), z. B. Sphyrna-/Hammerhead-

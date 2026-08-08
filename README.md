@@ -10,8 +10,8 @@ This project is an HTML port of the Excel workbooks by **Chance Gibboney** — s
 |---|---|
 | **Characters** | `index.html` — 374 species, all skills, Force powers, equipment, lightsaber workshop |
 | **Droids** | `droid.html` — degrees, 167 modifications, 522 ready-made droid templates |
-| **Ships & Vehicles** | `ship.html` — 1,163 ship/vehicle templates, modification workshop, weapons, sensors |
-| **NPCs** | `npc.html` — generate whole NPC groups with compact stat blocks by species, faction and threat level |
+| **Ships & Vehicles** | `ship.html` — 1,255 ship/vehicle templates, modification workshop, weapons, sensors |
+| **NPCs** | `npc.html` — build a group role by role (6 stormtroopers, 2 officers) or a flight class by class, with compact stat blocks |
 
 Game masters can also run **game rounds**: invite players by code, let them submit characters, and approve them for the round (the approval is stamped on the sheet). See the ☁ Online window.
 
@@ -37,7 +37,7 @@ Game masters can also run **game rounds**: invite players by code, let them subm
 - **350 droid templates** from the sourcebooks — apply and adjust
 
 **Ships & Vehicles** (`ship.html`)
-- **1,163 templates** (840 starships + 323 vehicles) — pick one and every base stat is filled in, weapons included
+- **1,255 templates** (932 starships + 323 vehicles) — pick one and every base stat is filled in, weapons included
 - **Modification workshop**: sublight drive, maneuverability, hyperdrive, hull, shields, weapon damage — each with install difficulty, cost as a percentage of the ship, and a growing **mishap modifier**
 - Replacement drives, hyperdrives, shield generators, cargo conversions
 - Up to six weapons with fire arc, fire control and ranges; sensors and NPC crew skills
@@ -52,6 +52,7 @@ Game masters can also run **game rounds**: invite players by code, let them subm
 - **Bilingual**: English by default, German switchable in the ⚙ menu (the choice is remembered per browser) — including all 84 skill names, taken from the German edition ("Krieg der Sterne – Das Rollenspiel"). Characters stay interchangeable between languages because the data keeps the English names
 - **Extended catalogs from the sourcebooks**: 492 weapons and 563 pieces of equipment, searchable and filterable by era
 - **Online accounts** (optional, needs PHP hosting): registration, login, **MFA via authenticator app**, cloud storage and sharing with fellow players
+- **An easter egg has been hiding in the app for several versions now.** No hints here — happy hunting
 
 ### Quick start (local, no server)
 
@@ -188,11 +189,13 @@ Das Projekt ist die HTML-Portierung der Excel-Tabellen von **Chance Gibboney** �
 
 **Droiden** (`droid.html`) – fünf Degrees mit eigenen Steigerungskosten, gemeinsamer 25D-Startpool für Attribute, Fertigkeiten *und* Modifikationen, 167 Modifikationen in 11 Kategorien, fest verdrahtete Datenbank-Fertigkeiten sowie **350 fertige Droidenmodelle** aus den Regelwerken.
 
-**Schiffe & Fahrzeuge** (`ship.html`) – **1.163 Vorlagen** (840 Raumschiffe + 323 Fahrzeuge): auswählen und alle Grundwerte samt Bewaffnung sind gefüllt. Dazu die Umbau-Werkstatt (Antrieb, Manövrierfähigkeit, Hyperantrieb, Hülle, Schilde, Waffenschaden) mit Einbau-Schwierigkeit, Kosten in Prozent des Schiffswerts und steigendem **Pannen-Modifikator**, Ersatzteile, bis zu sechs Waffen, Sensoren und Crew-Skills. Die Bewaffnung lässt sich aus einem **Waffen-Katalog** übernehmen: 838 Typen aus den Schiffsbeschreibungen der Sammelbände plus die Übersicht aus *Galaxy Guide 6* mit Preis und Gewicht, filterbar nach Größenklasse. Dazu die **Werkstatt** mit den erweiterten Regeln aus *Galaxy Guide 6: Tramp Freighters*: Pannen auswürfeln für alle fünf Systeme und drei Schweregrade, Reparaturkosten-Tabelle auf den eigenen Schiffswert gerechnet, Raumhafen-Klassen mit Liegegebühren, Vorratsformel, Überholungskosten, Einbauzeiten und die Regeln für gekoppelte Waffen.
+**Schiffe & Fahrzeuge** (`ship.html`) – **1.255 Vorlagen** (932 Raumschiffe + 323 Fahrzeuge): auswählen und alle Grundwerte samt Bewaffnung sind gefüllt. Dazu die Umbau-Werkstatt (Antrieb, Manövrierfähigkeit, Hyperantrieb, Hülle, Schilde, Waffenschaden) mit Einbau-Schwierigkeit, Kosten in Prozent des Schiffswerts und steigendem **Pannen-Modifikator**, Ersatzteile, bis zu sechs Waffen, Sensoren und Crew-Skills. Die Bewaffnung lässt sich aus einem **Waffen-Katalog** übernehmen: 838 Typen aus den Schiffsbeschreibungen der Sammelbände plus die Übersicht aus *Galaxy Guide 6* mit Preis und Gewicht, filterbar nach Größenklasse. Dazu die **Werkstatt** mit den erweiterten Regeln aus *Galaxy Guide 6: Tramp Freighters*: Pannen auswürfeln für alle fünf Systeme und drei Schweregrade, Reparaturkosten-Tabelle auf den eigenen Schiffswert gerechnet, Raumhafen-Klassen mit Liegegebühren, Vorratsformel, Überholungskosten, Einbauzeiten und die Regeln für gekoppelte Waffen.
 
-**NPCs** (`npc.html`) – erzeugt ganze **NPC-Gruppen mit kompakten Statblöcken**: Gruppengröße, Spezies-Modus (nur Menschen / gemischt / eine Spezies / nur Aliens), Fraktion (Imperium, Rebellen, Piraten, CIS, Kopfgeldjäger, Verbrechersyndikat, Söldner, Zivilisten) und Erfahrungsstufe. Bei „gemischt“ stellt der Mensch-Anteil Star-Wars-typisch die Mehrheit. Mehrere Karten pro Druckseite.
+**NPCs** (`npc.html`) – erzeugt ganze **NPC-Gruppen mit kompakten Statblöcken**. Die Truppe wird **rollenweise** zusammengestellt: je Zeile eine Fraktion mit eigener Anzahl, also etwa 6 Sturmtruppen, 2 Offiziere und 3 Söldner in einer Gruppe. Dazu Spezies-Modus (nur Menschen / gemischt / eine Spezies / nur Aliens) und Erfahrungsstufe; bei „gemischt“ stellt der Mensch-Anteil Star-Wars-typisch die Mehrheit. Genauso für **Schiffe**: Anzahl je Klasse (Jäger, Space Transport, Capital), je Klasse getrennt wählbar, ob alle Schiffe baugleich sein sollen, und ein Ära-Filter für den Vorlagenpool. Mehrere Karten pro Druckseite.
 
 **Spielrunden** – Spielleiter können eine Runde eröffnen, Spieler per Einladungscode aufnehmen, deren angemeldete Charaktere ansehen und **für die Runde freigeben** – die Freigabe erscheint als Stempel auf dem Bogen (☁-Online-Fenster).
+
+**Easteregg** – seit einigen Versionen steckt eins in der App. Wo, wird hier nicht verraten: viel Spaß beim Suchen.
 
 **Überall** – Bild-Import per Datei oder Drag & Drop, Speichern im Browser plus JSON-Export, Druck-/PDF-Bögen, zweisprachige Oberfläche (Englisch als Standard, Deutsch im ⚙-Menü) samt aller 84 Fertigkeitsnamen nach der deutschen Ausgabe „Krieg der Sterne – Das Rollenspiel“, durchsuchbare **erweiterte Kataloge** mit 492 Waffen und 563 Ausrüstungsgegenständen, nach Ära filterbar sowie optionale **Online-Konten** mit MFA, Cloud-Speicherung und Freigaben.
 

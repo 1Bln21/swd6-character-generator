@@ -680,7 +680,7 @@ function templateCard() {
   const match = x => (!f || x.name.toLowerCase().includes(f) || (x.craft || '').toLowerCase().includes(f)) &&
                      (!tplEra || x.era === tplEra);
   const opt = (x, idx, kind) => `<option value="${kind}:${idx}">${esc(x.name)}${x.scale ? ' · ' + esc(x.scale) : ''}${x.book ? ' · ' + esc(x.book) : ''}</option>`;
-  const CAP = 400;                      // längere Listen macht kein Browser mit
+  const CAP = 700;                      // darüber wird die Liste im Browser zäh
   const sHits = ships.map((x, n) => [x, n]).filter(([x]) => match(x));
   const vHits = vehicles.map((x, n) => [x, n]).filter(([x]) => match(x));
   const sOpts = sHits.slice(0, CAP).map(([x, n]) => opt(x, n, 'ship')).join('');

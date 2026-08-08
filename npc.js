@@ -55,12 +55,20 @@ Object.assign(T.de, {
   fac_pilot: 'Piloten', fac_mechanic: 'Mechaniker', fac_medic: 'Sanitäter',
   fac_scout: 'Kundschafter', fac_official: 'Beamte',
   npc_gen: 'Was erzeugen?', npc_gen_people: 'Personen', npc_gen_ships: 'Schiffe',
-  npc_ship_size: 'Schiffsklasse',
+  npc_troop: 'Truppe zusammenstellen',
+  npc_troop_add: '+ Rolle hinzufügen',
+  npc_troop_hint: 'Je Zeile eine Rolle mit eigener Anzahl – z. B. 6 Sturmtruppen und 2 Offiziere. Gesamt: {n} NPCs. Spezies-Verteilung und Erfahrungsstufe gelten für die ganze Truppe.',
+  npc_fleet: 'Flotte zusammenstellen',
+  npc_fleet_hint: 'Anzahl je Klasse; 0 lässt die Klasse weg. Gesamt: {n} Schiffe. „Baugleich“ gilt nur für die eigene Klasse – 4 baugleiche Jäger und 2 baugleiche Transporter sind zwei verschiedene Modelle.',
+  npc_fleet_avail: '{n} Vorlagen',
+  npc_fleet_none: 'keine Vorlage in dieser Ära',
+  npc_same_ship_on: 'baugleich',
+  npc_ships_nopool: 'Diese Kombination aus Klassen und Ära enthält keine Vorlagen. Ära weiter fassen oder eine Klasse dazunehmen.',
   npc_size_starfighter: 'Jäger', npc_size_transport: 'Space Transport', npc_size_capital: 'Capital',
   npc_ship_crew: 'Crew (Steuern/Bordgeschütze)', npc_ship_extra: 'Extra-Waffen',
-  npc_ships_empty: 'Noch keine Schiffe. Klasse und Anzahl wählen und „Gruppe erzeugen“.',
+  npc_ships_empty: 'Noch keine Schiffe. Anzahl je Klasse setzen und „Gruppe erzeugen“.',
   npc_add_ship: '+ Schiff hinzufügen',
-  npc_ship_hint: 'Zufällige Schiffe der gewählten Klasse aus dem Katalog; Crew-Würfel und Extra-Waffen richten sich nach der Erfahrungsstufe.',
+  npc_ship_hint: 'Zufällige Schiffe der gewählten Klassen und Ära aus dem Katalog; Crew-Würfel und Extra-Waffen richten sich nach der Erfahrungsstufe.',
 });
 Object.assign(T.en, {
   title: 'Star Wars D6 – NPC Generator',
@@ -104,12 +112,20 @@ Object.assign(T.en, {
   fac_pilot: 'Pilots', fac_mechanic: 'Mechanics', fac_medic: 'Medics',
   fac_scout: 'Scouts', fac_official: 'Officials',
   npc_gen: 'Generate what?', npc_gen_people: 'People', npc_gen_ships: 'Ships',
-  npc_ship_size: 'Ship class',
+  npc_troop: 'Compose the group',
+  npc_troop_add: '+ Add role',
+  npc_troop_hint: 'One role per row with its own count – e.g. 6 stormtroopers and 2 officers. Total: {n} NPCs. Species mix and experience level apply to the whole group.',
+  npc_fleet: 'Compose the flight',
+  npc_fleet_hint: 'Count per class; 0 leaves the class out. Total: {n} ships. “Identical” applies within its own class only – 4 identical starfighters and 2 identical transports are two different models.',
+  npc_fleet_avail: '{n} templates',
+  npc_fleet_none: 'no template in this era',
+  npc_same_ship_on: 'identical',
+  npc_ships_nopool: 'No templates match this combination of classes and era. Widen the era or add a class.',
   npc_size_starfighter: 'Starfighter', npc_size_transport: 'Space transport', npc_size_capital: 'Capital',
   npc_ship_crew: 'Crew (piloting/gunnery)', npc_ship_extra: 'extra weapons',
-  npc_ships_empty: 'No ships yet. Pick class and count, then “Generate group”.',
+  npc_ships_empty: 'No ships yet. Set a count per class, then “Generate group”.',
   npc_add_ship: '+ Add ship',
-  npc_ship_hint: 'Random ships of the chosen class from the catalog; crew dice and extra weapons scale with the experience level.',
+  npc_ship_hint: 'Random ships of the chosen classes and era from the catalog; crew dice and extra weapons scale with the experience level.',
 });
 
 /* ---------------- Spielwerte ---------------- */
@@ -386,6 +402,9 @@ function genNPC(speciesName, factionId, threatId) {
   return {
     name: npcName(speciesName),
     species: speciesName,
+    /* Die Rolle gehört zur Figur, nicht zur Gruppe – eine Truppe kann
+       Sturmtruppen UND Offiziere enthalten. */
+    faction: NPC_FACTIONS[factionId] ? factionId : 'imperial',
     attrs, skills, weapon,
     move: sp.move || 10,
     armor: fac.armor || 0,
@@ -400,7 +419,18 @@ function emptyDoc() {
     version: 1, kind: 'npc',
     info: { name: '' },
     setup: { count: 6, gen: 'people', mode: 'mixed', species: 'Human',
-             faction: 'imperial', threat: 'average', shipSize: 'transport' },
+             faction: 'imperial', threat: 'average',
+             /* Truppe aus mehreren Rollen: 6 Sturmtruppen + 2 Offiziere statt
+                einer einzigen Fraktion für die ganze Gruppe. */
+             troop: [{ faction: 'imperial', n: 6 }],
+             /* Mehrere Klassen gleichzeitig: eine Patrouille aus Jägern UND
+                einem Transporter ist der Normalfall, nicht die Ausnahme. */
+             /* Anzahl UND „identisch“ getrennt je Klasse: eine Patrouille
+                aus 4 gleichen Jägern und 2 gleichen Transportern ist der
+                Normalfall, nicht 6 Maschinen desselben Modells. */
+             shipCounts: { starfighter: 0, transport: 6, capital: 0 },
+             shipSame:   { starfighter: false, transport: false, capital: false },
+             shipEra: '' },
     npcs: [], ships: [],
   };
 }
@@ -410,6 +440,34 @@ function migrate(obj) {
   if (obj && typeof obj === 'object') {
     if (obj.info) d.info.name = obj.info.name || '';
     if (obj.setup) Object.assign(d.setup, obj.setup);
+    /* Bis 3.8.0.2 gab es genau EINE Klasse (setup.shipSize) und eine
+       Gesamtzahl (setup.count). Die Prüfung muss am EINGANGSOBJEKT hängen:
+       d.setup ist durch emptyDoc() immer gefüllt, ein Test darauf würde den
+       alten Wert stillschweigend verwerfen. */
+    const alt = obj.setup || {};
+    /* Bis 3.8.0.2 galt EINE Fraktion (setup.faction) für setup.count Personen. */
+    if (!Array.isArray(alt.troop) || !alt.troop.length) {
+      d.setup.troop = [{ faction: FACTION_ORDER.includes(alt.faction) ? alt.faction : 'imperial',
+                         n: Math.max(1, Math.min(30, +alt.count || 6)) }];
+    }
+    d.setup.troop = d.setup.troop
+      .filter(r => r && FACTION_ORDER.includes(r.faction))
+      .map(r => ({ faction: r.faction, n: Math.max(0, Math.min(30, +r.n || 0)) }));
+    if (!d.setup.troop.length) d.setup.troop = [{ faction: 'imperial', n: 6 }];
+    if (!alt.shipCounts) {
+      const k = SHIP_SIZES.includes(alt.shipSize) ? alt.shipSize : 'transport';
+      d.setup.shipCounts = { starfighter: 0, transport: 0, capital: 0 };
+      d.setup.shipCounts[k] = Math.max(1, Math.min(30, +alt.count || 6));
+    }
+    /* Nur bekannte Klassen, nur gültige Zahlen – und nie alles auf null. */
+    SHIP_SIZES.forEach(k => {
+      d.setup.shipCounts[k] = Math.max(0, Math.min(30, +d.setup.shipCounts[k] || 0));
+      d.setup.shipSame[k] = !!d.setup.shipSame[k];
+    });
+    if (!shipTotal(d.setup)) d.setup.shipCounts.transport = 6;
+    delete d.setup.shipSize;
+    delete d.setup.shipSizes;
+    delete d.setup.sameShip;
     if (Array.isArray(obj.npcs)) d.npcs = obj.npcs;
     if (Array.isArray(obj.ships)) d.ships = obj.ships;
     if (obj._cloudId) d._cloudId = obj._cloudId;
@@ -418,6 +476,7 @@ function migrate(obj) {
 }
 
 /* ---------------- NPC-Schiffe ---------------- */
+const SHIP_SIZES = ['starfighter', 'transport', 'capital'];
 /* Ordnet einen Katalogeintrag einer Größenkategorie zu. */
 function npcShipCat(s) {
   const scale = s.scale, skill = (s.skill || '').toLowerCase();
@@ -428,36 +487,88 @@ function npcShipCat(s) {
 }
 /* Crew-Würfel (Piloting/Gunnery, in Pips) je Bedrohungsstufe. */
 const NPC_SHIP_CREW = { green: 9, average: 12, veteran: 15, elite: 21 };
-function genShips(size, threat, n) {
-  const pool = (typeof PDF_SHIPS !== 'undefined' ? PDF_SHIPS : []).filter(x => npcShipCat(x) === size);
-  if (!pool.length) return [];
+/* Schiffs-Pool nach Klassen und Ära. Ohne Ära-Wahl zählt alles, auch die
+   72 Einträge ohne Ära-Angabe – die sonst grundlos unter den Tisch fielen. */
+/* ship.js hat eine eigene eraOptions() – npc.html lädt ship.js nicht, die
+   era_*-Texte stehen aber in genshared.js und gelten hier genauso. */
+function npcEraOptions(selected) {
+  const list = (typeof PDF_ERAS !== 'undefined') ? PDF_ERAS : [];
+  return [`<option value="">${t('era_all')}</option>`].concat(
+    list.map(e => `<option ${selected === e ? 'selected' : ''} value="${e}">${t('era_' + e.replace('-', '_'))}</option>`)
+  ).join('');
+}
+function shipPool(sizes, era) {
+  const want = (sizes && sizes.length) ? sizes : SHIP_SIZES;
+  return (typeof PDF_SHIPS !== 'undefined' ? PDF_SHIPS : [])
+    .filter(x => want.indexOf(npcShipCat(x)) >= 0 && (!era || x.era === era));
+}
+function shipEntry(src, crewPips, extra) {
+  return {
+    name: src.name, craft: src.craft || '', scale: src.scale || '',
+    hull: src.hull || '', shields: src.shields || '', maneuver: src.maneuver || '',
+    space: src.space || '', hyper: src.hyper || '',
+    weapons: (src.weapons || []).map(w => (w && (w.name || w)) || '').filter(Boolean).slice(0, 6),
+    crewPips, extra,
+  };
+}
+function troopTotal(s) {
+  return (s.troop || []).reduce((a, r) => a + (+r.n || 0), 0);
+}
+function shipTotal(s) {
+  return SHIP_SIZES.reduce((a, k) => a + (+((s.shipCounts || {})[k]) || 0), 0);
+}
+/* Baut die Gruppe klassenweise: jede Klasse hat ihre eigene Anzahl und ihr
+   eigenes „identisch“. Bei identisch wird das Modell (samt Besatzung und
+   Zusatzbewaffnung) EINMAL für diese Klasse gezogen. */
+function genShips(setup) {
+  const threat = setup.threat, era = setup.shipEra;
   const th = NPC_THREAT[threat] || NPC_THREAT.average;
-  const crew = NPC_SHIP_CREW[threat] || 12;
+  const base = NPC_SHIP_CREW[threat] || 12;
+  const crewRoll = () => base + rngRange(0, th.skillMax);
+  const extraRoll = () => (threat === 'veteran' || threat === 'elite') ? rngRange(1, 2) : 0;
   const out = [];
-  for (let k = 0; k < n; k++) {
-    const src = rngPick(pool);
-    out.push({
-      name: src.name, craft: src.craft || '', scale: src.scale || '',
-      hull: src.hull || '', shields: src.shields || '', maneuver: src.maneuver || '',
-      space: src.space || '', hyper: src.hyper || '',
-      weapons: (src.weapons || []).map(w => (w && (w.name || w)) || '').filter(Boolean).slice(0, 6),
-      crewPips: crew + rngRange(0, th.skillMax),
-      extra: (threat === 'veteran' || threat === 'elite') ? rngRange(1, 2) : 0,
-    });
-  }
+  SHIP_SIZES.forEach(k => {
+    const n = Math.max(0, Math.min(30, +((setup.shipCounts || {})[k]) || 0));
+    if (!n) return;
+    const pool = shipPool([k], era);
+    if (!pool.length) return;                  // Klasse in dieser Ära leer
+    if ((setup.shipSame || {})[k]) {
+      const src = rngPick(pool), c = crewRoll(), e = extraRoll();
+      for (let i = 0; i < n; i++) out.push(shipEntry(src, c, e));
+    } else {
+      for (let i = 0; i < n; i++) out.push(shipEntry(rngPick(pool), crewRoll(), extraRoll()));
+    }
+  });
   return out;
 }
-function genOneShip() { return genShips(C.setup.shipSize, C.setup.threat, 1)[0]; }
+/* Einzelnes Schiff nachziehen (+ / Neu würfeln). Gezogen wird aus den
+   Klassen, die überhaupt angefordert sind; „identisch“ greift hier bewusst
+   NICHT – wer eine Karte neu würfelt, will Abwechslung. */
+function genOneShip() {
+  const s = C.setup;
+  const active = SHIP_SIZES.filter(k => +((s.shipCounts || {})[k]) > 0);
+  const pool = shipPool(active.length ? active : SHIP_SIZES, s.shipEra);
+  if (!pool.length) return null;
+  const th = NPC_THREAT[s.threat] || NPC_THREAT.average;
+  const base = NPC_SHIP_CREW[s.threat] || 12;
+  return shipEntry(rngPick(pool), base + rngRange(0, th.skillMax),
+                   (s.threat === 'veteran' || s.threat === 'elite') ? rngRange(1, 2) : 0);
+}
 
 function generateGroup() {
   const s = C.setup;
   const n = Math.max(1, Math.min(30, +s.count || 1));
-  s.count = n;
+  s.count = n;   /* nur noch Rückfall für Altstände; die Zeilen zählen */
   if (s.gen === 'ships') {
-    C.ships = genShips(s.shipSize, s.threat, n);
+    C.ships = genShips(s);
   } else {
-    const speciesList = buildSpeciesList(n, s.mode, s.species);
-    C.npcs = speciesList.map(sp => genNPC(sp, s.faction, s.threat));
+    /* Die Spezies-Verteilung gilt für die GESAMTE Truppe (sonst bekäme jede
+       Rolle ihre eigene Mensch-Mehrheit), die Fraktion dagegen zeilenweise. */
+    const roles = [];
+    s.troop.forEach(r => { for (let i = 0; i < r.n; i++) roles.push(r.faction); });
+    if (!roles.length) roles.push(s.troop[0] ? s.troop[0].faction : 'imperial');
+    const speciesList = buildSpeciesList(roles.length, s.mode, s.species);
+    C.npcs = speciesList.map((sp, i) => genNPC(sp, roles[i], s.threat));
   }
   autosave();
 }
@@ -510,7 +621,7 @@ function npcCard(npc, i, editable) {
       ${editable
         ? `<input type="text" class="npc-name-in" data-npcname="${i}" value="${esc(npc.name)}">`
         : `<span class="npc-name">${esc(npc.name)}</span>`}
-      <span class="npc-sub">${esc(npc.species)} · ${t('fac_' + C.setup.faction)}</span>
+      <span class="npc-sub">${esc(npc.species)} · ${t('fac_' + (npc.faction || C.setup.faction))}</span>
       ${editable ? `<span class="npc-actions">
         <button class="mini" data-act="reroll" data-idx="${i}">${t('npc_reroll')}</button>
         <button class="mini danger" data-act="removeNpc" data-idx="${i}">×</button></span>` : ''}
@@ -536,7 +647,7 @@ function renderTab(tab) {
   const ships = s.gen === 'ships';
   const list = ships
     ? (C.ships.length ? `<div class="npc-grid">${C.ships.map((sh, i) => shipCard(sh, i, true)).join('')}</div>`
-                      : `<p class="hint">${t('npc_ships_empty')}</p>`)
+                      : `<p class="hint">${t(shipPool(SHIP_SIZES, s.shipEra).length ? 'npc_ships_empty' : 'npc_ships_nopool')}</p>`)
     : (C.npcs.length ? `<div class="npc-grid">${C.npcs.map((n, i) => npcCard(n, i, true)).join('')}</div>`
                      : `<p class="hint">${t('npc_empty')}</p>`);
   const threatSel = `<div><label>${t('npc_threat')}</label>
@@ -556,16 +667,34 @@ function renderTab(tab) {
             <option value="people" ${!ships ? 'selected' : ''}>${t('npc_gen_people')}</option>
             <option value="ships" ${ships ? 'selected' : ''}>${t('npc_gen_ships')}</option>
           </select></div>
-        <div><label>${t('npc_count')}</label>${inputN('setup.count', s.count, 'min="1" max="30"')}
-          <span class="hint">${t('npc_count_hint')}</span></div>
         ${ships ? `
-        <div><label>${t('npc_ship_size')}</label>
-          <select data-bind="setup.shipSize">
-            <option value="starfighter" ${s.shipSize === 'starfighter' ? 'selected' : ''}>${t('npc_size_starfighter')}</option>
-            <option value="transport" ${s.shipSize === 'transport' ? 'selected' : ''}>${t('npc_size_transport')}</option>
-            <option value="capital" ${s.shipSize === 'capital' ? 'selected' : ''}>${t('npc_size_capital')}</option>
-          </select></div>
+        <div class="npc-fleet"><label>${t('npc_fleet')}</label>
+          <div class="npc-fleet-rows">${SHIP_SIZES.map(k => {
+            const avail = shipPool([k], s.shipEra).length;
+            return `<div class="npc-fleet-row">
+              <span class="npc-fleet-name">${t('npc_size_' + k)}</span>
+              <input type="number" min="0" max="30" data-shipcount="${k}"
+                     value="${+s.shipCounts[k] || 0}" ${avail ? '' : 'disabled'}>
+              <label class="npc-size-opt"><input type="checkbox" data-shipsame="${k}"
+                ${s.shipSame[k] ? 'checked' : ''} ${avail ? '' : 'disabled'}> ${t('npc_same_ship_on')}</label>
+              <span class="npc-fleet-avail">${t(avail ? 'npc_fleet_avail' : 'npc_fleet_none').replace('{n}', avail)}</span>
+            </div>`;
+          }).join('')}</div>
+          <span class="hint">${t('npc_fleet_hint').replace('{n}', shipTotal(s))}</span></div>
+        <div><label>${t('era_label')}</label>
+          <select data-bind="setup.shipEra" data-rerender="1">${npcEraOptions(s.shipEra)}</select></div>
         ${threatSel}` : `
+        <div class="npc-fleet"><label>${t('npc_troop')}</label>
+          <div class="npc-fleet-rows">${s.troop.map((r, i) => `
+            <div class="npc-fleet-row">
+              <select class="npc-troop-fac" data-troopfac="${i}">${factionOpts(r.faction)}</select>
+              <input type="number" min="0" max="30" data-troopn="${i}" value="${+r.n || 0}">
+              ${s.troop.length > 1
+                ? `<button class="mini" data-act="delTroop" data-idx="${i}">${t('npc_remove')}</button>` : ''}
+            </div>`).join('')}
+          </div>
+          <p><button class="mini" data-act="addTroop">${t('npc_troop_add')}</button></p>
+          <span class="hint">${t('npc_troop_hint').replace('{n}', troopTotal(s))}</span></div>
         <div><label>${t('npc_species_mode')}</label>
           <select data-bind="setup.mode" data-rerender="1">
             <option value="human" ${s.mode === 'human' ? 'selected' : ''}>${t('npc_mode_human')}</option>
@@ -576,8 +705,6 @@ function renderTab(tab) {
         ${s.mode === 'single'
           ? `<div><label>${t('npc_species_pick')}</label>
              <select data-bind="setup.species">${speciesOpts(s.species)}</select></div>` : ''}
-        <div><label>${t('npc_faction')}</label>
-          <select data-bind="setup.faction" data-rerender="1">${factionOpts(s.faction)}</select></div>
         ${threatSel}`}
       </div>
       <p class="hint">${ships ? t('npc_ship_hint') : t('npc_mixed_note')}</p>
@@ -595,17 +722,32 @@ function pageAction(el) {
   if (act === 'generate') { generateGroup(); renderTab('setup'); return; }
   if (act === 'addNpc') {
     const sp = buildSpeciesList(1, C.setup.mode, C.setup.species)[0];
-    C.npcs.push(genNPC(sp, C.setup.faction, C.setup.threat));
+    const last = C.setup.troop[C.setup.troop.length - 1];
+    C.npcs.push(genNPC(sp, (last && last.faction) || 'imperial', C.setup.threat));
     autosave(); renderTab('setup'); return;
   }
   if (act === 'reroll') {
     const i = +el.dataset.idx;
-    if (C.npcs[i]) { C.npcs[i] = genNPC(C.npcs[i].species, C.setup.faction, C.setup.threat); autosave(); renderTab('setup'); }
+    if (C.npcs[i]) {
+      /* Die Fraktion steckt in der Karte – sonst würde eine neu gewürfelte
+         Offizierskarte still zur Sturmtruppe. */
+      const fac = C.npcs[i].faction || (C.setup.troop[0] || {}).faction || 'imperial';
+      C.npcs[i] = genNPC(C.npcs[i].species, fac, C.setup.threat); autosave(); renderTab('setup');
+    }
     return;
   }
   if (act === 'removeNpc') {
     const i = +el.dataset.idx;
     C.npcs.splice(i, 1); autosave(); renderTab('setup'); return;
+  }
+  if (act === 'addTroop') {
+    C.setup.troop.push({ faction: 'imperial', n: 2 });
+    autosave(); renderTab('setup'); return;
+  }
+  if (act === 'delTroop') {
+    const i = +el.dataset.idx;
+    if (C.setup.troop.length > 1) C.setup.troop.splice(i, 1);
+    autosave(); renderTab('setup'); return;
   }
   if (act === 'addShip') { const sh = genOneShip(); if (sh) C.ships.push(sh); autosave(); renderTab('setup'); return; }
   if (act === 'rerollShip') {
@@ -627,6 +769,32 @@ function pageChange(el) {
     if (C.ships[i]) { C.ships[i].name = el.value; autosave(); }
     return true;
   }
+  if (el.dataset.troopfac != null) {
+    const r = C.setup.troop[+el.dataset.troopfac];
+    if (r && FACTION_ORDER.includes(el.value)) { r.faction = el.value; autosave(); renderTab('setup'); }
+    return true;
+  }
+  if (el.dataset.troopn != null) {
+    const r = C.setup.troop[+el.dataset.troopn];
+    if (r) { r.n = Math.max(0, Math.min(30, +el.value || 0)); el.value = r.n; autosave(); renderTab('setup'); }
+    return true;
+  }
+  /* Anzahl je Schiffsklasse. 0 heißt „diese Klasse nicht“; nur wenn alle
+     drei auf 0 stünden, gäbe es nichts zu erzeugen – das fängt der Knopf ab. */
+  if (el.dataset.shipcount != null) {
+    const k = el.dataset.shipcount;
+    if (SHIP_SIZES.indexOf(k) >= 0) {
+      C.setup.shipCounts[k] = Math.max(0, Math.min(30, +el.value || 0));
+      el.value = C.setup.shipCounts[k];
+      autosave(); renderTab('setup');
+    }
+    return true;
+  }
+  if (el.dataset.shipsame != null) {
+    const k = el.dataset.shipsame;
+    if (SHIP_SIZES.indexOf(k) >= 0) { C.setup.shipSame[k] = !!el.checked; autosave(); }
+    return true;
+  }
   return false;
 }
 
@@ -637,8 +805,11 @@ function renderSheet() {
     ? C.ships.map((sh, i) => shipCard(sh, i, false)).join('')
     : C.npcs.map((n, i) => npcCard(n, i, false)).join('');
   const subtitle = ships
-    ? `${t('npc_size_' + C.setup.shipSize)} · ${C.ships.length}`
-    : `${t('fac_' + C.setup.faction)} · ${C.npcs.length} NPCs`;
+    ? `${SHIP_SIZES.filter(k => +C.setup.shipCounts[k] > 0)
+           .map(k => t('npc_size_' + k) + ' ' + C.setup.shipCounts[k]).join(' · ')}${
+         C.setup.shipEra ? ' · ' + t('era_' + C.setup.shipEra.replace('-', '_')) : ''} · ${C.ships.length}`
+    : `${C.setup.troop.filter(r => r.n > 0).map(r => t('fac_' + r.faction) + ' ' + r.n).join(' · ')
+        } · ${C.npcs.length} NPCs`;
   const html = `
   <div class="sheet-page npc-sheet">
     <div class="sp-header"><div class="sw">STAR WARS</div><div class="st">${t('sheet_title_npc')}</div></div>
