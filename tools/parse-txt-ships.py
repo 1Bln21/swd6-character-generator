@@ -401,7 +401,7 @@ def main():
     for x in ships:
         core.setdefault(core_name(x["name"]), []).append(x)
 
-    parsed, skipped, dupes, near = [], [], [], []
+    parsed, skipped, dupes, near, replaced = [], [], [], [], []
     seen, seen_core = set(), set()
     for b in blocks:
         e, warn = parse_block(b)
@@ -421,6 +421,38 @@ def main():
             # Namen. Echte Varianten (T-65B vs. T-65C-A2) haben verschiedene
             # Kerne und laufen hier gar nicht auf.
             near.append((e["name"], ", ".join(x["name"] for x in core[ck][:2])))
+            if "--replace-near" in sys.argv:
+                # Die Textdatei ist handverlesen, der Katalogeintrag stammt aus
+                # der Texterkennung. Werte also ersetzen - aber den EINGETRAGENEN
+                # NAMEN behalten, damit die Vorlage dort bleibt, wo sie gesucht
+                # wird, und die Herkunftsangabe des Buches nicht verlorengeht.
+                tgt = core[ck][0]
+                # Normalerweise gewinnt der eingetragene Name - dort wird die
+                # Vorlage gesucht. Ist er aber selbst abgeschnitten ("Nu Attack",
+                # "Blade-32"), gewinnt der Name aus der Textdatei ohne den
+                # Herstellervorspann. Bedingung: er enthaelt jedes Wort des alten
+                # und hat mehr davon, sonst bleibt es beim alten.
+                cand = e["name"]
+                for _ in range(2):        # "Incom/Subpro ..." nennt zwei Hersteller
+                    cand = re.sub(r"^(?:" + MAKERS + r")\b[\s'/-]*", "", cand, flags=re.I).strip()
+                words = lambda x: set(w for w in re.split(r"[^A-Za-z0-9]+", x.lower()) if w)
+                keep_name = tgt["name"]
+                if cand and words(keep_name) < words(cand):
+                    keep_name = cand
+                keep_book = tgt["book"]
+                keep_era = tgt.get("era") or e.get("era", "")
+                tgt.clear()
+                tgt.update(e)
+                tgt["name"] = keep_name
+                tgt["book"] = keep_book
+                tgt["era"] = keep_era
+                tgt["notes"] = ("\n".join(x for x in [
+                    e.get("notes", ""),
+                    "Werte 2026 aus der Sammlung des Betreibers ersetzt (vorher aus der "
+                    "Texterkennung des Sammelbands); dort gefuehrt als: " + e["name"],
+                ] if x)).strip()
+                replaced.append((e["name"], keep_name))
+                continue
             if "--include-near" not in sys.argv:
                 continue
         seen.add(key)
@@ -433,9 +465,15 @@ def main():
         print("\n-- Dubletten (nicht eingefuegt) --")
         for n, why in dupes:
             print("   %-52s %s" % (n[:52], why))
-    if near:
-        print("\n-- AEHNLICH zu vorhandenen Eintraegen (NICHT eingefuegt, --include-near erzwingt es) --")
+    if replaced:
+        print("\n-- vorhandene Eintraege ERSETZT (Name und Buchangabe bleiben) --")
+        for src_n, tgt_n in replaced:
+            print("   %-52s -> %s" % (src_n[:52], tgt_n))
+    if near and not replaced:
+        print("\n-- AEHNLICH zu vorhandenen Eintraegen (NICHT eingefuegt) --")
         print("   Varianten (X-Wing, Y-Wing, Z-95 ...) sind gewollt; echte Dubletten nicht.")
+        print("   --replace-near ersetzt die Werte des vorhandenen Eintrags,")
+        print("   --include-near legt sie zusaetzlich als zweiten Eintrag an.")
         for n, other in near:
             print("   %-52s ~ %s" % (n[:52], other))
     warned = [(e["name"], w) for e, w in parsed if w]
@@ -450,6 +488,9 @@ def main():
 
     if not write:
         print("\nTrockenlauf - nichts geschrieben. Mit --write einpflegen.")
+        return 0
+    if not parsed and not replaced:
+        print("\nNichts zu tun.")
         return 0
 
     names = [x["name"] for x in ships]

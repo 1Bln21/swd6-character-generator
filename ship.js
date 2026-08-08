@@ -19,7 +19,7 @@ Object.assign(T.de, {
   tab_ship: 'Schiff', tab_weapons: 'Waffen', tab_crew: 'Sensoren & Crew',
   tab_mods: 'Umbauten', tab_sheet: 'Schiffsbogen',
   sh_template: 'Vorlage aus den Regelwerken', sh_template_pick: '– Schiff/Fahrzeug wählen –',
-  sh_template_hint: 'Über 850 Schiffe und Fahrzeuge aus den Fan-Sammelbänden. Auswählen füllt alle Grundwerte samt Bewaffnung – danach nach Belieben anpassen.',
+  sh_template_hint: 'Über 1.250 Schiffe und Fahrzeuge aus den Fan-Sammelbänden. Auswählen füllt alle Grundwerte samt Bewaffnung – danach nach Belieben anpassen.',
   sh_template_apply: 'Vorlage übernehmen', sh_template_search: 'Suchen',
   sh_template_ships: 'Raumschiffe', sh_template_vehicles: 'Fahrzeuge',
   sh_template_applied: 'Vorlage übernommen ✔',
@@ -154,7 +154,7 @@ Object.assign(T.en, {
   tab_ship: 'Ship', tab_weapons: 'Weapons', tab_crew: 'Sensors & Crew',
   tab_mods: 'Modifications', tab_sheet: 'Ship Sheet',
   sh_template: 'Template from the sourcebooks', sh_template_pick: '– choose ship/vehicle –',
-  sh_template_hint: 'Over 850 ships and vehicles from the fan compilations. Selecting one fills in all base stats including weapons – adjust freely afterwards.',
+  sh_template_hint: 'Over 1,250 ships and vehicles from the fan compilations. Selecting one fills in all base stats including weapons – adjust freely afterwards.',
   sh_template_apply: 'Apply template', sh_template_search: 'Search',
   sh_template_ships: 'Starships', sh_template_vehicles: 'Vehicles',
   sh_template_applied: 'Template applied ✔',
@@ -752,10 +752,12 @@ function applyTemplate() {
   if (hyperOk) i.hyper = src.hyper;
   else if (noHyper) i.hyper = 'None';                 // Vorlage nennt keinen → keiner (nicht der x2-Default)
   else varied.push(t('sh_hyper') + ': ' + src.hyper);
-  if (src.hyperBackup) {
-    if (SHIP_DATA.hyperMults.includes(src.hyperBackup)) i.hyperBackup = src.hyperBackup;
-    else varied.push(t('sh_hyperbackup') + ': ' + src.hyperBackup);
-  }
+  /* Nennt die Vorlage keinen Backup-Antrieb, muss der Wert auf "None" -
+     ohne dieses else behielt das neu geladene Schiff den Backup-Antrieb des
+     zuvor geladenen (Container Transport nach BFF-1 zeigte dessen x18). */
+  if (!src.hyperBackup) i.hyperBackup = 'None';
+  else if (SHIP_DATA.hyperMults.includes(src.hyperBackup)) i.hyperBackup = src.hyperBackup;
+  else { i.hyperBackup = 'None'; varied.push(t('sh_hyperbackup') + ': ' + src.hyperBackup); }
   i.nav = /yes/i.test(src.nav || '');
   i.hull = src.hullPips || 0;
   i.shields = src.shieldPips || 0;

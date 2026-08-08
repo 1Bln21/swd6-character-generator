@@ -12861,7 +12861,7 @@ const PDF_DROIDS = [
   "degreeDerived": true
  },
  {
-  "name": "ary Load Lifter",
+  "name": "Binary Load Lifter",
   "type": "Cybot Galactica CLL-6 Binary Load Lifter Worker Droid 1D",
   "attrs": {
    "dex": 3,

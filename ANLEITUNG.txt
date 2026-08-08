@@ -24,7 +24,7 @@ SPEZIES
   Spezies genauso stark sind wie die bisherigen.
 
 WAFFEN FUER SCHIFFE
-  Der Reiter "Waffen" bietet oben einen Katalog: 838 Waffentypen,
+  Der Reiter "Waffen" bietet oben einen Katalog: 892 Waffentypen,
   gesammelt aus den Schiffsbeschreibungen der Sammelbaende, sowie die
   Waffenuebersicht aus "Galaxy Guide 6" (mit Preis und Gewicht, ganz
   oben in der Liste). Jeder Eintrag nennt seine Groessenklasse -
