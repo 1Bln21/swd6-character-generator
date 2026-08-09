@@ -130,7 +130,7 @@ VORLAGEN AUS DEN REGELWERKEN
     Bestiarien (Banthas, Akk-Hunde) – die gehören nicht zu den Droiden
     und sind jetzt draußen. Benannte Droiden wie R2-D2 und C-3PO
     bleiben natürlich.
-  * Waffen und Ausrüstung: durchsuchbarer Zusatzkatalog mit 492
+  * Waffen und Ausrüstung: durchsuchbarer Zusatzkatalog mit 491
     Waffen und 563 Ausrüstungsgegenständen (Tab "Waffen" bzw.
     "Ausrüstung", Suchbegriff eingeben und übernehmen).
   * NEU: Jeder Eintrag nennt sein Quellbuch und lässt sich über das
