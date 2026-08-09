@@ -26,7 +26,7 @@ if (typeof skillName !== 'function') {
 const T = {
 de: {
   title: 'Star Wars D6 – Charaktergenerator (2nd Edition)',
-  subtitle: 'Charaktergenerator · 2nd Edition (Revised & Expanded)',
+  subtitle: 'Charaktergenerator · 2nd Edition (Revised & Expanded) / REUP',
   footer: 'Basiert auf „Character Generator v2-5“ (Excel) · Star Wars: The Roleplaying Game, 2nd Edition – West End Games D6-System',
   options: 'Optionen', opt_language: 'Sprache / Language',
   opt_theme: 'Darstellung', theme_dark: 'Dunkel', theme_light: 'Hell',
@@ -203,7 +203,7 @@ de: {
 },
 en: {
   title: 'Star Wars D6 – Character Generator (2nd Edition)',
-  subtitle: 'Character Generator · 2nd Edition (Revised & Expanded)',
+  subtitle: 'Character Generator · 2nd Edition (Revised & Expanded) / REUP',
   footer: 'Based on "Character Generator v2-5" (Excel) · Star Wars: The Roleplaying Game, 2nd Edition – West End Games D6 System',
   options: 'Options', opt_language: 'Sprache / Language',
   opt_theme: 'Theme', theme_dark: 'Dark', theme_light: 'Light',
@@ -436,7 +436,25 @@ const FORCE = [
 ];
 const ADV_SKILLS = [
   { name: '(A) Medicine', attr: 'tec', req: 'First Aid 5D' },
+  /* REUP führt Podrennen als erweiterte Fertigkeit (S. 46). Die Regeln dafür
+     sind dieselben wie bei Medicine: Start bei 1D, nur mit erfüllter
+     Voraussetzung steigerbar. */
+  { name: '(A) Pod Racer Operation', attr: 'mec', req: 'Repulsorlift Op. 5D' },
 ];
+/* "First Aid 5D" / "Repulsorlift Op. 5D" -> ist die Fertigkeit hoch genug?
+   Ohne erkennbare Angabe gilt die Voraussetzung als erfüllt: eine unlesbare
+   Regel darf den Spieler nicht aussperren. */
+function advReqMet(req) {
+  const m = /^(.*?)\s+(\d+)D(?:\+(\d))?\s*$/.exec(String(req || '').trim());
+  if (!m) return true;
+  const name = m[1].trim();
+  const noetig = (+m[2]) * 3 + (+(m[3] || 0));
+  for (const attr in DATA.skills) {
+    if (DATA.skills[attr].indexOf(name) >= 0) return skillTotal(skillKey(attr, name)) >= noetig;
+  }
+  return true;                        // Fertigkeit unbekannt -> nicht blockieren
+}
+
 const LS_CURRENT = 'swd6_current';
 const LS_CHARS = 'swd6_chars';
 
@@ -1273,11 +1291,13 @@ function viewSkills() {
       const key = skillKey(sk.attr, sk.name);
       const e = C.skills[key] || { c: 0, cp: 0 };
       const total = skillTotal(key);
-      let reqOk = true;
-      if (sk.name === '(A) Medicine') reqOk = skillTotal(skillKey('tec', 'First Aid')) >= 15;
+      /* Die Voraussetzung aus dem req-Feld lesen statt sie je Fertigkeit fest
+         zu verdrahten - sonst bliebe jede weitere erweiterte Fertigkeit
+         ungeprüft (und genau das war der Fall, als Podrennen dazukam). */
+      const reqOk = advReqMet(sk.req);
       const extraIdx = C.extraSkills.findIndex(x => x.adv && x.name === sk.name);
       return `<div class="skill-row">
-        <span class="sname">${esc(sk.name)} <span class="tag">${t('requirement')}: ${esc(sk.req || '–')}</span>
+        <span class="sname">${esc(skillName(sk.name))} <span class="tag">${t('requirement')}: ${esc(sk.req || '–')}</span>
           ${!reqOk ? `<span class="warn"> ${t('req_missing')}</span>` : ''}</span>
         ${stepper('skill', `data-key="${esc(key)}"`, e.c > 0, left > 0 && e.c < 6)}
         <span class="dice plain">${fmtD(total)}</span>

@@ -12,6 +12,28 @@ DREI GENERATOREN
 Oben links wechselt man zwischen ihnen. Anmeldung, Sprache und die
 Rechtsangaben gelten für alle drei Seiten gemeinsam.
 
+REGELSTAND: R&E UND REUP
+  Die Erschaffung ist in der 2nd Edition Revised & Expanded und in REUP
+  (Revised, Expanded, Updated, Womp Rat Press 2015) identisch: 18D
+  Attributwuerfel (12D Spezies-Basis plus 6D), 7D Fertigkeitswuerfel,
+  hoechstens +2D auf eine Fertigkeit, 1D kauft drei Spezialisierungen,
+  fuenf Charakterpunkte zum Start. Auch die Spezieswerte sind Pip fuer
+  Pip dieselben, soweit R&E die Spezies ueberhaupt fuehrt.
+
+  REUP ergaenzt nur - und diese Ergaenzungen sind eingebaut:
+    * Fertigkeiten: Akrobatik, Artillerie, Flammenwerfer (Geschick),
+      Wasserfahrzeuge und Tauchboote (Mechanik), Wasserfahrzeug-
+      Reparatur (Technik) sowie Podrennen als erweiterte Fertigkeit
+      (setzt Repulsoraggregate 5D voraus).
+    * Machtkraefte: Direction Sense, Force Jump, Greater Force Shield,
+      Kinetic Combat, Lifemerge, Merge Senses, Predict Natural Disaster,
+      Redirect Energy, Up the Walls. Ihre Seitenangabe nennt REUP.
+
+  Wer streng nach R&E spielt, laesst die Eintraege einfach stehen - sie
+  draengen sich nicht auf. Wer nach REUP spielt, findet sie an Ort und
+  Stelle. Ein Umschalten ist nicht noetig, weil sich keine Rechenregel
+  zwischen den Buechern unterscheidet.
+
 SPEZIES
   Das Dropdown auf dem Charakter-Tab fuehrt zuerst die 60 Spezies aus
   der Excel-Vorlage, darunter unter "Weitere Spezies aus den
@@ -494,7 +516,7 @@ INHALT
 ------
 60 Spezies + 9 Near-Human-Varianten (inkl. Trianii m/w und eigener
 Spezies-Baukasten), alle Fertigkeiten der 6 Attribute, Advanced
-Skills, 82 Machtkräfte mit Voraussetzungen und Seitenangaben,
+Skills, 91 Machtkräfte mit Voraussetzungen und Seitenangaben,
 Ausrüstungs-, Rüstungs-, Waffen- und Sprengstoff-Kataloge sowie die
 komplette Lichtschwert-Werkstatt (Kristalle, Farben, Modifikationen).
 

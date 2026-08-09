@@ -2642,7 +2642,9 @@ const DATA = {
  },
  "skills": {
   "dex": [
+   "Acrobatics",
    "Archaic Guns",
+   "Artillery",
    "Blaster",
    "Blaster Artillery",
    "Bowcaster",
@@ -2650,6 +2652,7 @@ const DATA = {
    "Brawling Parry",
    "Dodge",
    "Firearms",
+   "Flamethrower",
    "Grenade",
    "Lightsaber",
    "Melee Combat",
@@ -2677,6 +2680,7 @@ const DATA = {
    "Willpower"
   ],
   "mec": [
+   "Aquatic Vehicle Op.",
    "Archaic Starship Pilot.",
    "Astrogation",
    "Beast Riding",
@@ -2695,6 +2699,7 @@ const DATA = {
    "Starfighter Piloting",
    "Starship Gunnery",
    "Starship Shields",
+   "Submersible Vehicle Op.",
    "Swoop Operation",
    "Walker Operation"
   ],
@@ -2718,6 +2723,7 @@ const DATA = {
    "Swimming"
   ],
   "tec": [
+   "Aquatic Vehicle Rep.",
    "Armor Repair",
    "Blaster Repair",
    "Capital Ship Repair",
@@ -2785,7 +2791,7 @@ const DATA = {
    "dark": "No"
   },
   {
-   "name": "Control / Escape",
+   "name": "Contort / Escape",
    "cat": "Control",
    "prereq": "Concentration, Control Pain, and Enhance Attribute",
    "page": "p. 41",
@@ -2821,6 +2827,15 @@ const DATA = {
    "dark": "No"
   },
   {
+   "name": "Direction Sense",
+   "cat": "Sense",
+   "prereq": "No Prerequisite",
+   "page": "REUP p. 159",
+   "diff": "Easy",
+   "kept": "Yes",
+   "dark": "No"
+  },
+  {
    "name": "Emptiness",
    "cat": "Control",
    "prereq": "Hibernation Trance",
@@ -2839,11 +2854,29 @@ const DATA = {
    "dark": "No"
   },
   {
+   "name": "Force Jump",
+   "cat": "Control & Alter",
+   "prereq": "Enhance Attribute, Telekinesis",
+   "page": "REUP p. 167",
+   "diff": "Easy",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
    "name": "Force of Will",
    "cat": "Control",
    "prereq": "No Prerequisite",
    "page": "p. 45",
    "diff": "Easy",
+   "kept": "Yes",
+   "dark": "No"
+  },
+  {
+   "name": "Greater Force Shield",
+   "cat": "Sense & Alter",
+   "prereq": "Absorb / Dissipate Energy, Concentration, Magnify Senses, Telekinesis, Lesser Force Shield",
+   "page": "REUP p. 168",
+   "diff": "Difficult / Very Difficult",
    "kept": "Yes",
    "dark": "No"
   },
@@ -2866,6 +2899,42 @@ const DATA = {
    "dark": "No"
   },
   {
+   "name": "Kinetic Combat",
+   "cat": "Alter",
+   "prereq": "Telekinesis",
+   "page": "REUP p. 163",
+   "diff": "Difficult",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Lifemerge",
+   "cat": "Control & Sense",
+   "prereq": "No Prerequisite",
+   "page": "REUP p. 165",
+   "diff": "Difficult",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Merge Senses",
+   "cat": "Sense",
+   "prereq": "Magnify Senses",
+   "page": "REUP p. 160",
+   "diff": "Moderate",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Predict Natural Disaster",
+   "cat": "Sense",
+   "prereq": "Danger Sense, Life Detection, Weather Sense, Magnify Senses",
+   "page": "REUP p. 160",
+   "diff": "Special",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
    "name": "Rage",
    "cat": "Control",
    "prereq": "Hibernation Trance",
@@ -2873,6 +2942,15 @@ const DATA = {
    "diff": "Difficult",
    "kept": "No",
    "dark": "Yes"
+  },
+  {
+   "name": "Redirect Energy",
+   "cat": "Control & Alter",
+   "prereq": "Absorb / Dissipate Energy",
+   "page": "REUP p. 168",
+   "diff": "Difficult / Very Difficult",
+   "kept": "No",
+   "dark": "No"
   },
   {
    "name": "Reduce Injury",
@@ -3052,6 +3130,15 @@ const DATA = {
    "page": "p. 52",
    "diff": "Mod. or Diff. +",
    "kept": "Yes",
+   "dark": "No"
+  },
+  {
+   "name": "Up the Walls",
+   "cat": "Control",
+   "prereq": "Enhance Attribute, Burst of Speed",
+   "page": "REUP p. 158",
+   "diff": "Difficult",
+   "kept": "No",
    "dark": "No"
   },
   {

@@ -4,6 +4,8 @@
 
 Three complete generators for **Star Wars: The Roleplaying Game (D6 system, 2nd Edition Revised & Expanded, West End Games)** as a web app — no installation, no build tools, just open it in a browser. Optionally with online accounts (username + password + MFA), cloud storage and sharing within your gaming group.
 
+**Works with both rulebooks.** Character creation is identical in *2nd Edition Revised & Expanded* and in *REUP* (Revised, Expanded, Updated, Womp Rat Press 2015): same 18D attribute dice, same 7D of starting skill dice, same species values. REUP only adds material, and that material is included here — its extra skills and Force powers are simply part of the lists. Build by either book; the sheet is valid at both tables.
+
 This project is an HTML port of the Excel workbooks by **Chance Gibboney** — see [credits](#credits--danksagung).
 
 | | |
@@ -24,8 +26,8 @@ Game masters can also run **game rounds**: invite players by code, let them subm
 **Characters**
 - **374 species + 9 near-human variants** with attribute limits, move, special abilities, story factors and page references — 60 from the original workbook plus 314 taken from the Alien Compendium, listed separately in the dropdown. Includes Trianii (m/f) and a builder for custom species
 - **Rules-based creation**: 18D attribute dice (species-dependent), 7D skills (max. +2D), Force skills from the attribute pool, Character Point advancement with automatic cost calculation
-- **All 84 skills**, advanced skills, specializations and custom skills
-- **82 Force powers** with prerequisites, difficulties and page references
+- **All 90 skills**, advanced skills, specializations and custom skills
+- **91 Force powers** with prerequisites, difficulties and page references
 - **Lightsaber workshop** — crystals, colors, modifications with damage calculation
 - **Custom species can be stored online** and then appear in the species dropdown for the whole group
 
@@ -49,7 +51,7 @@ Game masters can also run **game rounds**: invite players by code, let them subm
 - **Portraits**: import by file or drag & drop, resized automatically, printed on the sheet
 - **Save & load** in the browser (localStorage) plus JSON export/import
 - **Print / PDF export**: clean sheets via the browser's print dialog
-- **Bilingual**: English by default, German switchable in the ⚙ menu (the choice is remembered per browser) — including all 84 skill names, taken from the German edition ("Krieg der Sterne – Das Rollenspiel"). Characters stay interchangeable between languages because the data keeps the English names
+- **Bilingual**: English by default, German switchable in the ⚙ menu (the choice is remembered per browser) — including all 90 skill names, taken from the German edition ("Krieg der Sterne – Das Rollenspiel"). Characters stay interchangeable between languages because the data keeps the English names
 - **Extended catalogs from the sourcebooks**: 491 weapons and 563 pieces of equipment, searchable and filterable by era
 - **Online accounts** (optional, needs PHP hosting): registration, login, **MFA via authenticator app**, cloud storage and sharing with fellow players
 - **An easter egg has been hiding in the app for several versions now.** No hints here — happy hunting
@@ -181,11 +183,13 @@ Two scanned books are deliberately **not** included: *Stock Ships* and *Galaxy G
 
 Drei vollständige Generatoren für **Star Wars: Das Rollenspiel (D6-System, 2nd Edition Revised & Expanded, West End Games)** als Web-App – ohne Installation, ohne Build-Werkzeuge, direkt im Browser. Optional mit Online-Konten (Benutzername + Passwort + MFA), Cloud-Speicherung und Freigaben für die Spielrunde.
 
+**Passt zu beiden Regelwerken.** Die Charaktererschaffung ist in der *2nd Edition Revised & Expanded* und in *REUP* (Revised, Expanded, Updated, Womp Rat Press 2015) identisch: dieselben 18D Attributwürfel, dieselben 7D Fertigkeitswürfel, dieselben Spezieswerte. REUP ergänzt nur, und diese Ergänzungen sind hier enthalten – die zusätzlichen Fertigkeiten und Machtkräfte stehen einfach mit in den Listen. Bau nach dem Buch deiner Wahl; der Bogen gilt an beiden Tischen.
+
 Das Projekt ist die HTML-Portierung der Excel-Tabellen von **Chance Gibboney** – siehe [Danksagung](#credits--danksagung).
 
 ### Was drin ist
 
-**Charaktere** (`index.html`) – 374 Spezies (60 aus der Excel, 314 weitere aus dem Alien Compendium, im Dropdown getrennt aufgeführt) + 9 Near-Human-Varianten, regelkonforme Erschaffung (18D Attribute, 7D Fertigkeiten, Machtfertigkeiten aus dem Attributs-Pool, Steigerung per Charakterpunkten), alle 84 Fertigkeiten, 82 Machtkräfte, Lichtschwert-Werkstatt. **Eigene Spezies lassen sich online speichern** und stehen dann der ganzen Gruppe im Dropdown zur Verfügung.
+**Charaktere** (`index.html`) – 374 Spezies (60 aus der Excel, 314 weitere aus dem Alien Compendium, im Dropdown getrennt aufgeführt) + 9 Near-Human-Varianten, regelkonforme Erschaffung (18D Attribute, 7D Fertigkeiten, Machtfertigkeiten aus dem Attributs-Pool, Steigerung per Charakterpunkten), alle 90 Fertigkeiten, 91 Machtkräfte, Lichtschwert-Werkstatt. **Eigene Spezies lassen sich online speichern** und stehen dann der ganzen Gruppe im Dropdown zur Verfügung.
 
 **Droiden** (`droid.html`) – fünf Degrees mit eigenen Steigerungskosten, gemeinsamer 25D-Startpool für Attribute, Fertigkeiten *und* Modifikationen, 167 Modifikationen in 11 Kategorien, fest verdrahtete Datenbank-Fertigkeiten sowie **350 fertige Droidenmodelle** aus den Regelwerken.
 
@@ -197,7 +201,7 @@ Das Projekt ist die HTML-Portierung der Excel-Tabellen von **Chance Gibboney** �
 
 **Easteregg** – seit einigen Versionen steckt eins in der App. Wo, wird hier nicht verraten: viel Spaß beim Suchen.
 
-**Überall** – Bild-Import per Datei oder Drag & Drop, Speichern im Browser plus JSON-Export, Druck-/PDF-Bögen, zweisprachige Oberfläche (Englisch als Standard, Deutsch im ⚙-Menü) samt aller 84 Fertigkeitsnamen nach der deutschen Ausgabe „Krieg der Sterne – Das Rollenspiel“, durchsuchbare **erweiterte Kataloge** mit 491 Waffen und 563 Ausrüstungsgegenständen, nach Ära filterbar sowie optionale **Online-Konten** mit MFA, Cloud-Speicherung und Freigaben.
+**Überall** – Bild-Import per Datei oder Drag & Drop, Speichern im Browser plus JSON-Export, Druck-/PDF-Bögen, zweisprachige Oberfläche (Englisch als Standard, Deutsch im ⚙-Menü) samt aller 90 Fertigkeitsnamen nach der deutschen Ausgabe „Krieg der Sterne – Das Rollenspiel“, durchsuchbare **erweiterte Kataloge** mit 491 Waffen und 563 Ausrüstungsgegenständen, nach Ära filterbar sowie optionale **Online-Konten** mit MFA, Cloud-Speicherung und Freigaben.
 
 ### Schnellstart
 

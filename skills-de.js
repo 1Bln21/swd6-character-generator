@@ -25,14 +25,19 @@
 const SKILLS_DE = {
 
   /* ---------------- Geschicklichkeit ---------------- */
+  /* Aus REUP ergaenzt; die deutsche Ausgabe kennt sie nicht, daher nach
+     der Wortwahl desselben Bogens gebildet. */
+  'Acrobatics': 'Akrobatik',                  // aus REUP
   'Archaic Guns': 'Archaische Schusswaffen',
   'Blaster': 'Blaster',
+  'Artillery': 'Artillerie',                  // aus REUP
   'Blaster Artillery': 'Artillerieblaster',
   'Bowcaster': 'Bolzenschleuder',
   'Bows': 'Bogen',
   'Brawling Parry': 'Abblocken',
   'Dodge': 'Ausweichen',
   'Firearms': 'Schusswaffen',
+  'Flamethrower': 'Flammenwerfer',            // aus REUP
   'Grenade': 'Granaten',
   'Lightsaber': 'Laserschwert',
   'Melee Combat': 'Nahkampfwaffen',
@@ -61,6 +66,7 @@ const SKILLS_DE = {
 
   /* ---------------- Mechanik ---------------- */
   'Archaic Starship Pilot.': 'Archaische Raumschiffe',
+  'Aquatic Vehicle Op.': 'Wasserfahrzeuge',   // aus REUP
   'Astrogation': 'Astrogation',
   'Beast Riding': 'Reiten',
   'Capital Ship Gun.': 'Großkampfschiff-Artillerie',   // Buch: „Sternenschiffartillerie“
@@ -78,6 +84,7 @@ const SKILLS_DE = {
   'Starfighter Piloting': 'Raumjäger',
   'Starship Gunnery': 'Raumjägerartillerie',
   'Starship Shields': 'Raumjägerdeflektoren',
+  'Submersible Vehicle Op.': 'Tauchboote',    // aus REUP
   'Swoop Operation': 'Blitzjäger',
   'Walker Operation': 'Kampfläufer',
 
@@ -105,6 +112,7 @@ const SKILLS_DE = {
      es wie das englische Original auf, deshalb hier nach dem Muster
      <Gerät>-Reparatur gebildet. */
   'Armor Repair': 'Panzerungs-Reparatur',              // abgeleitet
+  'Aquatic Vehicle Rep.': 'Wasserfahrzeug-Reparatur',  // aus REUP
   'Blaster Repair': 'Blaster-Reparatur',               // abgeleitet
   'Capital Ship Repair': 'Großkampfschiff-Reparatur',  // abgeleitet
   'Capital Ship Weap. Rep.': 'Großkampfschiffwaffen-Reparatur',  // abgeleitet
@@ -136,6 +144,7 @@ const SKILLS_DE = {
      "Archaic Starship Piloting". Beide Schreibweisen abdecken. */
   'Archaic Starship Piloting': 'Archaische Raumschiffe',
   'Ground vehicle Op.': 'Bodenfahrzeuge',
+  '(A) Pod Racer Operation': 'Podrennen',     // aus REUP
   'Repulsorlift Operation': 'Repulsoraggregate',
 };
 
