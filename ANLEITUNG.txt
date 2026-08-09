@@ -46,7 +46,7 @@ SPEZIES
   Spezies genauso stark sind wie die bisherigen.
 
 WAFFEN FUER SCHIFFE
-  Der Reiter "Waffen" bietet oben einen Katalog: 892 Waffentypen,
+  Der Reiter "Waffen" bietet oben einen Katalog: 902 Waffentypen,
   gesammelt aus den Schiffsbeschreibungen der Sammelbaende, sowie die
   Waffenuebersicht aus "Galaxy Guide 6" (mit Preis und Gewicht, ganz
   oben in der Liste). Jeder Eintrag nennt seine Groessenklasse -
@@ -142,17 +142,17 @@ FRACHTRAUM UND UMBAUTEN
                   Aussenlast-Halterungen o. ae. zulassen
 
 VORLAGEN AUS DEN REGELWERKEN
-  * Schiffe: 1.255 fertige Raumschiffe und Fahrzeuge – auswählen, und
+  * Schiffe: 1.269 fertige Raumschiffe und Fahrzeuge – auswählen, und
     alle Grundwerte samt Bewaffnung sind gefüllt. Darunter seit 2.4.2
     16 von Hand ergänzte Schiffe aus der Community (im Dropdown als
     "Community Additions" gekennzeichnet), z. B. Sphyrna-/Hammerhead-
     Korvette, MC30c-Fregatte, Raider-II-Korvette, Quasar-Fire-Träger.
-  * Droiden: 350 fertige Droidenmodelle. Bis 2.4.1 standen hier auch
+  * Droiden: 353 fertige Droidenmodelle. Bis 2.4.1 standen hier auch
     Helden und NPCs (Boba Fett, Han Solo, Sith und Jedi) sowie ganze
     Bestiarien (Banthas, Akk-Hunde) – die gehören nicht zu den Droiden
     und sind jetzt draußen. Benannte Droiden wie R2-D2 und C-3PO
     bleiben natürlich.
-  * Waffen und Ausrüstung: durchsuchbarer Zusatzkatalog mit 491
+  * Waffen und Ausrüstung: durchsuchbarer Zusatzkatalog mit 493
     Waffen und 563 Ausrüstungsgegenständen (Tab "Waffen" bzw.
     "Ausrüstung", Suchbegriff eingeben und übernehmen).
   * NEU: Jeder Eintrag nennt sein Quellbuch und lässt sich über das
