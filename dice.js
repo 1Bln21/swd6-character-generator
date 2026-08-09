@@ -55,7 +55,15 @@ const T = {
     no_gear: 'No equipment with a dice bonus in the loaded character\'s inventory. Checked items are added to skill rolls.',
   },
 };
-function t(k) { return (T[LANG] && T[LANG][k] !== undefined) ? T[LANG][k] : (T.en[k] !== undefined ? T.en[k] : k); }
+/* Fehlender Schlüssel: nur harmlose Zeichen durchlassen. Die Würfelseite liest
+   Wurfprofile aus dem localStorage, die von den Generatoren geschrieben werden -
+   und die stammen ggf. aus einem importierten fremden Bogen. Gleiche Absicherung
+   wie in genshared.js und app.js. */
+function t(k) {
+  if (T[LANG] && T[LANG][k] !== undefined) return T[LANG][k];
+  if (T.en[k] !== undefined) return T.en[k];
+  return String(k).replace(/[^\w.:-]/g, '');
+}
 function esc(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }

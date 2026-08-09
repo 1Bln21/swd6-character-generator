@@ -95,7 +95,14 @@ function t(k) {
   /* Fehlt ein Schlüssel, lieber die englische Fassung zeigen als die
      deutsche – Englisch ist die Standardsprache der App. */
   if (T.en && T.en[k] !== undefined) return T.en[k];
-  return T.de[k] !== undefined ? T.de[k] : k;
+  if (T.de[k] !== undefined) return T.de[k];
+  /* Fehlt der Schlüssel ganz, wird er selbst angezeigt. Viele Schlüssel werden
+     dynamisch gebaut ("fac_" + npc.faction, "era_" + setup.shipEra) und der
+     dynamische Teil kann aus einem fremden Dokument stammen - ein importierter
+     oder in der Runde freigegebener Bogen. Ergebnisse von t() landen roh im
+     innerHTML, deshalb hier nur harmlose Zeichen durchlassen. Ein fehlender
+     Schlüssel ist ohnehin ein Fehler; verstümmelt angezeigt ist er ungefährlich. */
+  return String(k).replace(/[^\w.:-]/g, '');
 }
 function tCat(cat) { const v = t('cat_' + cat); return v === 'cat_' + cat ? cat : v; }
 function applyStaticI18n() {

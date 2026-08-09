@@ -414,6 +414,36 @@ function genNPC(speciesName, factionId, threatId) {
 }
 
 /* ---------------- Dokument ---------------- */
+/* Fremde Dokumente säubern. Strings werden beim Rendern escaped; hier geht es
+   um die Felder, die als Zahl oder als Übersetzungsschlüssel weiterverwendet
+   werden - die landen sonst roh im Markup. */
+function sanitizeNpc(n) {
+  if (!n || typeof n !== 'object') return { name: '', species: '', attrs: [], skills: [], weapon: {} };
+  n.move = +n.move || 0;
+  n.armor = +n.armor || 0;
+  if (!NPC_FACTIONS[n.faction]) n.faction = 'imperial';
+  if (n.loot && typeof n.loot === 'object') {
+    n.loot.credits = +n.loot.credits || 0;
+    /* Der Bogen liest itemsDe/itemsEn ohne Absicherung. Fehlen sie im fremden
+       Dokument, bricht das Rendern der GANZEN Gruppe ab - ein Spielleiter
+       saehe nur eine leere Seite. */
+    if (!Array.isArray(n.loot.itemsDe)) n.loot.itemsDe = [];
+    if (!Array.isArray(n.loot.itemsEn)) n.loot.itemsEn = [];
+  } else {
+    n.loot = null;
+  }
+  if (!Array.isArray(n.attrs)) n.attrs = [];
+  if (!Array.isArray(n.skills)) n.skills = [];
+  if (!n.weapon || typeof n.weapon !== 'object') n.weapon = { name: '', dmg: 0 };
+  return n;
+}
+function sanitizeShip(s) {
+  if (!s || typeof s !== 'object') return { name: '', craft: '', weapons: [] };
+  s.crewPips = +s.crewPips || 0;
+  s.extra = +s.extra || 0;
+  if (!Array.isArray(s.weapons)) s.weapons = [];
+  return s;
+}
 function emptyDoc() {
   return {
     version: 1, kind: 'npc',
@@ -465,11 +495,23 @@ function migrate(obj) {
       d.setup.shipSame[k] = !!d.setup.shipSame[k];
     });
     if (!shipTotal(d.setup)) d.setup.shipCounts.transport = 6;
+    /* Auswahlfelder gegen ihre bekannten Werte prüfen. Ein fremdes Dokument mit
+       einer unbekannten Ära würde sonst wortlos eine leere Flotte erzeugen -
+       der Pool filtert auf einen Wert, den kein Eintrag hat. */
+    const eras = (typeof PDF_ERAS !== 'undefined') ? PDF_ERAS : [];
+    if (eras.indexOf(d.setup.shipEra) < 0) d.setup.shipEra = '';
+    if (['people', 'ships'].indexOf(d.setup.gen) < 0) d.setup.gen = 'people';
+    if (!NPC_THREAT[d.setup.threat]) d.setup.threat = 'average';
+    if (['human', 'mixed', 'single', 'aliens'].indexOf(d.setup.mode) < 0) d.setup.mode = 'mixed';
     delete d.setup.shipSize;
     delete d.setup.shipSizes;
     delete d.setup.sameShip;
-    if (Array.isArray(obj.npcs)) d.npcs = obj.npcs;
-    if (Array.isArray(obj.ships)) d.ships = obj.ships;
+    /* Die Karten kommen ungeprüft aus der Datei oder aus der Cloud - ein
+       importierter oder in einer Runde freigegebener Bogen ist fremder Input.
+       Zahlenfelder deshalb hart auf Zahl zwingen und die Fraktion gegen die
+       bekannte Liste prüfen, damit nichts davon roh ins Markup gerät. */
+    if (Array.isArray(obj.npcs)) d.npcs = obj.npcs.map(sanitizeNpc);
+    if (Array.isArray(obj.ships)) d.ships = obj.ships.map(sanitizeShip);
     if (obj._cloudId) d._cloudId = obj._cloudId;
   }
   return d;
@@ -591,7 +633,7 @@ function shipCard(sh, i, editable) {
       <span class="npc-attr"><b>HYPER</b> ${esc(sh.hyper || '–')}</span>
     </div>
     <div class="npc-line"><b>${t('npc_ship_crew')}:</b> ${fmtD(sh.crewPips)}</div>
-    <div class="npc-line"><b>${t('npc_weapon')}:</b> ${sh.weapons.length ? sh.weapons.map(esc).join(', ') : '–'}${sh.extra ? ` <span class="hint">(+${sh.extra} ${t('npc_ship_extra')})</span>` : ''}</div>
+    <div class="npc-line"><b>${t('npc_weapon')}:</b> ${sh.weapons.length ? sh.weapons.map(esc).join(', ') : '–'}${sh.extra ? ` <span class="hint">(+${+sh.extra || 0} ${t('npc_ship_extra')})</span>` : ''}</div>
   </div>`;
 }
 
@@ -626,11 +668,11 @@ function npcCard(npc, i, editable) {
         <button class="mini" data-act="reroll" data-idx="${i}">${t('npc_reroll')}</button>
         <button class="mini danger" data-act="removeNpc" data-idx="${i}">×</button></span>` : ''}
     </div>
-    <div class="npc-attrs">${attrChips(npc)}<span class="npc-attr"><b>${t('npc_move')}</b> ${npc.move}</span></div>
+    <div class="npc-attrs">${attrChips(npc)}<span class="npc-attr"><b>${t('npc_move')}</b> ${+npc.move || 0}</span></div>
     <div class="npc-line"><b>${t('npc_skills')}:</b> ${skillsText(npc)}</div>
     <div class="npc-line"><b>${t('npc_weapon')}:</b> ${weaponText(npc)}${npc.armor ? ` · <b>${t('npc_armor')}:</b> +${fmtD(npc.armor)}` : ''}</div>
     <div class="npc-line"><b>${t('npc_gear')}:</b> ${esc(LANG === 'de' ? npc.gearDe : npc.gearEn)}</div>
-    ${npc.loot ? `<div class="npc-line"><b>${t('npc_loot')}:</b> ${npc.loot.credits} ${t('npc_credits')}${
+    ${npc.loot ? `<div class="npc-line"><b>${t('npc_loot')}:</b> ${+npc.loot.credits || 0} ${t('npc_credits')}${
       (LANG === 'de' ? npc.loot.itemsDe : npc.loot.itemsEn).length
         ? ' · ' + esc((LANG === 'de' ? npc.loot.itemsDe : npc.loot.itemsEn).join(', ')) : ''}</div>` : ''}
   </div>`;

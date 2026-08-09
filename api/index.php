@@ -129,7 +129,14 @@ if (!$useServer) {
   if (!is_dir($dataDir)) @mkdir($dataDir, 0770, true);
   /* Schutzdateien auch dann anlegen, wenn der Ordner von Hand erstellt wurde */
   if (is_dir($dataDir) && !is_file($dataDir . '/.htaccess')) {
-    @file_put_contents($dataDir . '/.htaccess', "Require all denied\n");
+    /* "Require all denied" ist Apache 2.4. Auf 2.2 wuerde die Zeile einen
+       500er ausloesen statt zu schuetzen, deshalb beide Schreibweisen, jeweils
+       nur wenn das passende Modul da ist. Hinter nginx greift .htaccess gar
+       nicht - dort muss der Ordner in der Server-Konfiguration gesperrt
+       werden, siehe README. */
+    @file_put_contents($dataDir . '/.htaccess',
+      "<IfModule mod_authz_core.c>\n  Require all denied\n</IfModule>\n" .
+      "<IfModule !mod_authz_core.c>\n  Order allow,deny\n  Deny from all\n</IfModule>\n");
     @file_put_contents($dataDir . '/index.html', '');
   }
   if (!extension_loaded('pdo_sqlite')) {

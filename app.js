@@ -385,7 +385,14 @@ function t(k) {
   /* Fehlt ein Schlüssel, lieber die englische Fassung zeigen als die
      deutsche – Englisch ist die Standardsprache der App. */
   if (T.en && T.en[k] !== undefined) return T.en[k];
-  return T.de[k] !== undefined ? T.de[k] : k;
+  if (T.de[k] !== undefined) return T.de[k];
+  /* Fehlt der Schlüssel ganz, wird er selbst angezeigt. Viele Schlüssel werden
+     dynamisch gebaut ("era_" + eintrag.era, "loc_" + treffer) und der dynamische
+     Teil kann aus einem fremden Dokument stammen. Ergebnisse von t() landen roh
+     im innerHTML, deshalb hier nur harmlose Zeichen durchlassen. Dieselbe
+     Absicherung steht in genshared.js und dice.js - jede Seite lädt nur eine
+     dieser Dateien. */
+  return String(k).replace(/[^\w.:-]/g, '');
 }
 function tCat(cat) { return t('cat_' + cat); }
 function setLang(l) {
