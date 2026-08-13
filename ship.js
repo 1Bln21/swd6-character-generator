@@ -35,7 +35,7 @@ Object.assign(T.de, {
   sh_hyper: 'Hyperantrieb (Multiplikator)', sh_hyperbackup: 'Backup-Hyperantrieb',
   sh_buy_backup: 'Backup-Hyperantrieb kaufen',
   sh_weight_scale: 'Klasse',
-  sh_weapon_weight: 'davon Waffen',
+  sh_weapon_weight: 'davon nachgerüstete Waffen',
   sh_capclass: 'Capital-Unterklasse',
   sh_capclass_cruiser: 'bis Kreuzer (×6)',
   sh_capclass_isd: 'Sternenzerstörer (×15)',
@@ -55,6 +55,7 @@ Object.assign(T.de, {
   sh_basehint: 'Die Grundwerte stammen aus dem Quellenbuch des Schiffs – hier eintragen, die Umbauten rechnen darauf auf.',
   sh_portrait: 'Schiffsbild',
   sh_weapon: 'Waffe', sh_firearc: 'Feuerwinkel', sh_firelinked: 'Gekoppelt (fire-linked)',
+  sh_stock: 'Werkswaffe (kostet keinen Laderaum)',
   sh_firecontrol: 'Feuerleitsystem', sh_number: 'Anzahl', sh_wcrew: 'Bedienung (Crew)',
   sh_spacerange: 'Reichweite (Space)', sh_atmrange: 'Reichweite (Atmosphäre)',
   sh_sensors: 'Sensoren', sh_passive: 'Passiv', sh_scan: 'Scan', sh_search: 'Such', sh_focus: 'Fokus',
@@ -170,7 +171,7 @@ Object.assign(T.en, {
   sh_hyper: 'Hyperdrive (multiplier)', sh_hyperbackup: 'Backup hyperdrive',
   sh_buy_backup: 'Buy backup hyperdrive',
   sh_weight_scale: 'class',
-  sh_weapon_weight: 'of which weapons',
+  sh_weapon_weight: 'of which retrofitted weapons',
   sh_capclass: 'Capital sub-class',
   sh_capclass_cruiser: 'up to cruiser (×6)',
   sh_capclass_isd: 'Star Destroyer (×15)',
@@ -190,6 +191,7 @@ Object.assign(T.en, {
   sh_basehint: 'Enter the base stats from the ship’s sourcebook – the modifications build on them.',
   sh_portrait: 'Ship Picture',
   sh_weapon: 'Weapon', sh_firearc: 'Fire arc', sh_firelinked: 'Fire-linked',
+  sh_stock: 'Factory-fitted (uses no cargo space)',
   sh_firecontrol: 'Fire control', sh_number: 'Number', sh_wcrew: 'Crew (weapon)',
   sh_spacerange: 'Space range', sh_atmrange: 'Atmosphere range',
   sh_sensors: 'Sensors', sh_passive: 'Passive', sh_scan: 'Scan', sh_search: 'Search', sh_focus: 'Focus',
@@ -321,7 +323,12 @@ function migrate(obj) {
   m.mods = Object.assign(emptyDoc().mods, obj.mods || {});
   if (!Array.isArray(m.weapons)) m.weapons = [];
   /* Bis v2.2.1 konnte "Starship" in gespeicherten Schiffen stehen. */
-  m.weapons.forEach(w => { w.scale = normScale(w.scale); });
+  m.weapons.forEach(w => {
+    w.scale = normScale(w.scale);
+    /* Vor 3.9.2.3 gab es das Feld nicht. Bestehende Boegen als Werksbewaffnung
+       lesen - sonst zoegen sie sich rueckwirkend Laderaum ab. */
+    if (typeof w.stock !== 'boolean') w.stock = true;
+  });
   if (!Array.isArray(m.mods.custom)) m.mods.custom = [];
   m.kind = 'ship';
   return m;
@@ -329,7 +336,7 @@ function migrate(obj) {
 function emptyWeapon() {
   return { name: '', scale: 'Starfighter', arc: 'Front', skill: 'Starship Gunnery',
            linked: false, fireControl: 0, damage: 12, number: 1, crew: '',
-           spaceRange: '', atmRange: '' };
+           spaceRange: '', atmRange: '', stock: false };
 }
 
 /* Das Excel führt die Waffen-Größenklassen als "Starship", die des Schiffs
@@ -522,9 +529,15 @@ function shipDerived() {
     if (g && q > 0) { modCost += g.cost * q; weight += g.weight * q; }
   }
   md.custom.forEach(cm => { modCost += (+cm.cost || 0); weight += (+cm.weight || 0); });
-  /* Bewaffnung wiegt jetzt mit (je Waffe nach ihrer Skala × Anzahl). */
+  /* Nachgerüstete Bewaffnung wiegt mit (je Waffe nach ihrer Skala × Anzahl).
+     Die WERKSBEWAFFNUNG zählt NICHT: Der Laderaum, den die Bücher nennen, ist
+     der eines fertig gebauten Schiffs, die Kanonen sitzen da längst drin. Vorher
+     zog sich ein A-Wing seine eigenen zwei Laser als 4 Tonnen vom 40-Kilo-
+     Stauraum ab. Nur was über `added` als selbst hinzugefügt markiert ist,
+     kostet Platz - Waffen aus einer Vorlage und aus älteren Bögen nicht. */
   let weaponWeight = 0;
   (C.weapons || []).forEach(w => {
+    if (w.stock) return;
     weaponWeight += WEAPON_BASE_WEIGHT * scaleMultOf(w.scale) * Math.max(1, +w.number || 1);
   });
   weight += weaponWeight;
@@ -634,12 +647,19 @@ function fmtCargo(tons, unit) {
    erste Zahl; kleine Schiffe sind gelegentlich in Kilogramm angegeben. */
 function cargoTons() {
   const txt = String(C.info.cargo || '');
-  const m = /([\d,.]+)\s*(?:metric\s*)?(ton|tonne)/i.exec(txt);
-  if (m) return parseFloat(m[1].replace(/,/g, '')) || 0;
-  const kg = /([\d,.]+)\s*kg/i.exec(txt);
-  if (kg) return (parseFloat(kg[1].replace(/,/g, '')) || 0) / 1000;
+  const num = s => parseFloat(String(s).replace(/,/g, '')) || 0;
+  /* Kilogramm ZUERST prüfen. Die Bücher schreiben die Einheit meist aus
+     ("50 kilograms"), und darauf passte die alte Prüfung auf "kg" nicht –
+     der Wert fiel bis zur nackten Zahl durch und galt dann als Tonnen. Ein
+     Jäger mit 50 kg Stauraum hatte so 50 Tonnen frei. */
+  const kg = /([\d,.]+)\s*(?:kg\b|kgs\b|kilo\b|kilos\b|kilogramm?e?s?\b)/i.exec(txt);
+  if (kg) return num(kg[1]) / 1000;
+  const t = /([\d,.]+)\s*(?:metric\s*)?(?:t\b|mt\b|ton|tonne)/i.exec(txt);
+  if (t) return num(t[1]);
+  /* Ohne Einheit bleibt es bei Tonnen – so stehen die Frachterangaben in den
+     Büchern, wenn die Einheit nur in der Überschrift steht. */
   const n = /([\d,.]+)/.exec(txt);
-  return n ? parseFloat(n[1].replace(/,/g, '')) || 0 : 0;
+  return n ? num(n[1]) : 0;
 }
 
 /* ---------------- Eingabe-Helfer ---------------- */
@@ -792,6 +812,7 @@ function applyTemplate() {
     const gs = SHIP_DATA.gunSkills.find(g => (w.skill || '').toLowerCase().startsWith(g.toLowerCase()));
     if (gs) nw.skill = gs;
     nw.linked = /fire-?linked/i.test(w.name || '');
+    nw.stock = true;                   // ab Werk verbaut, kostet keinen Laderaum
     nw.fireControl = dicePips(w.fireControl);
     nw.damage = dicePips(w.damage);
     nw.crew = w.crew || '';
@@ -975,6 +996,7 @@ function addWeaponFromCatalog() {
   nw.crew = src.crew || '';
   nw.spaceRange = src.spaceRange || '';
   nw.atmRange = src.atmRange || '';
+  nw.stock = false;                    // nachgeruestet -> zaehlt gegen den Laderaum
   C.weapons.push(nw);
   wpnMsg = t('sh_wpn_added').replace('{name}', src.name);
   update();
@@ -999,6 +1021,11 @@ function viewWeapons() {
           <select data-bind="weapons.${wi}.linked" data-type="bool">
             <option value="false" ${!w.linked ? 'selected' : ''}>${t('no')}</option>
             <option value="true" ${w.linked ? 'selected' : ''}>${t('yes')}</option>
+          </select></div>
+        <div><label>${t('sh_stock')}</label>
+          <select data-bind="weapons.${wi}.stock" data-type="bool">
+            <option value="true" ${w.stock ? 'selected' : ''}>${t('yes')}</option>
+            <option value="false" ${!w.stock ? 'selected' : ''}>${t('no')}</option>
           </select></div>
         <div><label>${t('sh_number')}</label>${inputN('weapons.' + wi + '.number', w.number, 'style="width:80px"')}</div>
         <div><label>${t('sh_firecontrol')}</label>${diceCtl('weapons.' + wi + '.fireControl', w.fireControl)}</div>
