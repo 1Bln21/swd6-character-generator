@@ -1553,6 +1553,13 @@ const SHIP_DATA = {
   "cost": 1000,
   "weight": 15,
   "avail": "3"
+ },
+ {
+  "name": "Czerka Security Package",
+  "desc": "2 twin light blaster cannons (Speeder scale, turret, crew 1 each, vehicle blasters, fire control 1D, 50-200/500/1 km, damage 4D)",
+  "cost": 12000,
+  "weight": 1,
+  "avail": "2"
  }
 ],
  "driveMods": [

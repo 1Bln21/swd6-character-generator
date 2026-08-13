@@ -12,7 +12,7 @@ This project is an HTML port of the Excel workbooks by **Chance Gibboney** — s
 |---|---|
 | **Characters** | `index.html` — 374 species, all skills, Force powers, equipment, lightsaber workshop |
 | **Droids** | `droid.html` — degrees, 167 modifications, 353 ready-made droid templates |
-| **Ships & Vehicles** | `ship.html` — 1,269 ship/vehicle templates, modification workshop, weapons, sensors |
+| **Ships & Vehicles** | `ship.html` — 1,272 ship/vehicle templates, modification workshop, weapons, sensors |
 | **NPCs** | `npc.html` — build a group role by role (6 stormtroopers, 2 officers) or a flight class by class, with compact stat blocks |
 
 Game masters can also run **game rounds**: invite players by code, let them submit characters, and approve them for the round (the approval is stamped on the sheet). See the ☁ Online window.
@@ -39,11 +39,11 @@ Game masters can also run **game rounds**: invite players by code, let them subm
 - **353 droid templates** from the sourcebooks — apply and adjust
 
 **Ships & Vehicles** (`ship.html`)
-- **1,269 templates** (939 starships + 330 vehicles) — pick one and every base stat is filled in, weapons included
+- **1,272 templates** (940 starships + 332 vehicles) — pick one and every base stat is filled in, weapons included
 - **Modification workshop**: sublight drive, maneuverability, hyperdrive, hull, shields, weapon damage — each with install difficulty, cost as a percentage of the ship, and a growing **mishap modifier**
 - Replacement drives, hyperdrives, shield generators, cargo conversions
 - Up to twelve weapons with fire arc, fire control and ranges; sensors and NPC crew skills
-- **Weapon picker**: 902 armament types collected from the ship entries in the compendia, plus the *Galaxy Guide 6* summary with price and weight — filter by scale (Starfighter, Capital, Speeder, Walker, Character), pick one, and every stat is filled in
+- **Weapon picker**: 904 armament types collected from the ship entries in the compendia, plus the *Galaxy Guide 6* summary with price and weight — filter by scale (Starfighter, Capital, Speeder, Walker, Character), pick one, and every stat is filled in
 - **Cargo space** is tracked against installed replacement systems — in kilograms for fighters, tons for freighters. Percentage upgrades cost no cargo space at all, which is exactly how starfighters get upgraded (see `ANLEITUNG.txt`)
 - **Workshop** with the expanded rules from *Galaxy Guide 6: Tramp Freighters*: a mishap roller covering all five systems and three severities, the repair cost table priced against your ship, spaceport classes with docking fees, the restocking formula, overhaul costs, installation times and the linked-weapons rules
 
@@ -193,7 +193,7 @@ Das Projekt ist die HTML-Portierung der Excel-Tabellen von **Chance Gibboney** �
 
 **Droiden** (`droid.html`) – fünf Degrees mit eigenen Steigerungskosten, gemeinsamer 25D-Startpool für Attribute, Fertigkeiten *und* Modifikationen, 167 Modifikationen in 11 Kategorien, fest verdrahtete Datenbank-Fertigkeiten sowie **353 fertige Droidenmodelle** aus den Regelwerken.
 
-**Schiffe & Fahrzeuge** (`ship.html`) – **1.269 Vorlagen** (939 Raumschiffe + 330 Fahrzeuge): auswählen und alle Grundwerte samt Bewaffnung sind gefüllt. Dazu die Umbau-Werkstatt (Antrieb, Manövrierfähigkeit, Hyperantrieb, Hülle, Schilde, Waffenschaden) mit Einbau-Schwierigkeit, Kosten in Prozent des Schiffswerts und steigendem **Pannen-Modifikator**, Ersatzteile, bis zu zwölf Waffen, Sensoren und Crew-Skills. Die Bewaffnung lässt sich aus einem **Waffen-Katalog** übernehmen: 902 Typen aus den Schiffsbeschreibungen der Sammelbände plus die Übersicht aus *Galaxy Guide 6* mit Preis und Gewicht, filterbar nach Größenklasse. Dazu die **Werkstatt** mit den erweiterten Regeln aus *Galaxy Guide 6: Tramp Freighters*: Pannen auswürfeln für alle fünf Systeme und drei Schweregrade, Reparaturkosten-Tabelle auf den eigenen Schiffswert gerechnet, Raumhafen-Klassen mit Liegegebühren, Vorratsformel, Überholungskosten, Einbauzeiten und die Regeln für gekoppelte Waffen.
+**Schiffe & Fahrzeuge** (`ship.html`) – **1.272 Vorlagen** (940 Raumschiffe + 332 Fahrzeuge): auswählen und alle Grundwerte samt Bewaffnung sind gefüllt. Dazu die Umbau-Werkstatt (Antrieb, Manövrierfähigkeit, Hyperantrieb, Hülle, Schilde, Waffenschaden) mit Einbau-Schwierigkeit, Kosten in Prozent des Schiffswerts und steigendem **Pannen-Modifikator**, Ersatzteile, bis zu zwölf Waffen, Sensoren und Crew-Skills. Die Bewaffnung lässt sich aus einem **Waffen-Katalog** übernehmen: 904 Typen aus den Schiffsbeschreibungen der Sammelbände plus die Übersicht aus *Galaxy Guide 6* mit Preis und Gewicht, filterbar nach Größenklasse. Dazu die **Werkstatt** mit den erweiterten Regeln aus *Galaxy Guide 6: Tramp Freighters*: Pannen auswürfeln für alle fünf Systeme und drei Schweregrade, Reparaturkosten-Tabelle auf den eigenen Schiffswert gerechnet, Raumhafen-Klassen mit Liegegebühren, Vorratsformel, Überholungskosten, Einbauzeiten und die Regeln für gekoppelte Waffen.
 
 **NPCs** (`npc.html`) – erzeugt ganze **NPC-Gruppen mit kompakten Statblöcken**. Die Truppe wird **rollenweise** zusammengestellt: je Zeile eine Fraktion mit eigener Anzahl, also etwa 6 Sturmtruppen, 2 Offiziere und 3 Söldner in einer Gruppe. Dazu Spezies-Modus (nur Menschen / gemischt / eine Spezies / nur Aliens) und Erfahrungsstufe; bei „gemischt“ stellt der Mensch-Anteil Star-Wars-typisch die Mehrheit. Genauso für **Schiffe**: Anzahl je Klasse (Jäger, Space Transport, Capital), je Klasse getrennt wählbar, ob alle Schiffe baugleich sein sollen, und ein Ära-Filter für den Vorlagenpool. Mehrere Karten pro Druckseite.
 
