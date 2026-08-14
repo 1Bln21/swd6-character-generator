@@ -93,6 +93,10 @@ SOURCES = [
                                                'Starships of the Galaxy', '',   ('ships', 'vehicles'),             False, 0),
     ("RP_SagaConversion_Scavenger's_Guide_to_Droids.pdf",
                                                "Scavenger's Guide to Droids", '', ('droids', 'equipment'),         False, 0),
+    # Beschreibt vor allem Droiden-Zubehör – Greifarme, Sägen, Sensoren,
+    # Holoprojektoren –, das der Droidengenerator als Ausrüstung anbietet.
+    ("WEG40116 - Cynabar's Fantastic Technology - Droids.pdf",
+                                               "Cynabar's Droids",    '',       ('equipment', 'droids'),           False, 0),
 ]
 
 # ---------------------------------------------------- Bewusst nicht dabei

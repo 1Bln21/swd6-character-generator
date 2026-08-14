@@ -36,7 +36,7 @@ Game masters can also run **game rounds**: invite players by code, let them subm
 - Shared **25D starting pool** for attributes, skills *and* modifications
 - **167 modifications** in 11 categories (processors, sensors, armor, weapons, medical …)
 - Hard-wired **database skills**
-- **393 droid templates** from the sourcebooks — apply and adjust
+- **393 droid templates** from the sourcebooks — apply and adjust; built-in armament comes across as weapons, and a free field takes armament no catalogue lists
 
 **Ships & Vehicles** (`ship.html`)
 - **1,300 templates** (958 starships + 342 vehicles) — pick one and every base stat is filled in, weapons included
@@ -52,7 +52,7 @@ Game masters can also run **game rounds**: invite players by code, let them subm
 - **Save & load** in the browser (localStorage) plus JSON export/import
 - **Print / PDF export**: clean sheets via the browser's print dialog
 - **Bilingual**: English by default, German switchable in the ⚙ menu (the choice is remembered per browser) — including all 90 skill names, taken from the German edition ("Krieg der Sterne – Das Rollenspiel"). Characters stay interchangeable between languages because the data keeps the English names
-- **Extended catalogs from the sourcebooks**: 493 weapons and 563 pieces of equipment, searchable and filterable by era
+- **Extended catalogs from the sourcebooks**: 493 weapons and 564 pieces of equipment, searchable and filterable by era
 - **Online accounts** (optional, needs PHP hosting): registration, login, **MFA via authenticator app**, cloud storage and sharing with fellow players
 - **An easter egg has been hiding in the app for several versions now.** No hints here — happy hunting
 
@@ -191,7 +191,7 @@ Das Projekt ist die HTML-Portierung der Excel-Tabellen von **Chance Gibboney** �
 
 **Charaktere** (`index.html`) – 374 Spezies (60 aus der Excel, 314 weitere aus dem Alien Compendium, im Dropdown getrennt aufgeführt) + 9 Near-Human-Varianten, regelkonforme Erschaffung (18D Attribute, 7D Fertigkeiten, Machtfertigkeiten aus dem Attributs-Pool, Steigerung per Charakterpunkten), alle 90 Fertigkeiten, 91 Machtkräfte, Lichtschwert-Werkstatt. **Eigene Spezies lassen sich online speichern** und stehen dann der ganzen Gruppe im Dropdown zur Verfügung.
 
-**Droiden** (`droid.html`) – fünf Degrees mit eigenen Steigerungskosten, gemeinsamer 25D-Startpool für Attribute, Fertigkeiten *und* Modifikationen, 167 Modifikationen in 11 Kategorien, fest verdrahtete Datenbank-Fertigkeiten sowie **393 fertige Droidenmodelle** aus den Regelwerken.
+**Droiden** (`droid.html`) – fünf Degrees mit eigenen Steigerungskosten, gemeinsamer 25D-Startpool für Attribute, Fertigkeiten *und* Modifikationen, 167 Modifikationen in 11 Kategorien, fest verdrahtete Datenbank-Fertigkeiten sowie **393 fertige Droidenmodelle** aus den Regelwerken – eingebaute Bewaffnung wird als Waffe übernommen, und ein freies Feld nimmt Waffen auf, die in keinem Katalog stehen.
 
 **Schiffe & Fahrzeuge** (`ship.html`) – **1.300 Vorlagen** (958 Raumschiffe + 342 Fahrzeuge): auswählen und alle Grundwerte samt Bewaffnung sind gefüllt. Dazu die Umbau-Werkstatt (Antrieb, Manövrierfähigkeit, Hyperantrieb, Hülle, Schilde, Waffenschaden) mit Einbau-Schwierigkeit, Kosten in Prozent des Schiffswerts und steigendem **Pannen-Modifikator**, Ersatzteile, bis zu zwölf Waffen, Sensoren und Crew-Skills. Die Bewaffnung lässt sich aus einem **Waffen-Katalog** übernehmen: 1.064 Typen aus den Schiffsbeschreibungen der Sammelbände plus die Übersicht aus *Galaxy Guide 6* mit Preis und Gewicht, filterbar nach Größenklasse. Dazu die **Werkstatt** mit den erweiterten Regeln aus *Galaxy Guide 6: Tramp Freighters*: Pannen auswürfeln für alle fünf Systeme und drei Schweregrade, Reparaturkosten-Tabelle auf den eigenen Schiffswert gerechnet, Raumhafen-Klassen mit Liegegebühren, Vorratsformel, Überholungskosten, Einbauzeiten und die Regeln für gekoppelte Waffen.
 
@@ -201,7 +201,7 @@ Das Projekt ist die HTML-Portierung der Excel-Tabellen von **Chance Gibboney** �
 
 **Easteregg** – seit einigen Versionen steckt eins in der App. Wo, wird hier nicht verraten: viel Spaß beim Suchen.
 
-**Überall** – Bild-Import per Datei oder Drag & Drop, Speichern im Browser plus JSON-Export, Druck-/PDF-Bögen, zweisprachige Oberfläche (Englisch als Standard, Deutsch im ⚙-Menü) samt aller 90 Fertigkeitsnamen nach der deutschen Ausgabe „Krieg der Sterne – Das Rollenspiel“, durchsuchbare **erweiterte Kataloge** mit 493 Waffen und 563 Ausrüstungsgegenständen, nach Ära filterbar sowie optionale **Online-Konten** mit MFA, Cloud-Speicherung und Freigaben.
+**Überall** – Bild-Import per Datei oder Drag & Drop, Speichern im Browser plus JSON-Export, Druck-/PDF-Bögen, zweisprachige Oberfläche (Englisch als Standard, Deutsch im ⚙-Menü) samt aller 90 Fertigkeitsnamen nach der deutschen Ausgabe „Krieg der Sterne – Das Rollenspiel“, durchsuchbare **erweiterte Kataloge** mit 493 Waffen und 564 Ausrüstungsgegenständen, nach Ära filterbar sowie optionale **Online-Konten** mit MFA, Cloud-Speicherung und Freigaben.
 
 ### Schnellstart
 

@@ -59,6 +59,10 @@ Object.assign(T.de, {
   dr_points: 'Charakterpunkte', dr_cp_earned: 'Verdient (gesamt)', dr_cp_other: 'Sonstig ausgegeben',
   dr_cp_auto: 'Durch Steigerungen ausgegeben',
   dr_equipment: 'Ausrüstung', dr_weapons: 'Waffen (getragen)',
+  dr_own_weapon: 'Eigene Waffe',
+  dr_own_weapon_hint: 'Für fest eingebaute Bewaffnung, die in keinem Katalog steht – Blasterarm, Raketenwerfer im Rumpf, Schneidlaser. Aus einer Vorlage übernommene Bewaffnung steht bereits hier.',
+  dr_own_weapon_kind: 'Art', dr_own_weapon_add: 'Waffe eintragen',
+  dr_own_weapon_noname: 'Bitte einen Namen für die Waffe angeben.',
   dr_template: 'Droiden-Vorlage aus den Regelwerken', dr_template_pick: '– Droide wählen –',
   dr_template_hint: 'Fertige Droidenmodelle aus den Fan-Sammelbänden. Übernimmt Attribute, Fertigkeiten, Ausstattung und den Grad als Startpunkt. Der Grad stammt aus der Kapitel-Einteilung des Droid Compendium; mit ≈ markierte Einträge kommen aus anderen Quellen und sind daraus abgeleitet.',
   dr_template_apply: 'Vorlage übernehmen', dr_template_applied: 'Vorlage übernommen ✔',
@@ -124,6 +128,10 @@ Object.assign(T.en, {
   dr_points: 'Character Points', dr_cp_earned: 'Earned (total)', dr_cp_other: 'Spent elsewhere',
   dr_cp_auto: 'Spent on improvements',
   dr_equipment: 'Equipment', dr_weapons: 'Weapons (carried)',
+  dr_own_weapon: 'Custom weapon',
+  dr_own_weapon_hint: 'For built-in armament no catalogue lists — a blaster arm, a rocket launcher in the chassis, a cutting laser. Armament taken from a template is already listed here.',
+  dr_own_weapon_kind: 'Kind', dr_own_weapon_add: 'Add weapon',
+  dr_own_weapon_noname: 'Please give the weapon a name.',
   dr_template: 'Droid template from the sourcebooks', dr_template_pick: '– choose droid –',
   dr_template_hint: 'Ready-made droid models from the fan compilations. Applies attributes, skills, equipment and the degree as a starting point. The degree comes from the chapter layout of the Droid Compendium; entries marked ≈ are from other sources and were inferred from those.',
   dr_template_apply: 'Apply template', dr_template_applied: 'Template applied ✔',
@@ -542,6 +550,17 @@ function applyDroidTemplate() {
     if (over > 0) C.skills[skillKey(attr, canonical)] = { c: over, cp: 0 };
   }
   const notes = [];
+  /* Eingebaute Bewaffnung als Waffen übernehmen, nicht nur als Notiz.
+     Die Einträge tragen ein Kennzeichen: Wer eine zweite Vorlage anwendet,
+     bekommt deren Bewaffnung, nicht die Summe beider – von Hand ergänzte
+     Waffen bleiben dabei stehen. */
+  C.customMelee = C.customMelee.filter(x => !x.tpl);
+  C.customRanged = C.customRanged.filter(x => !x.tpl);
+  droidWeaponsFromEquipped(src.equipped).forEach(w => {
+    const eintrag = { name: w.name, dmg: w.dmg, cost: 0, tpl: true };
+    if (w.nah) C.customMelee.push(eintrag);
+    else C.customRanged.push(Object.assign(eintrag, { skill: '', ranges: w.ranges }));
+  });
   if ((src.equipped || []).length) notes.push(t('dr_tpl_equip_note') + '\n- ' + src.equipped.join('\n- '));
   if (src.source) notes.push('Quelle: ' + src.source);
   if (src.costText) notes.push('Cost: ' + src.costText + (src.avail ? ' · Availability: ' + src.avail : ''));
@@ -552,6 +571,51 @@ function applyDroidTemplate() {
 function dicePipsD(s) {
   const m = /(\d+)\s*D\s*(?:\+\s*(\d+))?/.exec(String(s || ''));
   return m ? (+m[1]) * 3 + (+(m[2] || 0)) : 0;
+}
+
+/* Eingebaute Bewaffnung aus der Ausstattungsliste einer Vorlage.
+
+   Die Bücher führen sie nicht als eigenen Block, sondern als Zeile in der
+   Ausstattung: "4 blaster rifles (5D damage, range: 3-20/50/90)". Bisher
+   landete das nur als Notiz im Bogen – ein Sith War Droid kam also ohne seine
+   vier Gewehre an. Hier werden solche Zeilen herausgesucht und als Waffen
+   übernommen.
+
+   Zu unterscheiden ist der Schaden von einem Bonus: "+1D to odor-based
+   search" ist ein Sensor, "(4D stun damage)" eine Waffe, "(STR+3D)" eine
+   Nahkampfklinge. Ein alleinstehendes "+1D" gilt deshalb nie als Schaden. */
+const DR_WAFFENWORT = /\b(blaster|laser|cannon|rifle|pistol|carbine|repeater|disruptor|flame|thrower|missile|rocket|grenade|torpedo|bowcaster|dart|net|harpoon|vibro\w*|blade|claw|saw|shear|scalpel|injector|probe|prod|shock|stun|arc|drill|weapon|gun)\b/i;
+const DR_KEINE_WAFFE = /\b(armor|armour|plating|hull|shield|sensor|software|database|module|tether|interface|computer|antenna|comlink|recorder|storage|repulsor|magnet)\b/i;
+const DR_NAHKAMPF = /\b(vibro\w*|blade|claw|saw|shear|scalpel|prod|fist|arm|torch)\b/i;
+
+function droidWeaponsFromEquipped(lines) {
+  const out = [];
+  (lines || []).forEach(raw => {
+    const s = String(raw || '').replace(/^[\s•·\-–*]+/, '').trim();
+    if (!s || DR_KEINE_WAFFE.test(s)) return;
+    const nah = /\bSTR\s*\+\s*(\d+D(?:\s*\+\s*\d)?)/i.exec(s);
+    /* Würfelwert, der kein "+1D"-Bonus ist */
+    const roh = nah ? null : /(?:^|[\s(])(\d+D(?:\s*\+\s*\d)?)/.exec(s);
+    const dmg = nah ? 'STR+' + nah[1].replace(/\s+/g, '') : (roh ? roh[1].replace(/\s+/g, '') : '');
+    if (!dmg) return;
+    if (!nah && !/\b(damage|stun)\b/i.test(s) && !DR_WAFFENWORT.test(s)) return;
+    if (!DR_WAFFENWORT.test(s) && !/\bdamage\b/i.test(s)) return;
+    /* Steht vor der Klammer nichts, ist die Zeile im Buch umbrochen und der
+       Name blieb in der Zeile darüber zurück – daraus wird keine Waffe. */
+    const name = s.split('(')[0].replace(/[,;.]\s*$/, '').trim();
+    /* Beginnt der Rest mit dem Würfelwert selbst oder ist er länger als eine
+       Bezeichnung sein kann, ist die Zeile im Buch zerrissen. */
+    if (name.length < 3 || name.length > 60 || /^\d+D\b/.test(name)) return;
+    const rng = /range:?\s*([^),]+)/i.exec(s);
+    out.push({
+      name: name,
+      dmg: dmg,
+      ranges: rng ? rng[1].trim() : '',
+      cost: 0,
+      nah: !!nah || (DR_NAHKAMPF.test(name) && !rng),
+    });
+  });
+  return out;
 }
 function pdfSource(kind) {
   if (kind === 'melee') return (typeof PDF_WEAPONS_MELEE !== 'undefined') ? PDF_WEAPONS_MELEE : [];
@@ -590,6 +654,19 @@ function pdfCatalogBlock(kind) {
        <select data-pdfera="${kind}" style="width:200px">${eraOptions(pdfEra[kind])}</select></p>
     ${info}${rows ? `<div class="table-scroll"><table class="list">${rows}</table></div>` : ''}</div>`;
 }
+/* Waffe von Hand eintragen. Die Kataloge decken Handwaffen ab; was fest in
+   einem Droiden verbaut ist, steht dort nicht – ein integrierter Blasterarm
+   ließ sich deshalb bisher gar nicht erfassen. */
+function addCustomDroidWeapon() {
+  const wert = id => (document.getElementById(id) || {}).value || '';
+  const name = wert('cwName').trim();
+  if (!name) { alert(t('dr_own_weapon_noname')); return; }
+  const eintrag = { name: name, dmg: wert('cwDmg').trim(), cost: 0 };
+  if (wert('cwKind') === 'melee') C.customMelee.push(eintrag);
+  else C.customRanged.push(Object.assign(eintrag, { skill: '', ranges: wert('cwRange').trim() }));
+  update();
+}
+
 function pdfAddDroid(kind, idx) {
   const h = pdfSource(kind)[idx];
   if (!h) return;
@@ -805,6 +882,20 @@ function viewGear() {
     <div class="table-scroll"><table class="list"><tr><th>${t('weapon')}</th><th>${t('skill')}</th><th>${t('damage')}</th><th>${t('range_pkml')}</th><th></th></tr>
       ${rOwned || `<tr><td colspan="5" class="hint">${t('none_dash')}</td></tr>`}</table></div>
     <p><select id="addRangedSel">${rCat}</select> <button class="mini" data-act="addOwn" data-list="ranged">+</button></p>
+
+    <h3>${t('dr_own_weapon')}</h3>
+    <p class="hint">${t('dr_own_weapon_hint')}</p>
+    <div class="formgrid">
+      <div><label>${t('name')}</label><input type="text" id="cwName" placeholder="Blaster cannon"></div>
+      <div><label>${t('damage')}</label><input type="text" id="cwDmg" placeholder="5D"></div>
+      <div><label>${t('range_pkml')}</label><input type="text" id="cwRange" placeholder="3-20/50/90"></div>
+      <div><label>${t('dr_own_weapon_kind')}</label>
+        <select id="cwKind">
+          <option value="ranged">${t('dr_ranged')}</option>
+          <option value="melee">${t('dr_melee')}</option>
+        </select></div>
+      <div style="align-self:end"><button class="accent" data-act="addCustomWeapon">${t('dr_own_weapon_add')}</button></div>
+    </div>
   </div>
   ${customGearBlock()}
   ${pdfCatalogBlock('melee')}
@@ -873,6 +964,13 @@ function renderSheet() {
   const wLines = [];
   C.melee.forEach(n => { const m = DATA.melee.find(x => x.name === n); if (m) wLines.push(`${esc(m.name)} (STR+${fmtD(m.dmg)})`); });
   C.ranged.forEach(n => { const r = DATA.ranged.find(x => x.name === n); if (r) wLines.push(`${esc(r.name)} (${fmtD(r.dmg)}, ${esc(r.close)}/${esc(r.short)}/${esc(r.medium)}/${esc(r.long)})`); });
+  /* Waffen aus dem erweiterten Katalog, aus einer Vorlage übernommene
+     Bewaffnung und von Hand eingetragene Waffen. Sie standen bisher nur in der
+     Eingabemaske: auf dem Bogen fehlten sie, und damit fehlte einem Kampfdroiden
+     genau das, wofür er gebaut ist. */
+  const wDesc = x => [x.dmg, x.ranges].filter(Boolean).map(esc).join(', ');
+  C.customMelee.forEach(x => wLines.push(`${esc(x.name)}${wDesc(x) ? ` (${wDesc(x)})` : ''}`));
+  C.customRanged.forEach(x => wLines.push(`${esc(x.name)}${wDesc(x) ? ` (${wDesc(x)})` : ''}`));
   const wound = t('droidWoundRows').map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join('');
 
   const html = `
@@ -949,6 +1047,7 @@ function pageAction(el) {
   const dir = +el.dataset.dir || 0;
   switch (el.dataset.act) {
     case 'applyTemplate': applyDroidTemplate(); break;
+    case 'addCustomWeapon': addCustomDroidWeapon(); break;
     case 'pdfAdd': pdfAddDroid(el.dataset.kind, +el.dataset.i); break;
     case 'delCustomGear': C[el.dataset.list].splice(+el.dataset.idx, 1); update(); break;
     case 'attr': {
