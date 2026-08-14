@@ -700,7 +700,11 @@ function templateCard() {
   const match = x => (!f || x.name.toLowerCase().includes(f) || (x.craft || '').toLowerCase().includes(f)) &&
                      (!tplEra || x.era === tplEra);
   const opt = (x, idx, kind) => `<option value="${kind}:${idx}">${esc(x.name)}${x.scale ? ' · ' + esc(x.scale) : ''}${x.book ? ' · ' + esc(x.book) : ''}</option>`;
-  const CAP = 700;                      // darüber wird die Liste im Browser zäh
+  /* Obergrenze je Gruppe. Sie stammt aus einer Zeit, in der die Liste noch
+     als Bremse galt; gemessen braucht der Browser für 2.000 Einträge rund
+     drei Millisekunden. Der Wert liegt jetzt über dem Bestand, damit nichts
+     stillschweigend hinten abfällt – der Hinweis unten bleibt als Netz. */
+  const CAP = 1500;
   const sHits = ships.map((x, n) => [x, n]).filter(([x]) => match(x));
   const vHits = vehicles.map((x, n) => [x, n]).filter(([x]) => match(x));
   const sOpts = sHits.slice(0, CAP).map(([x, n]) => opt(x, n, 'ship')).join('');

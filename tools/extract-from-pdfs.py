@@ -24,6 +24,13 @@
 
  Benötigt: pip install pypdf
 
+ Empfohlen: pdftotext aus den poppler-utils. Liegt es im Pfad, wird es dem
+ eingebauten Leser vorgezogen: Es hält die beiden Textspalten der Bücher
+ auseinander, während pypdf jede Seite quer durch beide Spalten liest und
+ dabei die Statblöcke zerschneidet ("Craft: Rot h" statt "Craft: Rothana
+ Heavy Engineering All-Terrain Tactical Enforcer"). Ohne poppler läuft alles
+ weiter wie bisher, nur mit weniger und teils verstümmelten Einträgen.
+
  Die PDFs selbst gehören NICHT ins Repository – sie sind Regelwerke bzw.
  Fan-Kompilationen von West End Games. Erzeugt wird ausschließlich die
  Spielwerte-Datei, die die App zur Auswahl anbietet.
@@ -32,6 +39,7 @@
 import json
 import os
 import re
+import subprocess
 import sys
 
 try:
@@ -211,15 +219,77 @@ def ocr_dice(val):
 KEY_RE = re.compile(r'^([A-Z][A-Za-z /\.\']{1,28}):\s*(.*)$')
 
 
+def split_columns(page, min_lines=6):
+    """Eine Seite in ihre Spalten zerlegen und in Lesereihenfolge zurückgeben.
+
+       Die Bücher sind zweispaltig gesetzt. pypdf liest eine solche Seite
+       zeilenweise quer durch beide Spalten und zerschneidet dabei jeden
+       Statblock – aus "Craft: Rothana Heavy Engineering All-Terrain Tactical
+       Enforcer" wurde "Craft: Rot h". pdftotext -layout behält dagegen die
+       waagerechte Lage der Wörter bei, sodass sich die Spalten hier trennen
+       lassen.
+
+       Eine durchgehend leere Trennspalte gibt es dabei oft nicht: zwischen
+       den Spalten stehen mitunter nur zwei Leerzeichen, und Überschriften
+       laufen quer durch. Gesucht wird deshalb die Stelle im mittleren Bereich,
+       an der am wenigsten Zeilen durchschnitten würden. Zeilen, die trotzdem
+       darüber laufen, bleiben ungeteilt in der linken Hälfte."""
+    lines = [z.rstrip() for z in page.split('\n')]
+    full = [z for z in lines if z.strip()]
+    if len(full) < min_lines:
+        return lines
+    width = max((len(z) for z in lines), default=0)
+    if width < 40:
+        return lines
+
+    def cuts(p):
+        return sum(1 for z in lines
+                   if len(z) > p and z[p] != ' ' and z[max(0, p - 1)] != ' ')
+
+    lo, hi = int(width * 0.3), int(width * 0.7)
+    if hi <= lo:
+        return lines
+    p = min(range(lo, hi), key=cuts)
+    if cuts(p) > len(full) * 0.12:
+        return lines
+    left, right = [], []
+    for z in lines:
+        if len(z) > p and z[p] != ' ' and z[max(0, p - 1)] != ' ':
+            left.append(z.rstrip())
+            right.append('')
+        else:
+            left.append(z[:p].rstrip())
+            right.append(z[p:].rstrip())
+    if sum(1 for z in left if z.strip()) < min_lines or \
+       sum(1 for z in right if z.strip()) < min_lines:
+        return lines
+    return split_columns('\n'.join(left)) + [''] + split_columns('\n'.join(right))
+
+
+def pdf_pages(path, skip_pages=0):
+    """Seiten als Text. Bevorzugt pdftotext (poppler), weil es die Spalten
+       auseinanderhält; ohne poppler bleibt es bei pypdf."""
+    try:
+        cmd = ['pdftotext', '-layout', '-enc', 'UTF-8',
+               '-f', str(skip_pages + 1), path, '-']
+        res = subprocess.run(cmd, check=True, capture_output=True, timeout=900)
+        pages = res.stdout.decode('utf-8', 'replace').split('\f')
+        return ['\n'.join(split_columns(pg)) for pg in pages]
+    except (OSError, subprocess.SubprocessError):
+        reader = pypdf.PdfReader(path)
+        out = []
+        for pg in range(skip_pages, len(reader.pages)):
+            try:
+                out.append(reader.pages[pg].extract_text() or '')
+            except Exception:
+                out.append('')
+        return out
+
+
 def pdf_lines(path, skip_pages=0, ocr=False):
     """Alle Zeilen des PDFs, bereinigt und ohne reine Seitenzahlen."""
-    reader = pypdf.PdfReader(path)
     out = []
-    for pg in range(skip_pages, len(reader.pages)):
-        try:
-            txt = reader.pages[pg].extract_text() or ''
-        except Exception:
-            continue
+    for txt in pdf_pages(path, skip_pages):
         for ln in txt.split('\n'):
             ln = clean(ln)
             if not ln:
