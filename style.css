@@ -15,6 +15,9 @@
   --inset: #0e1122;      /* eingelassene Felder/Chips (Selects, Badges …) */
   --hover: #2a3054;      /* Hover auf Knöpfen/Menüzeilen */
   --rowhover: #1b2038;   /* Hover auf Tabellen-/Listenzeilen */
+  /* Seitenrand des Inhalts. Steht als Variable, weil die Bogenvorschau ihn
+     kennen muss, um sich auf die verbleibende Breite zu verkleinern. */
+  --page-pad: 20px;
 }
 
 /* ---------- Themes (via data-theme am <html>, siehe theme.js) ---------- */
@@ -96,6 +99,10 @@ select, input[type=text], input[type=number], textarea {
   padding: 7px 9px; font-size: 14px; font-family: inherit;
 }
 select:focus, input:focus, textarea:focus { outline: 1px solid var(--accent-dim); }
+/* Ein Auswahlfeld wird von sich aus so breit wie sein laengster Eintrag und
+   schrumpft nicht mit. Bei Eintraegen wie "Turbolader +1D - Einbau: 4.500 Cr"
+   sprengte es auf dem Handy die Karte und damit die Seitenbreite. */
+select { max-width: 100%; }
 input[type=number] { width: 90px; }
 input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; }
 textarea { width: 100%; resize: vertical; min-height: 70px; }
@@ -172,7 +179,7 @@ label { color: var(--muted); font-size: 12px; display: block; margin-bottom: 3px
   border-color: var(--accent-dim); font-weight: 700;
 }
 
-main { padding: 18px 20px 60px; max-width: 1500px; margin: 0 auto; }
+main { padding: 18px var(--page-pad) 60px; max-width: 1500px; margin: 0 auto; }
 .tab { display: none; }
 .tab.active { display: block; animation: fadein .18s ease; }
 @keyframes fadein { from { opacity: 0; transform: translateY(4px);} to { opacity: 1; transform: none; } }
@@ -410,6 +417,21 @@ table.list td.num, table.list th.num { text-align: right; white-space: nowrap; }
 /* Schmale Bildschirme: flachere Perspektive und mehr Textbreite, sonst
    wird die Schrift im kleinen Rahmen unleserlich und der Titel bricht um */
 @media (max-width: 620px) {
+  /* Auf dem Handy sind 20 Pixel Rand links und rechts 10 Prozent der Breite,
+     die den Karten dann fehlen. */
+  :root { --page-pad: 10px; }
+
+  /* Das Optionsmenü hängt per position:absolute mit right:0 am Zahnrad. Wandert
+     der Knopf auf schmalen Schirmen in der umgebrochenen Werkzeugleiste nach
+     links, schiebt right:0 die 270 Pixel breite Karte aus dem Bild - auf einem
+     iPhone standen 62 Pixel links daneben. Auf schmalen Schirmen wird sie
+     deshalb am FENSTER ausgerichtet statt am Knopf. */
+  #optionsMenu {
+    position: fixed; left: 8px; right: 8px; top: 8px;
+    min-width: 0; max-width: none; width: auto;
+    max-height: calc(100vh - 16px);
+  }
+
   .sw-crawl { height: 380px; perspective: 700px; }
   .sw-crawl-content {
     left: 3%; right: 3%;
@@ -494,6 +516,29 @@ table.sp-table td.num { text-align: right; white-space: nowrap; }
 .sp-portrait img { max-width: 100%; max-height: 52mm; object-fit: contain; }
 .sp-portrait span { font-size: 6.6pt; color: #999 !important; text-transform: uppercase; letter-spacing: 1px; }
 
+/* Der Bogen ist eine A4-Seite und deshalb 210 mm breit - am Bildschirm sind
+   das rund 794 Pixel. Auf einem Handy ist der Schirm halb so breit. Der Bogen
+   passte also nicht nur nicht hinein, er zog die ganze Seite auf seine Breite
+   auf: Der Browser zoomte daraufhin die komplette Oberflaeche heraus, und
+   Kopfzeile, Reiter und Formulare wurden winzig.
+
+   Statt den Bogen umzubauen wird er verkleinert. Das ist hier das Richtige,
+   denn er ist eine Druckvorschau - er soll aussehen wie das Blatt, das
+   hinterher aus dem Drucker kommt, nur eben kleiner. zoom verkleinert im
+   Gegensatz zu transform auch den Platz, den das Element einnimmt; es bleibt
+   also kein leerer Streifen darunter stehen, und mehrseitige Boegen liegen
+   weiter sauber untereinander.
+
+   Der Faktor kommt ohne JavaScript aus: atan2 macht aus zwei Laengen einen
+   Winkel, tan daraus wieder das Verhaeltnis der beiden - also die verfuegbare
+   Breite geteilt durch 210 mm. min(1, ...) sorgt dafuer, dass ein Bogen, der
+   ohnehin hineinpasst, in Originalgroesse bleibt. */
+@media (max-width: 860px) {
+  .sheet-page {
+    zoom: min(1, tan(atan2(calc(100vw - 2 * var(--page-pad) - 2px), 210mm)));
+  }
+}
+
 /* ---------- Druck ---------- */
 @media print {
   @page { size: A4 portrait; margin: 0; }
@@ -503,6 +548,10 @@ table.sp-table td.num { text-align: right; white-space: nowrap; }
   .sheet-page {
     box-shadow: none; margin: 0; width: 210mm; min-height: 0;
     page-break-after: always; padding: 9mm 11mm;
+    /* Beim Drucken vom Handy meldet der Browser eine schmale Seitenbreite und
+       die Regel oben wuerde greifen - der Ausdruck kaeme dann halb so gross
+       aus dem Drucker. Auf Papier ist A4 immer A4. */
+    zoom: 1;
   }
   .sheet-page:last-child { page-break-after: auto; }
 }

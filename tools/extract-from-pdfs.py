@@ -690,7 +690,7 @@ def parse_equipment(lines, src):
 
 # ------------------------------------------------- Schiffe und Fahrzeuge
 WEAPON_KEYS = {'Fire Arc', 'Fire Control', 'Space Range', 'Atmosphere Range',
-               'Damage', 'Crew', 'Skill', 'Scale', 'Rate of Fire', 'Ammo'}
+               'Range', 'Damage', 'Crew', 'Skill', 'Scale', 'Rate of Fire', 'Ammo'}
 
 
 def parse_craft(lines, kind, src):
@@ -755,10 +755,21 @@ def parse_craft(lines, kind, src):
         wl = []
         for wn, wb in weapons:
             wd, _ = kv(wb)
+            space, atm = wd.get('Space Range', ''), wd.get('Atmosphere Range', '')
+            # Raumschiffe führen zwei Reichweiten ("Space Range" und
+            # "Atmosphere Range"), Bodenfahrzeuge nur eine, und die heißt in
+            # den Büchern schlicht "Range". Danach wurde bisher nicht gesucht –
+            # deshalb stand bei fast jeder Fahrzeugwaffe keine Reichweite.
+            eine = wd.get('Range', '')
+            if eine and not space and not atm:
+                if re.search(r'\b(km|m|meter|metre)s?\b', eine, re.I):
+                    atm = eine        # in Metern oder Kilometern: Atmosphäre
+                else:
+                    space = eine      # nackte Felder wie "1-3/12/25": Weltraum
             wl.append({
                 'name': wn, 'arc': wd.get('Fire Arc', ''), 'skill': wd.get('Skill', ''),
                 'crew': wd.get('Crew', ''), 'fireControl': wd.get('Fire Control', ''),
-                'spaceRange': wd.get('Space Range', ''), 'atmRange': wd.get('Atmosphere Range', ''),
+                'spaceRange': space, 'atmRange': atm,
                 'damage': wd.get('Damage', ''), 'scale': norm_scale(wd.get('Scale', '')),
             })
 

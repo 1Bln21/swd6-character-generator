@@ -19,16 +19,30 @@
    ===================================================================== */
 'use strict';
 
-/* Zeichen, die die Standardschriften nicht führen. */
+/* Zeichen, die die Standardschriften nicht fuehren.
+
+   Trifft jsPDF auf ein Zeichen, das die eingebaute Schrift nicht kennt,
+   schaltet es fuer die ganze Zeile auf UTF-16 um. Im fertigen PDF steht dann
+   nicht das gewuenschte Zeichen, sondern die ganze Zeile als Buchstabensalat
+   mit Kaestchen dazwischen - so verunstalteten das Ankreuzkaestchen der
+   Wundtabelle und das typografische Minus bisher jeden Bogen. */
 function pdfText(s) {
   return String(s == null ? '' : s)
     .replace(/[✔✓]/g, 'OK')
     .replace(/[↳➜→]/g, '>')
     .replace(/[★☆*]/g, '*')
-    .replace(/[–—]/g, '-')
+    .replace(/[☐□]/g, '[ ]')
+    .replace(/[☑☒]/g, '[X]')
+    .replace(/[–—−]/g, '-')
     .replace(/[„“”]/g, '"')
     .replace(/[‚‘’]/g, "'")
+    .replace(/…/g, '...')
+    .replace(/×/g, 'x')
     .replace(/ /g, ' ')
+    /* Auffangnetz: Was oben nicht erfasst wurde und ausserhalb von WinAnsi
+       liegt, faellt weg. Lieber ein fehlendes Sonderzeichen als eine
+       zerschossene Zeile. Umlaute und Euro gehoeren zu WinAnsi und bleiben. */
+    .replace(/[^\x20-\xff\u20ac\u201a\u0192\u201e\u2026\u2020\u2021\u02c6\u2030\u0160\u2039\u0152\u017d\u2018\u2019\u201c\u201d\u2022\u2013\u2014\u02dc\u2122\u0161\u203a\u0153\u017e\u0178]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -145,6 +159,24 @@ async function exportSheetPdf(btn) {
       y += 4.4;
     }
 
+    /* Attributüberschrift: links der Name, rechts der Würfelwert, darunter ein
+       Strich – wie auf dem Bogen. Ohne eigene Behandlung landete sie im
+       Auffangzweig, der nur den reinen Text zeichnet: aus „Dexterity 2D“ wurde
+       „Dexterity2D“, und bei einem Charakter ohne Fertigkeiten klebten alle
+       sechs Attribute in einer einzigen Zeile aneinander. */
+    function drawAttrHead(el, x0, width) {
+      const parts = el.querySelectorAll('span');
+      need(7);
+      setFont(9, 'bold');
+      pdf.text(pdfText(parts[0] ? parts[0].textContent : ''), x0, y + 3.4);
+      pdf.text(pdfText(parts[1] ? parts[1].textContent : ''), x0 + width, y + 3.4, { align: 'right' });
+      y += 4.8;
+      pdf.setDrawColor(60);
+      pdf.setLineWidth(0.35);
+      pdf.line(x0, y - 0.6, x0 + width, y - 0.6);
+      y += 1;
+    }
+
     function drawTable(tbl, x0, width) {
       const rows = tbl.querySelectorAll('tr');
       rows.forEach((tr, ri) => {
@@ -196,6 +228,7 @@ async function exportSheetPdf(btn) {
         if (cl.contains('sp-box')) { drawBox(el, x0, width); return; }
         if (cl.contains('sp-portrait')) { drawPortrait(el, x0, width); return; }
         if (cl.contains('sp-skill')) { drawSkill(el, x0, width); return; }
+        if (cl.contains('ah')) { drawAttrHead(el, x0, width); return; }
         if (cl.contains('sp-attr')) { walk(el, x0, width); return; }
         if (cl.contains('sp-footer')) {
           y += 1; put(el.textContent, x0, 6, 'italic', true, width); return;
@@ -207,7 +240,7 @@ async function exportSheetPdf(btn) {
            zeichnen und den Text dahinter verlieren – genau das passierte auf
            den NPC-Karten. */
         const strukturiert = el.querySelector(
-          '.sp-grid, .sp-box, .sp-skill, .sp-stat, .sp-portrait, .sp-header, .sp-footer, table');
+          '.sp-grid, .sp-box, .sp-skill, .sp-attr, .sp-stat, .sp-portrait, .sp-header, .sp-footer, table');
         if (strukturiert) { walk(el, x0, width); return; }
         put(el.textContent, x0, 7.6, 'normal', false, width);
       });
