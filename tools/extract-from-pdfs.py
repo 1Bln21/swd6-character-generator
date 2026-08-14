@@ -756,21 +756,35 @@ def parse_craft(lines, kind, src):
         for wn, wb in weapons:
             wd, _ = kv(wb)
             space, atm = wd.get('Space Range', ''), wd.get('Atmosphere Range', '')
+            wscale = norm_scale(wd.get('Scale', ''))
             # Raumschiffe führen zwei Reichweiten ("Space Range" und
             # "Atmosphere Range"), Bodenfahrzeuge nur eine, und die heißt in
             # den Büchern schlicht "Range". Danach wurde bisher nicht gesucht –
             # deshalb stand bei fast jeder Fahrzeugwaffe keine Reichweite.
-            eine = wd.get('Range', '')
+            #
+            # In welche Spalte der eine Wert gehört, entscheidet der Träger:
+            # Ein Fahrzeug verlässt die Atmosphäre nicht, also hat auch seine
+            # Bewaffnung keine Weltraumreichweite – selbst wenn der Statblock
+            # eines großen U-Boots die Waffe in Jägerskala führt. Auf einem
+            # Raumschiff gilt dasselbe für alles, was in Fahrzeugskala montiert
+            # ist. Nur der Rest ist wirklich eine Weltraumreichweite.
+            #
+            # Ob der Statblock ein Schiff oder ein Fahrzeug beschreibt, steht
+            # hier noch nicht fest – das entscheidet erst split_craft weiter
+            # unten. Der unsichere Fall wird deshalb vermerkt und dort
+            # richtiggestellt.
+            eine, solo = wd.get('Range', ''), False
             if eine and not space and not atm:
-                if re.search(r'\b(km|m|meter|metre)s?\b', eine, re.I):
-                    atm = eine        # in Metern oder Kilometern: Atmosphäre
+                if (wscale in ('Speeder', 'Walker', 'Character')
+                        or re.search(r'\b(km|m|meter|metre)s?\b', eine, re.I)):
+                    atm = eine
                 else:
-                    space = eine      # nackte Felder wie "1-3/12/25": Weltraum
+                    space, solo = eine, True
             wl.append({
                 'name': wn, 'arc': wd.get('Fire Arc', ''), 'skill': wd.get('Skill', ''),
                 'crew': wd.get('Crew', ''), 'fireControl': wd.get('Fire Control', ''),
-                'spaceRange': space, 'atmRange': atm,
-                'damage': wd.get('Damage', ''), 'scale': norm_scale(wd.get('Scale', '')),
+                'spaceRange': space, 'atmRange': atm, '_soloRange': solo,
+                'damage': wd.get('Damage', ''), 'scale': wscale,
             })
 
         entry = {
@@ -984,6 +998,12 @@ for fname, book, era, kinds, ocr, skip in SOURCES:
             v = []
         for x in v:
             x['kind'] = 'vehicle'
+        # Jetzt steht fest, was Schiff und was Fahrzeug ist: Eine einzelne
+        # "Range:"-Angabe auf einem Fahrzeug ist immer eine atmosphärische.
+        for x in s + v:
+            for w in (x.get('weapons') or []):
+                if w.pop('_soloRange', False) and x.get('kind') == 'vehicle':
+                    w['atmRange'], w['spaceRange'] = w['spaceRange'], ''
         ships += s
         vehicles += v
         counts['Schiffe'] = len(s)
