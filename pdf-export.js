@@ -113,10 +113,10 @@ async function exportSheetPdf(btn) {
         setFont(8.6, 'bold');
         const lines = pdf.splitTextToSize(pdfText(val ? val.textContent : ''), w);
         lines.slice(0, 3).forEach((l, n) => pdf.text(l, x, top + 7 + n * 3.4));
-        const h = 8.5 + Math.min(3, lines.length) * 3.4 - 3.4;
+        const h = 8 + Math.min(3, lines.length) * 3.2 - 3.2;
         pdf.setDrawColor(190);
         pdf.line(x, top + h + 1.2, x + w, top + h + 1.2);
-        rowH = Math.max(rowH, h + 3);
+        rowH = Math.max(rowH, h + 2.4);
         used += span;
         y = top;
       });
@@ -129,7 +129,7 @@ async function exportSheetPdf(btn) {
       const startY = y + 2, startSeite = seite();
       y = startY + (title ? 6.5 : 3);
       walk(box, x0 + 2.5, width - 5, head);
-      y += 2.5;
+      y += 2;
       /* Rahmen und Überschrift nur, wenn der Kasten auf einer Seite blieb -
          sonst zöge der Rahmen quer über das halbe Blatt. */
       if (seite() !== startSeite) { y += 3; return; }
@@ -161,7 +161,7 @@ async function exportSheetPdf(btn) {
         setFont(5.8, 'normal', true);
         pdf.text(pdfText(lbl ? lbl.textContent : ''), x0 + w * n + w / 2, y + 9, { align: 'center' });
       });
-      y += 12;
+      y += 10.5;
       return true;
     }
 
@@ -171,10 +171,14 @@ async function exportSheetPdf(btn) {
       const right = pdfText(parts[1] ? parts[1].textContent : '');
       need(5);
       setFont(8, 'normal');
-      pdf.text(left, x0, y + 3);
+      pdf.text(left, x0, y + 2.8);
       setFont(8, 'bold');
-      pdf.text(right, x0 + width, y + 3, { align: 'right' });
-      y += 4.4;
+      pdf.text(right, x0 + width, y + 2.8, { align: 'right' });
+      /* Enger Zeilenabstand mit Absicht: Der Bogen ist auf eine A4-Seite
+         gerechnet. Bei 4,4 mm je Fertigkeit lief ein Charakter mit vielen
+         Fertigkeiten über, und die letzten zwei Kästen landeten allein auf
+         einem zweiten Blatt. */
+      y += 3.7;
     }
 
     /* Attributüberschrift: links der Name, rechts der Würfelwert, darunter ein
@@ -185,14 +189,14 @@ async function exportSheetPdf(btn) {
     function drawAttrHead(el, x0, width) {
       const parts = el.querySelectorAll('span');
       need(7);
-      setFont(9, 'bold');
-      pdf.text(pdfText(parts[0] ? parts[0].textContent : ''), x0, y + 3.4);
-      pdf.text(pdfText(parts[1] ? parts[1].textContent : ''), x0 + width, y + 3.4, { align: 'right' });
-      y += 4.8;
+      setFont(8.8, 'bold');
+      pdf.text(pdfText(parts[0] ? parts[0].textContent : ''), x0, y + 3.2);
+      pdf.text(pdfText(parts[1] ? parts[1].textContent : ''), x0 + width, y + 3.2, { align: 'right' });
+      y += 4.3;
       pdf.setDrawColor(60);
       pdf.setLineWidth(0.35);
       pdf.line(x0, y - 0.6, x0 + width, y - 0.6);
-      y += 1;
+      y += 0.8;
     }
 
     function drawTable(tbl, x0, width) {
@@ -206,9 +210,9 @@ async function exportSheetPdf(btn) {
           const isHead = c.tagName === 'TH';
           setFont(isHead ? 6 : 7.6, isHead ? 'bold' : 'normal', isHead);
           const lines = pdf.splitTextToSize(pdfText(c.textContent), w - 1.5);
-          pdf.text(lines[0] || '', x0 + ci * w, y + 3);
+          pdf.text(lines[0] || '', x0 + ci * w, y + 2.8);
         });
-        y += 4.4;
+        y += 3.8;
         if (ri === 0) { pdf.setDrawColor(200); pdf.line(x0, y - 1.2, x0 + width, y - 1.2); }
       });
       y += 1.5;
