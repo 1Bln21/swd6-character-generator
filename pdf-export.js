@@ -201,19 +201,49 @@ async function exportSheetPdf(btn) {
 
     function drawTable(tbl, x0, width) {
       const rows = tbl.querySelectorAll('tr');
+      const schrift = c => {
+        const kopf = c.tagName === 'TH';
+        setFont(kopf ? 6 : 7.6, kopf ? 'bold' : 'normal', kopf);
+      };
+      /* Spaltenbreiten nach Inhalt verteilen. Gleich breite Spalten zwangen
+         die Wirkungsspalte der Wundtabelle in den Umbruch, während daneben
+         "0 - 3" ein Drittel der Zeile belegte. Jede Spalte bekommt jetzt so
+         viel, wie ihr breitester Eintrag braucht - gedeckelt, damit eine
+         lange Notiz die übrigen nicht erdrückt. */
+      const spalten = Math.max(1, ...Array.prototype.map.call(
+        rows, r => r.querySelectorAll('th, td').length));
+      const wunsch = new Array(spalten).fill(5);
+      Array.prototype.forEach.call(rows, r => {
+        Array.prototype.forEach.call(r.querySelectorAll('th, td'), (c, i) => {
+          schrift(c);
+          const breit = pdf.getTextWidth(pdfText(c.textContent)) + 2.5;
+          wunsch[i] = Math.max(wunsch[i], Math.min(breit, width * 0.45));
+        });
+      });
+      const summe = wunsch.reduce((a, b) => a + b, 0);
+      const breiten = wunsch.map(x => x / summe * width);
+      const links = breiten.map((_, i) => breiten.slice(0, i).reduce((a, b) => a + b, 0));
+
       rows.forEach((tr, ri) => {
         const cells = tr.querySelectorAll('th, td');
         if (!cells.length) return;
-        const w = width / cells.length;
-        need(5);
-        cells.forEach((c, ci) => {
-          const isHead = c.tagName === 'TH';
-          setFont(isHead ? 6 : 7.6, isHead ? 'bold' : 'normal', isHead);
-          const lines = pdf.splitTextToSize(pdfText(c.textContent), w - 1.5);
-          pdf.text(lines[0] || '', x0 + ci * w, y + 2.8);
+        /* Erst alle Zellen umbrechen: Eine Notiz wie "Easy Business roll is
+           required for repairs" passt nicht in eine Spalte. Bisher wurde nur
+           die erste Zeile gesetzt und der Rest fiel weg - Notizen brachen
+           mitten im Satz ab. Die höchste Zelle bestimmt die Zeilenhöhe. */
+        const inhalte = Array.prototype.map.call(cells, (c, i) => {
+          schrift(c);
+          return pdf.splitTextToSize(pdfText(c.textContent), breiten[i] - 1.5).slice(0, 4);
         });
-        y += 3.8;
-        if (ri === 0) { pdf.setDrawColor(200); pdf.line(x0, y - 1.2, x0 + width, y - 1.2); }
+        const zeilen = Math.max(1, ...inhalte.map(l => l.length));
+        need(zeilen * 3.2 + 2);
+        inhalte.forEach((lines, ci) => {
+          schrift(cells[ci]);
+          lines.forEach((l, n) => pdf.text(l, x0 + links[ci], y + 2.8 + n * 3.2));
+        });
+        y += (zeilen - 1) * 3.2 + 3.8;
+        /* Der Strich gehört unter die Grundlinie, nicht in die Buchstaben. */
+        if (ri === 0) { pdf.setDrawColor(200); pdf.line(x0, y - 0.6, x0 + width, y - 0.6); }
       });
       y += 1.5;
     }
@@ -297,7 +327,15 @@ async function exportSheetPdf(btn) {
       if (cl.contains('ah')) { drawAttrHead(el, x0, width); return; }
       if (cl.contains('sp-attr')) { walk(el, x0, width); return; }
       if (cl.contains('sp-footer')) {
-        y += 1; put(el.textContent, x0, 6, 'italic', true, width); return;
+        /* Auf dem Bogen klebt die Fußzeile am unteren Blattrand. Lief sie hier
+           im Fluss mit, drückte sie eine randvolle Seite über die Kante - und
+           landete als einzige Zeile auf einem eigenen Blatt. Sie wird deshalb
+           fest unten gesetzt, ohne Umbruch. */
+        const merk = y;
+        setFont(6, 'italic', true);
+        pdf.text(pdfText(el.textContent), x0, PH - M + 3.5);
+        y = merk;
+        return;
       }
       if (el.tagName === 'TABLE') { drawTable(el, x0, width); return; }
       if (drawStats(el, x0, width)) return;
@@ -335,6 +373,15 @@ async function exportSheetPdf(btn) {
         y = M;
       }
       walk(pages[p], M, CW);
+    }
+
+    /* Leere Blätter am Ende wegwerfen. Ein Bogen, dessen letzter Kasten genau
+       auf die Kante fällt, lässt eine angefangene Seite zurück, auf der nie
+       etwas gezeichnet wurde. */
+    for (let n = pdf.internal.getNumberOfPages(); n > 1; n--) {
+      const inhalt = (pdf.internal.pages[n] || []).join('');
+      if (/\(.+\) Tj|\bre\b|\bDo\b/.test(inhalt)) break;
+      pdf.deletePage(n);
     }
 
     let name = 'sheet';
