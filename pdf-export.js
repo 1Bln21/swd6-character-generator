@@ -68,7 +68,17 @@ async function exportSheetPdf(btn) {
     const COL = CW / 12;                                  // die Bögen rastern in 12 Spalten
     let y = M;
 
-    const need = h => { if (y + h > PH - M) { pdf.addPage(); y = M; } };
+    const seite = () => pdf.internal.getCurrentPageInfo().pageNumber;
+    /* Platz schaffen. Beim Spaltensatz laufen mehrere Spalten nacheinander
+       über dieselbe Seitengrenze; jede darf dann nur auf die nächste Seite
+       wechseln, nicht eine eigene anlegen - sonst bekommt jede Spalte ihr
+       eigenes leeres Blatt. */
+    const need = h => {
+      if (y + h <= PH - M) return;
+      if (seite() < pdf.internal.getNumberOfPages()) pdf.setPage(seite() + 1);
+      else pdf.addPage();
+      y = M;
+    };
     const setFont = (size, style, grey) => {
       pdf.setFont('helvetica', style || 'normal');
       pdf.setFontSize(size);
@@ -116,18 +126,26 @@ async function exportSheetPdf(btn) {
     function drawBox(box, x0, width) {
       const head = box.querySelector(':scope > h4');
       const title = head ? pdfText(head.textContent) : '';
-      const startY = y + 2;
+      const startY = y + 2, startSeite = seite();
       y = startY + (title ? 6.5 : 3);
-      if (title) {
-        setFont(7.4, 'bold');
-        pdf.text(title.toUpperCase(), x0 + 2.5, startY + 4.5);
-      }
       walk(box, x0 + 2.5, width - 5, head);
       y += 2.5;
+      /* Rahmen und Überschrift nur, wenn der Kasten auf einer Seite blieb -
+         sonst zöge der Rahmen quer über das halbe Blatt. */
+      if (seite() !== startSeite) { y += 3; return; }
       pdf.setDrawColor(60);
       pdf.setLineWidth(0.35);
       pdf.rect(x0, startY, width, y - startY);
-      if (title) pdf.line(x0, startY + 6, x0 + width, startY + 6);
+      /* Die Überschrift zuletzt: Auf dem Bogen sitzt sie als schwarzer Balken
+         auf dem Kastenrand, und der Balken muss über dem Rahmen liegen. */
+      if (title) {
+        pdf.setFillColor(20);
+        pdf.rect(x0, startY, width, 6, 'F');
+        setFont(7.4, 'bold');
+        pdf.setTextColor(255);
+        pdf.text(title.toUpperCase(), x0 + 2.5, startY + 4.3);
+        pdf.setTextColor(20);
+      }
       y += 3;
     }
 
@@ -224,14 +242,22 @@ async function exportSheetPdf(btn) {
       const luecke = 3;
       const rest = width - luecke * (kinder.length - 1);
       const w = breiten || kinder.map(() => rest / kinder.length);
-      const oben = y;
-      let unten = y, x = x0;
+      /* Jede Spalte beginnt auf derselben Seite am selben oberen Rand.
+         Danach steht der Stift dort, wo die längste Spalte geendet hat -
+         auch wenn die über die Seitengrenze hinausgereicht hat. */
+      const startSeite = seite(), oben = y;
+      let endSeite = startSeite, unten = y, x = x0;
       kinder.forEach((k, i) => {
+        pdf.setPage(startSeite);
         y = oben;
         drawNode(k, x, w[i]);
-        unten = Math.max(unten, y);
+        if (seite() > endSeite || (seite() === endSeite && y > unten)) {
+          endSeite = seite();
+          unten = y;
+        }
         x += w[i] + luecke;
       });
+      pdf.setPage(endSeite);
       y = unten;
     }
 
@@ -297,7 +323,13 @@ async function exportSheetPdf(btn) {
     }
 
     for (let p = 0; p < pages.length; p++) {
-      if (p > 0) { pdf.addPage(); y = M; }
+      if (p > 0) {
+        /* Nach mehrspaltigem Satz kann der Stift auf einer früheren Seite
+           stehen; die nächste Bogenseite gehört trotzdem ans Ende. */
+        pdf.setPage(pdf.internal.getNumberOfPages());
+        pdf.addPage();
+        y = M;
+      }
       walk(pages[p], M, CW);
     }
 
