@@ -434,13 +434,8 @@ const FORCE = [
   { key: 'sense', name: 'Sense' },
   { key: 'alter', name: 'Alter' },
 ];
-const ADV_SKILLS = [
-  { name: '(A) Medicine', attr: 'tec', req: 'First Aid 5D' },
-  /* REUP führt Podrennen als erweiterte Fertigkeit (S. 46). Die Regeln dafür
-     sind dieselben wie bei Medicine: Start bei 1D, nur mit erfüllter
-     Voraussetzung steigerbar. */
-  { name: '(A) Pod Racer Operation', attr: 'mec', req: 'Repulsorlift Op. 5D' },
-];
+/* Die erweiterten Fertigkeiten stehen in data.js: Droiden brauchen dieselbe
+   Liste, und zwei Fassungen davon laufen zwangsläufig auseinander. */
 /* "First Aid 5D" / "Repulsorlift Op. 5D" -> ist die Fertigkeit hoch genug?
    Ohne erkennbare Angabe gilt die Voraussetzung als erfüllt: eine unlesbare
    Regel darf den Spieler nicht aussperren. */

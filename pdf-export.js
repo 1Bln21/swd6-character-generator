@@ -208,42 +208,92 @@ async function exportSheetPdf(btn) {
       y += h + 2;
     }
 
+    /* Nebeneinander statt untereinander.
+
+       Der Bogen setzt seine Blöcke in Spalten: die sechs Attribute in drei,
+       Ausrüstung und Waffen in zwei, und im Kopf steht das Bild neben den
+       Personalien. Der Zeichner kannte diese Behälter nicht, lief einfach
+       hinein und stapelte alles untereinander - aus einer Seite wurden vier,
+       und mit dem Layout ging die Übersicht verloren.
+
+       Gezeichnet wird Spalte für Spalte vom selben oberen Rand aus; danach
+       steht der Stift unter der längsten. */
+    function drawColumns(node, x0, width, breiten) {
+      const kinder = Array.prototype.slice.call(node.children);
+      if (kinder.length < 2) { walk(node, x0, width); return; }
+      const luecke = 3;
+      const rest = width - luecke * (kinder.length - 1);
+      const w = breiten || kinder.map(() => rest / kinder.length);
+      const oben = y;
+      let unten = y, x = x0;
+      kinder.forEach((k, i) => {
+        y = oben;
+        drawNode(k, x, w[i]);
+        unten = Math.max(unten, y);
+        x += w[i] + luecke;
+      });
+      y = unten;
+    }
+
+    /* Eine Zeile, die im Bogen nebeneinander gesetzt ist */
+    function istFlexZeile(el) {
+      return /display\s*:\s*flex/i.test(el.getAttribute('style') || '');
+    }
+
     /* Läuft die Kinder eines Knotens ab und behandelt, was er kennt. */
     function walk(node, x0, width, skip) {
       Array.prototype.forEach.call(node.children, el => {
-        if (el === skip) return;
-        const cl = el.classList;
-        if (cl.contains('sp-header')) {
-          const sw = el.querySelector('.sw'), st = el.querySelector('.st');
-          need(14);
-          setFont(17, 'bold');
-          pdf.text(pdfText(sw ? sw.textContent : 'STAR WARS'), x0 + width / 2, y + 6, { align: 'center' });
-          setFont(8, 'normal', true);
-          pdf.text(pdfText(st ? st.textContent : ''), x0 + width / 2, y + 11, { align: 'center' });
-          y += 15;
-          pdf.setDrawColor(60); pdf.line(x0, y, x0 + width, y); y += 3;
-          return;
-        }
-        if (cl.contains('sp-grid')) { drawFields(el, x0, width); return; }
-        if (cl.contains('sp-box')) { drawBox(el, x0, width); return; }
-        if (cl.contains('sp-portrait')) { drawPortrait(el, x0, width); return; }
-        if (cl.contains('sp-skill')) { drawSkill(el, x0, width); return; }
-        if (cl.contains('ah')) { drawAttrHead(el, x0, width); return; }
-        if (cl.contains('sp-attr')) { walk(el, x0, width); return; }
-        if (cl.contains('sp-footer')) {
-          y += 1; put(el.textContent, x0, 6, 'italic', true, width); return;
-        }
-        if (el.tagName === 'TABLE') { drawTable(el, x0, width); return; }
-        if (drawStats(el, x0, width)) return;
-        /* Nur weiter absteigen, wenn darunter noch etwas Strukturiertes liegt.
-           Sonst würde eine Zeile wie „<b>Beute:</b> 310 Credits …“ nur das <b>
-           zeichnen und den Text dahinter verlieren – genau das passierte auf
-           den NPC-Karten. */
-        const strukturiert = el.querySelector(
-          '.sp-grid, .sp-box, .sp-skill, .sp-attr, .sp-stat, .sp-portrait, .sp-header, .sp-footer, table');
-        if (strukturiert) { walk(el, x0, width); return; }
-        put(el.textContent, x0, 7.6, 'normal', false, width);
+        if (el !== skip) drawNode(el, x0, width);
       });
+    }
+
+    function drawNode(el, x0, width) {
+      const cl = el.classList;
+      if (cl.contains('sp-header')) {
+        const sw = el.querySelector('.sw'), st = el.querySelector('.st');
+        need(14);
+        setFont(17, 'bold');
+        pdf.text(pdfText(sw ? sw.textContent : 'STAR WARS'), x0 + width / 2, y + 6, { align: 'center' });
+        setFont(8, 'normal', true);
+        pdf.text(pdfText(st ? st.textContent : ''), x0 + width / 2, y + 11, { align: 'center' });
+        y += 15;
+        pdf.setDrawColor(60); pdf.line(x0, y, x0 + width, y); y += 3;
+        return;
+      }
+      if (cl.contains('sp-grid')) { drawFields(el, x0, width); return; }
+      if (cl.contains('sp-box')) { drawBox(el, x0, width); return; }
+      if (cl.contains('sp-portrait')) { drawPortrait(el, x0, width); return; }
+      if (cl.contains('sp-skill')) { drawSkill(el, x0, width); return; }
+      if (cl.contains('ah')) { drawAttrHead(el, x0, width); return; }
+      if (cl.contains('sp-attr')) { walk(el, x0, width); return; }
+      if (cl.contains('sp-footer')) {
+        y += 1; put(el.textContent, x0, 6, 'italic', true, width); return;
+      }
+      if (el.tagName === 'TABLE') { drawTable(el, x0, width); return; }
+      if (drawStats(el, x0, width)) return;
+      /* Spaltensatz des Bogens übernehmen */
+      if (cl.contains('sp-cols3') || cl.contains('sp-cols2')) {
+        drawColumns(el, x0, width); return;
+      }
+      if (istFlexZeile(el)) {
+        /* Im Kopf steht das Bild rechts neben den Personalien und hat eine
+           feste Breite; sonst werden die Spalten gleich breit. */
+        const bild = el.querySelector(':scope > .sp-portrait');
+        if (bild && el.children.length === 2) {
+          drawColumns(el, x0, width, [width - 37, 34]);
+        } else {
+          drawColumns(el, x0, width);
+        }
+        return;
+      }
+      /* Nur weiter absteigen, wenn darunter noch etwas Strukturiertes liegt.
+         Sonst würde eine Zeile wie „<b>Beute:</b> 310 Credits …“ nur das <b>
+         zeichnen und den Text dahinter verlieren – genau das passierte auf
+         den NPC-Karten. */
+      const strukturiert = el.querySelector(
+        '.sp-grid, .sp-box, .sp-skill, .sp-attr, .sp-stat, .sp-portrait, .sp-header, .sp-footer, table');
+      if (strukturiert) { walk(el, x0, width); return; }
+      put(el.textContent, x0, 7.6, 'normal', false, width);
     }
 
     for (let p = 0; p < pages.length; p++) {

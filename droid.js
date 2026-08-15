@@ -485,6 +485,24 @@ function templateManufacturer(type) {
   if (s.length > 60) s = s.slice(0, 60).replace(/\s+\S*$/, '');   // Notbremse
   return s.trim();
 }
+/* Welches Attribut passt zu einer Fertigkeit, die in keiner Liste steht?
+   Der Statblock ordnet sie einem Attribut unter, aber diese Zuordnung geht
+   beim Einlesen verloren. Das Wort selbst ist der beste Anhaltspunkt - was
+   nicht passt, laesst sich in der Oberfläche umhängen. */
+function attrGeraten(name) {
+  /* Wortgrenzen sind hier keine Kosmetik: ohne sie steckt "con" in
+     "economics" und die Hauswirtschaft eines Servierdroiden landet unter
+     Wahrnehmung. */
+  const n = ' ' + String(name || '').toLowerCase().replace(/[^a-z]+/g, ' ') + ' ';
+  const hat = w => new RegExp('\\b(?:' + w + ')\\b').test(n);
+  if (hat('repair|engineering|programming|security|demolitions?|aid|medicine|surgery|technology')) return 'tec';
+  if (hat('operations?|piloting|gunnery|astrogation|sensors|shields|communications?|driving|riding')) return 'mec';
+  if (hat('dodge|blasters?|melee|brawling|thrown|firearms?|acrobatics|running|weapons?|combat')) return 'dex';
+  if (hat('lifting|stamina|climbing|jumping|swimming|strength')) return 'str';
+  if (hat('search|hide|sneak|persuasion|con|bargain|command|gambling|investigation|diagnosis|trends')) return 'per';
+  return 'kno';
+}
+
 function applyDroidTemplate() {
   const sel = document.getElementById('tplSelect');
   if (!sel || sel.value === '') return;
@@ -513,9 +531,37 @@ function applyDroidTemplate() {
   /* Die PDF-Spalten brechen Fertigkeitsnamen um ("Computer programming/" +
      "repair 5D"). Deshalb erst alles zusammenziehen, dann an Kommas und
      Würfelangaben trennen und tolerant gegen Schreibweisen vergleichen. */
-  const norm = x => x.toLowerCase().replace(/[^a-z]/g, '');
+  /* Die Bücher schreiben Fertigkeiten aus, die Oberfläche kürzt sie ab:
+     "Computer programming/repair" gegen "Computer Prog. / Rep.". Beim reinen
+     Buchstabenvergleich fand sich das nie wieder, und die Fertigkeit fiel
+     ersatzlos weg - beim WA-7 Server Droid war das seine einzige technische.
+     Deshalb werden die Kürzel zuerst ausgeschrieben und Mehrzahl-Endungen
+     abgeschnitten ("demolitions" -> "demolition"). */
+  const norm = x => {
+    const woerter = String(x || '').toLowerCase()
+      .replace(/\brep\b\.?/g, 'repair')
+      .replace(/\bprog\b\.?/g, 'programming')
+      .replace(/\bop\b\.?/g, 'operation')
+      .replace(/\bweap\b\.?/g, 'weapon')
+      .replace(/\bcap\b\.?/g, 'capital')
+      .match(/[a-z]+/g);
+    return woerter ? woerter.map(w => w.replace(/s$/, '')).join('') : '';
+  };
   const skillIndex = {};
   ATTRS.forEach(a => (DATA.skills[a.key] || []).forEach(n => { skillIndex[norm(n)] = [a.key, n]; }));
+  /* Erweiterte Fertigkeiten gehören genauso dazu: Ein Medizindroide führt
+     "(A) Medicine", "(A) Bacta tank operation" und "(A) Injury/ailment
+     diagnosis", ein Werkstattdroide "(A) Droid engineering". */
+  (typeof ADV_SKILLS !== 'undefined' ? ADV_SKILLS : []).forEach(s => {
+    skillIndex[norm(s.name)] = [s.attr, s.name, true];
+    skillIndex[norm(s.name.replace(/^\(A\)\s*/, ''))] = [s.attr, s.name, true];
+  });
+  /* Dieselbe Fertigkeit, drei Schreibweisen: Der 2-1B führt "diagnosis",
+     der FX-6 "diagnostics", ein dritter "diagnostic". */
+  ['Injury/ailment diagnostics', 'Injury/ailment diagnostic'].forEach(a => {
+    const ziel = skillIndex[norm('Injury/Ailment Diagnosis')];
+    if (ziel) skillIndex[norm(a)] = ziel;
+  });
   const flat = (src.skills || []).join(' ').replace(/\s+/g, ' ');
   /* Alle "Name … 4D+2"-Paare im Fließtext einsammeln (auch mehrere je Zeile) */
   /* Der Doppelpunkt gehört mit in den Namen, sonst wird aus
@@ -524,7 +570,11 @@ function applyDroidTemplate() {
   const pairRe = /([A-Za-z][A-Za-z :\/'\-\(\)]*?)\s*(\d+D(?:\+\d)?)/g;
   let pm;
   while ((pm = pairRe.exec(flat)) !== null) {
-    let nm = pm[1].replace(/\(A\)/ig, '').trim().replace(/^[,;\s]+/, '');
+    /* Das "(A)" der erweiterten Fertigkeiten fällt weg - auch wenn die
+       öffnende Klammer beim Zerlegen schon verloren ging und nur "A)"
+       übrig ist. */
+    let nm = pm[1].replace(/\(A\)/ig, '').replace(/^\s*A\)\s*/i, '')
+      .trim().replace(/^[,;\s]+/, '');
     const pips = dicePipsD(pm[2]);
     if (nm.includes(':')) {
       const cut = nm.indexOf(':');
@@ -544,10 +594,28 @@ function applyDroidTemplate() {
       nm = rest;              // z. B. "Skills: blaster" → "blaster"
     }
     const hit = skillIndex[norm(nm)];
-    if (!hit) continue;
-    const [attr, canonical] = hit;
+    if (hit) {
+      const [attr, canonical, erweitert] = hit;
+      /* Eine erweiterte Fertigkeit beginnt bei 1D, nicht beim Attributwert -
+         ihr Wert steht deshalb für sich und wird nicht gegengerechnet. */
+      const over = erweitert ? pips : pips - attrTotal(attr);
+      if (over > 0) C.skills[skillKey(attr, canonical)] = { c: over, cp: 0 };
+      continue;
+    }
+    /* Unbekannte Fertigkeit. Die Bücher geben Droiden reichlich davon -
+       Küchenkunde, Hauswirtschaft, humanoide Biologie -, und bisher fielen
+       sie stillschweigend weg. Sie werden jetzt als eigene Fertigkeit
+       angelegt; das Attribut lässt sich in der Oberfläche ändern, denn der
+       Statblock verrät es nicht mehr, sobald der Extraktor die Zeilen
+       zusammengezogen hat. */
+    const sauber = nm.replace(/\s+/g, ' ').trim();
+    if (sauber.length < 3 || sauber.length > 40 || /^\d/.test(sauber)) continue;
+    const attr = attrGeraten(sauber);
+    const eigen = sauber.charAt(0).toUpperCase() + sauber.slice(1);
+    if (!C.extraSkills.some(e => e.attr === attr && e.name === eigen))
+      C.extraSkills.push({ name: eigen, attr: attr });
     const over = pips - attrTotal(attr);
-    if (over > 0) C.skills[skillKey(attr, canonical)] = { c: over, cp: 0 };
+    if (over > 0) C.skills[skillKey(attr, eigen)] = { c: over, cp: 0 };
   }
   const notes = [];
   /* Eingebaute Bewaffnung als Waffen übernehmen, nicht nur als Notiz.

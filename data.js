@@ -5785,3 +5785,49 @@ const DATA = {
   "Male"
  ]
 };
+
+/* =====================================================================
+   Erweiterte Fertigkeiten ("advanced skills", im Buch mit "(A)")
+   ---------------------------------------------------------------------
+   Sie beginnen bei 1D statt beim Attributwert, kosten die doppelten
+   Charakterpunkte und lassen sich erst lernen, wenn die Voraussetzung
+   erfuellt ist (R&E S. 65, REUP S. 61 f.).
+
+   Die Liste steht hier und nicht im Charaktergenerator, weil Droiden sie
+   genauso brauchen: Ein 2-1B fuehrt "(A) Bacta tank operation 5D",
+   "(A) Injury/ailment diagnosis 6D" und "(A) Medicine 9D" - ohne diese
+   Eintraege fiel die halbe Ausstattung eines Medizindroiden beim
+   Uebernehmen einer Vorlage ersatzlos weg.
+
+   Die 16 Ingenieur-Spezialisierungen samt Voraussetzungen stehen so in
+   REUP ("Engineering Prerequisites", S. 62). Bacta-Tank-Bedienung und
+   Diagnose sind dort nicht eigens definiert; sie tauchen nur in den
+   Statbloecken der Medizindroiden auf, weshalb sie ohne Voraussetzung
+   gefuehrt werden - das Attribut ist das, unter dem die Buecher sie
+   dort einordnen.
+   ===================================================================== */
+const ADV_SKILLS = [
+  { name: '(A) Medicine', attr: 'tec', req: 'First Aid 5D' },
+  { name: '(A) Bacta Tank Operation', attr: 'mec', req: '' },
+  { name: '(A) Injury/Ailment Diagnosis', attr: 'per', req: '' },
+  /* REUP fuehrt Podrennen als erweiterte Fertigkeit (S. 46). */
+  { name: '(A) Pod Racer Operation', attr: 'mec', req: 'Repulsorlift Op. 5D' },
+
+  /* Ingenieurwesen - je Spezialisierung eine eigene Voraussetzung */
+  { name: '(A) Aquatic Vehicle Engineering', attr: 'tec', req: 'Aquatic Vehicle Rep. 4D' },
+  { name: '(A) Armor Engineering', attr: 'tec', req: 'Armor Repair 4D' },
+  { name: '(A) Capital Ship Engineering', attr: 'tec', req: 'Capital Ship Repair 5D' },
+  { name: '(A) Civil/Industrial Engineering', attr: 'tec', req: 'Bureaucracy 1D' },
+  { name: '(A) Computer Engineering', attr: 'tec', req: 'Computer Prog. / Rep. 5D' },
+  { name: '(A) Droid Engineering', attr: 'tec', req: 'Droid Repair 5D' },
+  { name: '(A) Equipment Engineering', attr: 'tec', req: '' },
+  { name: '(A) Ground Vehicle Engineering', attr: 'tec', req: 'Ground Vehicle Rep. 4D' },
+  { name: '(A) Hover Vehicle Engineering', attr: 'tec', req: '' },
+  { name: '(A) Installation Engineering', attr: 'tec', req: 'Computer Prog. / Rep. 2D' },
+  { name: '(A) Repulsorlift Engineering', attr: 'tec', req: 'Repulsorlift Repair 4D' },
+  { name: '(A) Space Transport Engineering', attr: 'tec', req: 'Space Transport Rep. 5D' },
+  { name: '(A) Starfighter Engineering', attr: 'tec', req: 'Starfighter Repair 5D' },
+  { name: '(A) Submersible Vehicle Engineering', attr: 'tec', req: '' },
+  { name: '(A) Walker Engineering', attr: 'tec', req: 'Walker Repair 4D' },
+  { name: '(A) Weapon Engineering', attr: 'tec', req: 'Blaster Repair 5D' },
+];
