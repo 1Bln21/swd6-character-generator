@@ -1,6 +1,6 @@
-// Automatisch erzeugt aus "Droid Generator v1-3.xlsm" und "Ship Generator v1-1.xlsx"
-// Quelle: Droiden-/Schiffs-Generatoren von Chance Gibboney (Star Wars D6, WEG)
-// Nicht von Hand bearbeiten - stattdessen tools/extract-generators.py laufen lassen.
+// Generated from "Droid Generator v1-3.xlsm" and "Ship Generator v1-1.xlsx"
+// Source: Chance Gibboney's droid and ship generators (Star Wars D6, WEG)
+// Do not edit by hand - run tools/extract-generators.py instead.
 const DROID_DATA = {
  "degrees": [
   {

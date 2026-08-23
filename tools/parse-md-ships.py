@@ -1,24 +1,24 @@
 # -*- coding: utf-8 -*-
 """
 =============================================================================
- Zusaetzliche Schiffe aus einer Markdown-Datei in pdfdata-craft.js einpflegen
+ Bring extra ships from a Markdown file into pdfdata-craft.js
 =============================================================================
 
- Der Nutzer sammelt weitere Schiffe von verschiedenen Webseiten und legt sie
- als Markdown ab (additional Ships.md). Jeder Block ist eine Tabellenzelle,
- deren Zeilen mit "<br />" getrennt sind - der Aufbau schwankt leicht, weil
- die Quellen unterschiedlich sind ("Name:" vs. "Craft:" vs. "Model:",
- "Hyperdrive:" vs. "Hyperdrive Multiplier:", "Space:" vs. "Space Range:").
+ The maintainer collects further ships from various web sites and files them
+ as Markdown (additional Ships.md). Each block is a table cell whose lines
+ are separated by "<br />" - the layout varies slightly, because the sources
+ differ ("Name:" vs. "Craft:" vs. "Model:", "Hyperdrive:" vs. "Hyperdrive
+ Multiplier:", "Space:" vs. "Space Range:").
 
- Dieses Skript liest solche Bloecke, bringt sie in dasselbe Format wie die
- aus den PDFs erzeugten Eintraege (siehe extract-from-pdfs.py) und haengt sie
- an PDF_SHIPS an. PDF_SHIP_WEAPONS wird danach neu aufgebaut, damit die neuen
- Bordwaffen auch im Waffen-Katalog auftauchen.
+ This script reads such blocks, brings them into the same shape as the
+ entries generated from the PDFs (see extract-from-pdfs.py) and appends them
+ to PDF_SHIPS. PDF_SHIP_WEAPONS is rebuilt afterwards, so the new shipboard
+ weapons show up in the weapon catalogue too.
 
- Aufruf (aus dem Projektordner):
-     python tools/parse-md-ships.py "Pfad/zur/additional Ships.md"
+ Usage (from the project folder):
+     python tools/parse-md-ships.py "path/to/additional Ships.md"
 
- Ohne --write nur Bericht.
+ Without --write it only reports.
 =============================================================================
 """
 import io
@@ -32,7 +32,7 @@ from weaponnames import (clean_weapon_name, plausible_weapon_name,
                          weapon_base_name, fix_apostrophes)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BOOK = 'Community Additions'          # Herkunft in der Auswahlliste
+BOOK = 'Community Additions'          # the origin shown in the pick list
 WRITE = '--write' in sys.argv
 args = [a for a in sys.argv[1:] if not a.startswith('--')]
 MD = args[0] if args else os.path.join(
@@ -52,8 +52,8 @@ def norm_scale(s):
     for pre, val in table.items():
         if low.startswith(pre):
             return val
-    # Quellen aus Copy-&-Paste verlieren manchmal den ersten Buchstaben
-    # ("tarfighter" statt "Starfighter") – daher auch per Teilwort erkennen.
+    # Copy-and-pasted sources sometimes lose the first letter
+    # ("tarfighter" instead of "Starfighter") - so match on a substring too.
     for part, val in (('fighter', 'Starfighter'), ('capital', 'Capital'),
                       ('speeder', 'Speeder'), ('walker', 'Walker'),
                       ('deathstar', 'Death Star'), ('character', 'Character')):
@@ -72,9 +72,9 @@ def money(s):
     if not m:
         return 0
     num = m.group(1)
-    # Tausender-Trennzeichen entfernen – Komma ODER Punkt, wenn ihm genau drei
-    # Ziffern folgen ("320.000" europaeisch = 320000, "1,500" = 1500). Ein
-    # verbleibender Punkt (echte Dezimalstelle) wird danach abgeschnitten.
+    # Remove thousands separators - a comma OR a full stop when exactly
+    # three digits follow it ("320.000" European = 320000, "1,500" = 1500).
+    # Any remaining full stop (a real decimal point) is cut afterwards.
     num = re.sub(r'[.,](?=\d{3}(?:\D|$))', '', num)
     try:
         return int(num.replace(',', '').split('.')[0])
@@ -82,10 +82,10 @@ def money(s):
         return 0
 
 
-# ------------------------------------------------------- Bloecke einlesen
+# --------------------------------------------------------- reading blocks
 def blocks(text):
-    """(Ueberschrift, [Zeilen]) je Schiff. Die Ueberschrift steht als
-       normale Textzeile ueber der Tabellenzelle."""
+    """(heading, [lines]) per ship. The heading sits as an ordinary line of
+       text above the table cell."""
     out = []
     heading = ''
     for raw in text.splitlines():
@@ -98,7 +98,7 @@ def blocks(text):
             cell = line.strip('|').strip()
             rows = []
             for seg in re.split(r'<br\s*/?>', cell):
-                # Markdown-Maskierungen aufheben: "\|" -> "|", "\&" -> "&" usw.
+                # undo Markdown escaping: "\|" -> "|", "\&" -> "&" and so on
                 seg = re.sub(r'\\([|&\[\]*_~`\\])', r'\1', seg)
                 rows.append(seg.strip())
             out.append((heading, rows))
@@ -110,7 +110,7 @@ def blocks(text):
 
 FIELD_RE = re.compile(r'^([A-Za-z][A-Za-z /\-]*?)\s*:\s*(.*)$')
 
-# Schluesselwoerter, an denen die Waffen-Sektion beginnt bzw. endet
+# Keywords at which the weapon section begins and ends
 WEAPON_START = re.compile(r'^weapons?\s*:?\s*$', re.I)
 BODY_START = re.compile(
     r'^(background|description|characteristics|game\s*notes?|game\s*use|'
@@ -118,7 +118,8 @@ BODY_START = re.compile(
 
 
 def split_fields(rows):
-    """Kopf-Felder, Sensoren, rohe Waffenzeilen, Rest ab 'Background:'."""
+    """Header fields, sensors, raw weapon lines, and the rest from
+       'Background:' onwards."""
     head, sensors, weap = {}, {}, []
     mode = 'head'
     sensor_keys = ('passive', 'scan', 'search', 'focus')
@@ -136,9 +137,9 @@ def split_fields(rows):
         if mode == 'weap':
             weap.append(ln)
             continue
-        # Kopf
+        # header
         if ln.lower().startswith('sensors'):
-            mode = 'head'          # Sensoren folgen als eigene Felder
+            mode = 'head'          # sensors follow as fields of their own
             continue
         if m:
             key, val = m.group(1).strip(), m.group(2).strip()
@@ -149,7 +150,7 @@ def split_fields(rows):
     return head, sensors, weap
 
 
-# ------------------------------------------------------- Waffen einlesen
+# -------------------------------------------------------- reading weapons
 WEAP_FIELD = {
     'fire arc': 'arc', 'arc': 'arc',
     'fire control': 'fireControl',
@@ -175,7 +176,7 @@ def parse_weapons(lines, ship_scale):
         if not ln:
             continue
         m = FIELD_RE.match(ln)
-        # Reichweiten-Unterzeilen im Vakbeor-Stil: "– Space: 1-5/15/30"
+        # range sub-lines in the Vakbeor style: "- Space: 1-5/15/30"
         sub = re.match(r'^[\-–]\s*(space|atmosphere)[^:]*:\s*(.*)$', ln, re.I)
         if sub:
             if cur is not None:
@@ -191,22 +192,22 @@ def parse_weapons(lines, ship_scale):
             continue
         if m and m.group(1).strip().lower() in ('range', 'rate of fire',
                                                 'ammo', 'blast radius'):
-            continue                     # Kopfzeile / uninteressant
-        # sonst: neue Waffe (Namenszeile ohne "Feld:")
+            continue                     # a heading, of no interest
+        # otherwise: a new weapon (a name line with no "field:")
         if not m:
             flush()
             cur = {'name': ln, 'arc': '', 'skill': '', 'crew': '',
                    'fireControl': '', 'spaceRange': '', 'atmRange': '',
                    'damage': '', 'scale': ''}
     flush()
-    # Skala erben, wenn die Waffe keine eigene nennt
+    # inherit the scale when the weapon names none of its own
     for w in out:
         if not w.get('scale'):
             w['scale'] = ''
     return out
 
 
-# --------------------------------------------------------- Eintrag bauen
+# ------------------------------------------------------ building the entry
 def get(head, *keys):
     for k in keys:
         for hk in head:
@@ -265,7 +266,7 @@ def build(heading, rows):
     return entry
 
 
-# ================================================================ Ablauf
+# ========================================================== main routine
 def load_craft():
     src = io.open(os.path.join(ROOT, 'pdfdata-craft.js'), encoding='utf-8').read()
     arr = {m.group(1): json.loads(m.group(2))
@@ -327,12 +328,12 @@ def key(s):
 
 
 src, arr = load_craft()
-# Ein Schiff aus der Markdown-Datei ist entweder eine KORREKTUR (dann steht es
-# schon im Katalog – erkannt an Name oder Craft-Zeile) oder ein NEUZUGANG.
-# Korrekturen ueberschreiben die Werte des vorhandenen Eintrags, bleiben aber
-# in dessen Buch/Aera stehen. Neuzugaenge landen unter "Community Additions".
-# Der Abgleich laeuft nur gegen den URSPRUENGLICHEN Katalog, damit zwei neue
-# Varianten mit gleicher Craft-Zeile (Sphyrna) sich nicht gegenseitig treffen.
+# A ship from the Markdown file is either a CORRECTION (in which case it is
+# already in the catalogue - matched by name or craft line) or an ADDITION.
+# Corrections overwrite the values of the existing entry but stay in its book
+# and era. Additions land under "Community Additions". The matching runs only
+# against the ORIGINAL catalogue, so two new variants sharing a craft line
+# (the Sphyrna) cannot hit each other.
 orig_name, orig_craft = {}, {}
 for i, e in enumerate(arr['PDF_SHIPS']):
     orig_name.setdefault(key(e.get('name')), i)
@@ -345,7 +346,7 @@ for e in parsed:
     idx = orig_name.get(nk, orig_craft.get(ck, -1))
     if idx >= 0:
         old = arr['PDF_SHIPS'][idx]
-        e['book'] = old.get('book') or e['book']     # bleibt im urspruenglichen Buch
+        e['book'] = old.get('book') or e['book']     # stays in the original book
         e['era'] = e['era'] or old.get('era', '')
         arr['PDF_SHIPS'][idx] = e
         updated.append(e['name'])
@@ -364,11 +365,12 @@ for e in added:
     print('  + %-32s Scale %-11s Waffen %d'
           % (e['name'][:32], e['scale'], len(e['weapons'])))
 
-# --------------------------- Einzelkorrekturen aus den Regelwerken ---------
-# Statbloecke, die in den PDFs ueber einen Seitenumbruch laufen, werden vom
-# Extraktor gelegentlich unvollstaendig gelesen. Hier gezielt nachtragen.
-#   Corellia Stardrive TT-17R NovaDive Scout (GG16, S. 271/272): der ersten
-#   Waffe fehlten Reichweiten und Schaden (standen hinter dem Seitenkopf).
+# ------------------------ individual fixes from the rulebooks --------------
+# Statblocks that run across a page break in the PDFs are occasionally read
+# incompletely by the extractor. Filled in here by hand.
+#   Corellia Stardrive TT-17R NovaDive Scout (GG16, pp. 271/272): the first
+#   weapon was missing its ranges and damage (they sat behind the running
+#   head).
 fixed_weapons = 0
 for e in arr['PDF_SHIPS']:
     if e.get('name') == 'NovaDive' and e.get('weapons'):

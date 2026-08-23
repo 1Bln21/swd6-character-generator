@@ -1,43 +1,42 @@
 /* ===========================================================================
-   Deutsche Fertigkeitsnamen
+   German skill names
    ---------------------------------------------------------------------------
-   Grundlage ist die deutsche Ausgabe "Krieg der Sterne – Das Rollenspiel"
-   (West End Games, deutsch bei Welt der Spiele). Die Namen stammen aus einem
-   Charakterbogen der deutschen Ausgabe:
+   Based on the German edition "Krieg der Sterne - Das Rollenspiel" (West End
+   Games, in German from Welt der Spiele). The names come from a character
+   sheet of that edition:
    https://der-eisenhofer.de/wp-content/uploads/2012/12/star-wars-d6-charakterbogen.pdf
 
-   Der Bogen deckt 62 der 84 Fertigkeiten wörtlich ab. Was dort fehlt – vor
-   allem die aufgefächerten Reparatur-Fertigkeiten, die der Bogen zu einem
-   einzigen "Reparatur" zusammenzieht – ist mit der Wortwahl desselben Bogens
-   gebildet (Fahrzeugnamen wie "Kampfläufer", "Raumtransporter",
-   "Repulsoraggregate" stehen dort). Diese abgeleiteten Einträge sind unten
-   mit  // abgeleitet  gekennzeichnet.
+   That sheet covers 62 of the 84 skills word for word. What is missing there
+   - above all the fanned-out repair skills, which the sheet collapses into a
+   single "Reparatur" - is built from the same sheet's vocabulary (vehicle
+   names like "Kampfläufer", "Raumtransporter" and "Repulsoraggregate" do
+   appear on it). Those derived entries are marked  // derived  below.
 
-   WICHTIG: Das sind reine Anzeigenamen. Gespeichert und gerechnet wird
-   weiterhin mit den englischen Bezeichnungen – ein Charakter bleibt also
-   zwischen beiden Sprachen austauschbar, und die Kataloge aus den
-   Regelwerken (die englische Skill-Namen nennen) passen weiterhin dazu.
+   IMPORTANT: these are display names only. Storage and arithmetic still use
+   the English terms - so a character stays interchangeable between the two
+   languages, and the catalogues from the rulebooks (which name English
+   skills) still line up with it.
 
-   Eigennamen und eingedeutschte Begriffe bleiben, wie sie sind: Blaster
-   heißt Blaster, Astrogation heißt Astrogation.
+   Proper nouns and terms already naturalised in German stay as they are:
+   Blaster is Blaster, Astrogation is Astrogation.
    =========================================================================== */
 
 const SKILLS_DE = {
 
-  /* ---------------- Geschicklichkeit ---------------- */
-  /* Aus REUP ergaenzt; die deutsche Ausgabe kennt sie nicht, daher nach
-     der Wortwahl desselben Bogens gebildet. */
-  'Acrobatics': 'Akrobatik',                  // aus REUP
+  /* ---------------- Dexterity ---------------- */
+  /* Added from REUP; the German edition does not have them, so they are
+     built from the same sheet's vocabulary. */
+  'Acrobatics': 'Akrobatik',                  // from REUP
   'Archaic Guns': 'Archaische Schusswaffen',
   'Blaster': 'Blaster',
-  'Artillery': 'Artillerie',                  // aus REUP
+  'Artillery': 'Artillerie',                  // from REUP
   'Blaster Artillery': 'Artillerieblaster',
   'Bowcaster': 'Bolzenschleuder',
   'Bows': 'Bogen',
   'Brawling Parry': 'Abblocken',
   'Dodge': 'Ausweichen',
   'Firearms': 'Schusswaffen',
-  'Flamethrower': 'Flammenwerfer',            // aus REUP
+  'Flamethrower': 'Flammenwerfer',            // from REUP
   'Grenade': 'Granaten',
   'Lightsaber': 'Laserschwert',
   'Melee Combat': 'Nahkampfwaffen',
@@ -48,7 +47,7 @@ const SKILLS_DE = {
   'Thrown Weapons': 'Wurfwaffen',
   'Vehicle Blasters': 'Fahrzeugblaster',
 
-  /* ---------------- Wissen ---------------- */
+  /* ---------------- Knowledge ---------------- */
   'Alien Species': 'Aliens',
   'Bureaucracy': 'Bürokratie',
   'Business': 'Geschäfte',
@@ -57,38 +56,38 @@ const SKILLS_DE = {
   'Languages': 'Fremdsprache',
   'Law Enforcement': 'Gesetzeskenntnisse',
   'Planetary Systems': 'Planetensysteme',
-  'Scholar': 'Gelehrsamkeit',            // abgeleitet
+  'Scholar': 'Gelehrsamkeit',            // derived
   'Streetwise': 'Gassenwissen',
   'Survival': 'Überleben',
-  'Tactics': 'Taktik',                   // abgeleitet
+  'Tactics': 'Taktik',                   // derived
   'Value': 'Schätzen',
   'Willpower': 'Willenskraft',
 
-  /* ---------------- Mechanik ---------------- */
+  /* ---------------- Mechanical ---------------- */
   'Archaic Starship Pilot.': 'Archaische Raumschiffe',
-  'Aquatic Vehicle Op.': 'Wasserfahrzeuge',   // aus REUP
+  'Aquatic Vehicle Op.': 'Wasserfahrzeuge',   // from REUP
   'Astrogation': 'Astrogation',
   'Beast Riding': 'Reiten',
-  'Capital Ship Gun.': 'Großkampfschiff-Artillerie',   // Buch: „Sternenschiffartillerie“
-  'Capital Ship Piloting': 'Großkampfschiffe',         // Buch: „Sternenschiffe“
-  'Capital Ship Shields': 'Großkampfschiff-Deflektoren', // Buch: „Sternenschiffdeflektoren“
+  'Capital Ship Gun.': 'Großkampfschiff-Artillerie',   // book: „Sternenschiffartillerie“
+  'Capital Ship Piloting': 'Großkampfschiffe',         // book: „Sternenschiffe“
+  'Capital Ship Shields': 'Großkampfschiff-Deflektoren', // book: „Sternenschiffdeflektoren“
   'Communications': 'Kommunikation',
   'Ground Vehicle Op.': 'Bodenfahrzeuge',
   'Hover Vehicle Op.': 'Schweber',
-  'Jet Pack Operation': 'Jetpack',            // abgeleitet
+  'Jet Pack Operation': 'Jetpack',            // derived
   'Powersuit Operation': 'Exoskelett',
   'Repulsorlift Op.': 'Repulsoraggregate',
-  'Rocket Pack Op.': 'Raketenrucksack',       // abgeleitet
+  'Rocket Pack Op.': 'Raketenrucksack',       // derived
   'Sensors': 'Sensoren',
   'Space Transport': 'Raumtransporter',
   'Starfighter Piloting': 'Raumjäger',
   'Starship Gunnery': 'Raumjägerartillerie',
   'Starship Shields': 'Raumjägerdeflektoren',
-  'Submersible Vehicle Op.': 'Tauchboote',    // aus REUP
+  'Submersible Vehicle Op.': 'Tauchboote',    // from REUP
   'Swoop Operation': 'Blitzjäger',
   'Walker Operation': 'Kampfläufer',
 
-  /* ---------------- Wahrnehmung ---------------- */
+  /* ---------------- Perception ---------------- */
   'Bargain': 'Feilschen',
   'Command': 'Kommandieren',
   'Con': 'Betrügen',
@@ -100,60 +99,60 @@ const SKILLS_DE = {
   'Search': 'Suchen',
   'Sneak': 'Schleichen',
 
-  /* ---------------- Stärke ---------------- */
+  /* ---------------- Strength ---------------- */
   'Brawling': 'Raufen',
   'Climbing / Jumping': 'Klettern / Springen',
   'Lifting': 'Heben',
   'Stamina': 'Ausdauer',
   'Swimming': 'Schwimmen',
 
-  /* ---------------- Technik ----------------
-     Der deutsche Bogen führt nur ein einziges "Reparatur". Die App fächert
-     es wie das englische Original auf, deshalb hier nach dem Muster
-     <Gerät>-Reparatur gebildet. */
-  'Armor Repair': 'Panzerungs-Reparatur',              // abgeleitet
-  'Aquatic Vehicle Rep.': 'Wasserfahrzeug-Reparatur',  // aus REUP
-  'Blaster Repair': 'Blaster-Reparatur',               // abgeleitet
-  'Capital Ship Repair': 'Großkampfschiff-Reparatur',  // abgeleitet
-  'Capital Ship Weap. Rep.': 'Großkampfschiffwaffen-Reparatur',  // abgeleitet
+  /* ---------------- Technical ----------------
+     The German sheet carries a single "Reparatur". The app fans it out the
+     way the English original does, so the entries here follow the pattern
+     <device>-Reparatur. */
+  'Armor Repair': 'Panzerungs-Reparatur',              // derived
+  'Aquatic Vehicle Rep.': 'Wasserfahrzeug-Reparatur',  // from REUP
+  'Blaster Repair': 'Blaster-Reparatur',               // derived
+  'Capital Ship Repair': 'Großkampfschiff-Reparatur',  // derived
+  'Capital Ship Weap. Rep.': 'Großkampfschiffwaffen-Reparatur',  // derived
   'Computer Prog. / Rep.': 'Computerprogrammierung/-reparatur',
   'Demolition': 'Sprengtechnik',
   'Droid Prog.': 'Droidenprogrammierung',
-  'Droid Repair': 'Droiden-Reparatur',                 // abgeleitet
+  'Droid Repair': 'Droiden-Reparatur',                 // derived
   'First Aid': 'Erste Hilfe',
-  'Ground Vehicle Rep.': 'Bodenfahrzeug-Reparatur',    // abgeleitet
-  'Lightsaber Repair': 'Laserschwert-Reparatur',       // abgeleitet
-  'Melee Repair': 'Nahkampfwaffen-Reparatur',          // abgeleitet
-  'Repulsorlift Repair': 'Repulsor-Reparatur',         // abgeleitet
+  'Ground Vehicle Rep.': 'Bodenfahrzeug-Reparatur',    // derived
+  'Lightsaber Repair': 'Laserschwert-Reparatur',       // derived
+  'Melee Repair': 'Nahkampfwaffen-Reparatur',          // derived
+  'Repulsorlift Repair': 'Repulsor-Reparatur',         // derived
   'Security': 'Sicherheitssysteme',
-  'Space Transport Rep.': 'Raumtransporter-Reparatur', // abgeleitet
-  'Starfighter Repair': 'Raumjäger-Reparatur',         // abgeleitet
-  'Starship Weapon Rep.': 'Raumschiffwaffen-Reparatur',// abgeleitet
-  'Walker Repair': 'Kampfläufer-Reparatur',            // abgeleitet
+  'Space Transport Rep.': 'Raumtransporter-Reparatur', // derived
+  'Starfighter Repair': 'Raumjäger-Reparatur',         // derived
+  'Starship Weapon Rep.': 'Raumschiffwaffen-Reparatur',// derived
+  'Walker Repair': 'Kampfläufer-Reparatur',            // derived
 
-  /* ---------------- Weitere Fertigkeiten der Generatoren ----------------
-     Der Droiden- und der Schiffsgenerator führen einige Namen in eigener
-     Schreibweise; hier mit abgedeckt, damit auch dort übersetzt wird. */
+  /* ---------------- further skills used by the generators ---------------
+     The droid and ship generators carry a few names in spellings of their
+     own; covered here as well, so they get translated there too. */
   'Medicine': 'Medizin',
   'Repair': 'Reparatur',
   'Computer Programming': 'Computerprogrammierung',
   'Capital Ship Gunnery': 'Großkampfschiff-Artillerie',
   'Space Transports': 'Raumtransporter',
-  /* Die Excel-Vorlagen kürzen unterschiedlich ab – dieselbe Fertigkeit
-     heißt im Charakterbogen "Archaic Starship Pilot.", in der Schiffs-Crew
-     "Archaic Starship Piloting". Beide Schreibweisen abdecken. */
+  /* The Excel templates abbreviate inconsistently - the same skill is
+     "Archaic Starship Pilot." on the character sheet and "Archaic Starship
+     Piloting" in the ship's crew. Cover both spellings. */
   'Archaic Starship Piloting': 'Archaische Raumschiffe',
   'Ground vehicle Op.': 'Bodenfahrzeuge',
-  '(A) Pod Racer Operation': 'Podrennen',     // aus REUP
+  '(A) Pod Racer Operation': 'Podrennen',     // from REUP
   'Repulsorlift Operation': 'Repulsoraggregate',
 };
 
-/* Anzeigename einer Fertigkeit. Bei unbekannten Namen – etwa einer frei
-   eingetragenen Spezialisierung – bleibt der Originaltext stehen.
+/* Display name of a skill. For names it does not know - a freely typed
+   specialisation, say - the original text stays.
 
-   Spezialisierungen schreibt das Regelwerk als "Blaster: Blastergewehr";
-   der Teil vor dem Doppelpunkt ist die Grundfertigkeit und wird mit
-   übersetzt, der frei gewählte Rest bleibt, wie er eingetragen wurde. */
+   The rules write specialisations as "Blaster: blaster rifle"; the part
+   before the colon is the base skill and is translated along with it, while
+   the freely chosen rest stays exactly as it was typed. */
 function skillName(en) {
   if (typeof LANG === 'undefined' || LANG !== 'de') return en;
   if (SKILLS_DE[en]) return SKILLS_DE[en];
@@ -165,8 +164,8 @@ function skillName(en) {
   return en;
 }
 
-/* Für Bögen und Listen, in denen der englische Regelbegriff daneben stehen
-   soll – so bleibt ein Charakterbogen auch am englischen Spieltisch lesbar. */
+/* For sheets and lists that should carry the English rules term alongside -
+   which keeps a character sheet readable at an English table too. */
 function skillNameBoth(en) {
   const de = skillName(en);
   return de === en ? en : de + ' (' + en + ')';

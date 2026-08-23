@@ -1,4 +1,4 @@
-/* ============ Star Wars D6 Charaktergenerator ============ */
+/* ============ Star Wars D6 character generator ============ */
 :root {
   --bg: #0b0d17;
   --bg2: #121527;
@@ -12,16 +12,16 @@
   --green: #6fe08c;
   --red: #ff6b6b;
   --blue: #6db3ff;
-  --inset: #0e1122;      /* eingelassene Felder/Chips (Selects, Badges …) */
-  --hover: #2a3054;      /* Hover auf Knöpfen/Menüzeilen */
-  --rowhover: #1b2038;   /* Hover auf Tabellen-/Listenzeilen */
-  /* Seitenrand des Inhalts. Steht als Variable, weil die Bogenvorschau ihn
-     kennen muss, um sich auf die verbleibende Breite zu verkleinern. */
+  --inset: #0e1122;      /* inset fields and chips (selects, badges ...) */
+  --hover: #2a3054;      /* hover on buttons and menu rows */
+  --rowhover: #1b2038;   /* hover on table and list rows */
+  /* Side margin of the content. It is a variable because the sheet preview
+     has to know it in order to shrink onto the width that is left. */
   --page-pad: 20px;
 }
 
-/* ---------- Themes (via data-theme am <html>, siehe theme.js) ---------- */
-/* Light: heller Hintergrund, dunkle Schrift, kräftigeres Gold für Kontrast */
+/* ---------- themes (via data-theme on <html>, see theme.js) ---------- */
+/* Light: pale background, dark type, a stronger gold for contrast */
 :root[data-theme="light"] {
   --bg: #eceef6; --bg2: #e0e3f0; --card: #ffffff; --card2: #f3f5fc;
   --border: #c6cbe4; --text: #1a1d2e; --muted: #565d84;
@@ -29,7 +29,7 @@
   --green: #1f9d4d; --red: #d63a3a; --blue: #2f6fd0;
   --inset: #e6e9f5; --hover: #d7dcf0; --rowhover: #eaedf9;
 }
-/* OLED: reines Schwarz, angenehm auf AMOLED-Displays */
+/* OLED: pure black, easy on AMOLED displays */
 :root[data-theme="oled"] {
   --bg: #000000; --bg2: #080810; --card: #0e0e16; --card2: #15151f;
   --border: #29293a; --text: #e8eaf6; --muted: #9aa1c9;
@@ -37,7 +37,7 @@
   --green: #6fe08c; --red: #ff6b6b; --blue: #6db3ff;
   --inset: #0b0b12; --hover: #1c1c28; --rowhover: #141420;
 }
-/* Bespin: warme Wolkenstadt-Töne mit orangem Akzent */
+/* Bespin: warm Cloud City tones with an orange accent */
 :root[data-theme="bespin"] {
   --bg: #1c1610; --bg2: #261d14; --card: #2c2118; --card2: #362819;
   --border: #4d3a26; --text: #f2e8d6; --muted: #c7b391;
@@ -57,7 +57,7 @@ body {
   min-height: 100vh;
 }
 
-/* ---------- Header ---------- */
+/* ---------- header ---------- */
 #topbar {
   display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
   justify-content: space-between;
@@ -93,22 +93,22 @@ button.accent { background: var(--accent); color: #14140a; font-weight: 700; bor
 button.accent:hover { background: #fff268; }
 button.mini { padding: 2px 9px; font-size: 14px; line-height: 1.3; font-weight: 700; }
 button.danger { color: var(--red); }
-select, input[type=text], input[type=number], textarea {
+select, input[type=text], input[type=number], input[type=url], textarea {
   background: var(--inset); color: var(--text);
   border: 1px solid var(--border); border-radius: 6px;
   padding: 7px 9px; font-size: 14px; font-family: inherit;
 }
 select:focus, input:focus, textarea:focus { outline: 1px solid var(--accent-dim); }
-/* Ein Auswahlfeld wird von sich aus so breit wie sein laengster Eintrag und
-   schrumpft nicht mit. Bei Eintraegen wie "Turbolader +1D - Einbau: 4.500 Cr"
-   sprengte es auf dem Handy die Karte und damit die Seitenbreite. */
+/* Left alone, a select grows as wide as its longest entry and does not
+   shrink back. With entries like "Turbocharger +1D - install: 4,500 Cr" it
+   burst the card on a phone, and with it the page width. */
 select { max-width: 100%; }
 input[type=number] { width: 90px; }
 input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; }
 textarea { width: 100%; resize: vertical; min-height: 70px; }
 label { color: var(--muted); font-size: 12px; display: block; margin-bottom: 3px; letter-spacing: .4px; text-transform: uppercase; }
 
-/* ---------- Options-Menü ---------- */
+/* ---------- options menu ---------- */
 .options-wrap { position: relative; }
 #optionsMenu {
   position: absolute; right: 0; top: calc(100% + 6px); z-index: 50;
@@ -130,12 +130,12 @@ label { color: var(--muted); font-size: 12px; display: block; margin-bottom: 3px
   color: var(--accent); font-weight: 700; font-size: 13px;
   letter-spacing: 1px; text-transform: uppercase;
   border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 8px;
-  /* Kein Zeiger, kein Hover: die Überschrift soll nicht nach Knopf aussehen.
-     Nur die Textmarkierung beim Doppelklick unterbinden. */
+  /* No pointer, no hover: the heading should not look like a button. Only
+     suppress text selection on a double click. */
   user-select: none; -webkit-user-select: none;
 }
 
-/* ---------- Vektor-Fenster (versteckte Zugabe) ---------- */
+/* ---------- vector window (the hidden extra) ---------- */
 .arcade-box {
   background: #000; border: 2px solid #39ff7a; border-radius: 6px;
   padding: 8px; box-shadow: 0 0 24px rgba(57, 255, 122, .25);
@@ -148,7 +148,7 @@ label { color: var(--muted); font-size: 12px; display: block; margin-bottom: 3px
 }
 .arcade-box canvas {
   display: block; background: #000; width: 640px; height: 480px;
-  max-width: 92vw; max-height: 69vw;      /* 4:3 bleibt erhalten */
+  max-width: 92vw; max-height: 69vw;      /* keeps the 4:3 ratio */
 }
 .arcade-help {
   color: #39ff7a; opacity: .7; font-family: monospace; font-size: 11px;
@@ -202,10 +202,19 @@ main { padding: 18px var(--page-pad) 60px; max-width: 1500px; margin: 0 auto; }
 @media (max-width: 900px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
 
 .hint { color: var(--muted); font-size: 12.5px; }
+
+/* "hidden" as a general utility. It used to be spelled out only for
+   #optionsMenu and .modal-overlay, so on every OTHER element the class did
+   nothing at all - the JavaScript added it, the element stayed on screen.
+   That is why the "Administration" entry in the gear menu showed for every
+   signed-in user although updateAdminButton() marks it hidden for
+   non-admins (the server refused them, so it only ever misled). */
+.hidden { display: none !important; }
 .warn { color: var(--red); font-weight: 600; }
 .ok { color: var(--green); font-weight: 600; }
-/* Gegenstück zu .ok – abgelehnte Bögen in den Spielrunden. Bewusst hier und
-   nicht als allgemeines .neg: das ist innerhalb der Pool-Banner schon vergeben. */
+/* The counterpart to .ok - rejected sheets in the game rounds. Deliberately
+   here and not as a general .neg: that name is already taken inside the pool
+   banners. */
 .no { color: var(--red); font-weight: 600; }
 .badge.danger { color: var(--red); border-color: var(--red); }
 .badge {
@@ -288,7 +297,7 @@ table.list td.num, table.list th.num { text-align: right; white-space: nowrap; }
 .subtabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
 .subtabs button.active { background: var(--accent); color: #14140a; font-weight: 700; }
 
-/* ---------- Charakterbild ---------- */
+/* ---------- character portrait ---------- */
 .portrait-drop {
   width: 190px; height: 235px; flex: 0 0 190px;
   border: 2px dashed var(--border); border-radius: 8px;
@@ -307,7 +316,7 @@ table.list td.num, table.list th.num { text-align: right; white-space: nowrap; }
 }
 .filebtn:hover { background: var(--hover); border-color: #3d4677; }
 
-/* ---------- Online-Modal ---------- */
+/* ---------- online modal ---------- */
 .modal-overlay {
   position: fixed; inset: 0; z-index: 100;
   background: rgba(5, 7, 15, .75);
@@ -320,7 +329,7 @@ table.list td.num, table.list th.num { text-align: right; white-space: nowrap; }
   border-radius: 12px; padding: 18px 22px; width: 100%; max-width: 560px;
   box-shadow: 0 12px 40px rgba(0,0,0,.7);
 }
-/* Die Benutzerverwaltung hat eine breite Tabelle – mehr Platz und scrollbar. */
+/* User administration has a wide table - more room, and scrollable. */
 .modal-box.admin-box { max-width: 820px; max-height: 90vh; overflow-y: auto; }
 .modal-head { display: flex; justify-content: space-between; align-items: center;
   border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 10px; }
@@ -344,12 +353,13 @@ table.list td.num, table.list th.num { text-align: right; white-space: nowrap; }
 .nowrap { white-space: nowrap; }
 #btnOnline { display: none; }
 
-/* Einladungscode einer Spielrunde */
+/* a game round's invite code */
 .rcode { font-family: monospace; font-size: 16px; letter-spacing: 2px;
   background: var(--rowhover); padding: 2px 8px; border-radius: 4px; color: var(--accent); }
 
-/* Freigabe-Vermerk auf dem Charakterbogen (GM hat den Char für die Runde
-   freigegeben). Am Bildschirm mit Akzentfarbe, im Druck dezent gerahmt. */
+/* Approval note on the character sheet (the GM has approved the character
+   for the round). In the accent colour on screen, discreetly framed in
+   print. */
 .round-stamps { display: flex; flex-wrap: wrap; gap: 4px; margin: 2mm 0; }
 .round-stamp { display: inline-block; font-size: 8.5pt; font-weight: 600;
   color: var(--accent); border: 1px solid var(--accent-dim);
@@ -358,7 +368,7 @@ table.list td.num, table.list th.num { text-align: right; white-space: nowrap; }
   .round-stamp { color: #000; border-color: #000; }
 }
 
-/* ---------- Impressum / Datenschutz ---------- */
+/* ---------- legal notice / privacy policy ---------- */
 .legal-doc { max-width: 720px; }
 .legal-doc h3 { margin: 4px 0 10px; font-size: 17px; color: var(--accent);
   letter-spacing: .5px; text-transform: none; }
@@ -368,7 +378,7 @@ table.list td.num, table.list th.num { text-align: right; white-space: nowrap; }
 #legalSetBox input { width: 100%; }
 #legalSetBox textarea { width: 100%; }
 
-/* ---------- Über / About + Star-Wars-Crawl ---------- */
+/* ---------- about + the Star Wars crawl ---------- */
 #optionsMenu .opt-btn { width: 100%; margin-top: 6px; text-align: left; }
 .about-box { max-width: 760px; }
 .sw-crawl {
@@ -379,7 +389,7 @@ table.list td.num, table.list th.num { text-align: right; white-space: nowrap; }
   background: #000;
   border: 1px solid var(--border);
   border-radius: 8px;
-  /* Schwächere Perspektive = der Text schrumpft weniger und bleibt lesbar */
+  /* A shallower perspective = the text shrinks less and stays readable */
   perspective: 420px;
 }
 .sw-crawl::before {
@@ -414,18 +424,18 @@ table.list td.num, table.list th.num { text-align: right; white-space: nowrap; }
   92%  { opacity: 1; }
   100% { top: -330%; transform: rotateX(26deg) translateZ(-460px); opacity: 0; }
 }
-/* Schmale Bildschirme: flachere Perspektive und mehr Textbreite, sonst
-   wird die Schrift im kleinen Rahmen unleserlich und der Titel bricht um */
+/* Narrow screens: a flatter perspective and more text width, or the type
+   turns unreadable in the small frame and the title wraps */
 @media (max-width: 620px) {
-  /* Auf dem Handy sind 20 Pixel Rand links und rechts 10 Prozent der Breite,
-     die den Karten dann fehlen. */
+  /* On a phone, 20 pixels of margin on each side is 10 per cent of the
+     width - width the cards then do not have. */
   :root { --page-pad: 10px; }
 
-  /* Das Optionsmenü hängt per position:absolute mit right:0 am Zahnrad. Wandert
-     der Knopf auf schmalen Schirmen in der umgebrochenen Werkzeugleiste nach
-     links, schiebt right:0 die 270 Pixel breite Karte aus dem Bild - auf einem
-     iPhone standen 62 Pixel links daneben. Auf schmalen Schirmen wird sie
-     deshalb am FENSTER ausgerichtet statt am Knopf. */
+  /* The options menu hangs on the gear icon with position:absolute and
+     right:0. When the button moves left on narrow screens, into the wrapped
+     toolbar, right:0 pushes the 270-pixel card out of view - on an iPhone
+     62 pixels of it stood off to the left. So on narrow screens it is
+     aligned to the WINDOW instead of to the button. */
   #optionsMenu {
     position: fixed; left: 8px; right: 8px; top: 8px;
     min-width: 0; max-width: none; width: auto;
@@ -447,10 +457,10 @@ table.list td.num, table.list th.num { text-align: right; white-space: nowrap; }
   .sw-crawl-content { animation-duration: 100s; }
 }
 
-/* ---------- Footer ---------- */
-/* Groupfinder-Abzeichen ueber der Fusszeile. Die SVG liegt bewusst LOKAL im
-   Projekt und wird nicht von groupfinder.gg geladen - sonst saehe deren Server
-   die IP jedes Besuchers, ohne dass er gefragt wurde. */
+/* ---------- footer ---------- */
+/* The Groupfinder badge above the footer. The SVG deliberately lives LOCALLY
+   in the project and is not loaded from groupfinder.gg - otherwise their
+   server would see every visitor's IP without anyone being asked. */
 .gf-badge { padding: 18px 0 4px; text-align: center; }
 .gf-badge a { display: inline-block; opacity: .72; transition: opacity .15s; }
 .gf-badge a:hover { opacity: 1; }
@@ -461,7 +471,7 @@ footer a { color: var(--accent-dim); text-decoration: none; }
 footer a:hover { color: var(--accent); text-decoration: underline; }
 
 /* =============================================================
-   CHARAKTERBOGEN (Bildschirm-Vorschau + Druck)
+   CHARACTER SHEET (on-screen preview + print)
    ============================================================= */
 #sheet-print { display: none; }
 .sheet-page {
@@ -516,30 +526,29 @@ table.sp-table td.num { text-align: right; white-space: nowrap; }
 .sp-portrait img { max-width: 100%; max-height: 52mm; object-fit: contain; }
 .sp-portrait span { font-size: 6.6pt; color: #999 !important; text-transform: uppercase; letter-spacing: 1px; }
 
-/* Der Bogen ist eine A4-Seite und deshalb 210 mm breit - am Bildschirm sind
-   das rund 794 Pixel. Auf einem Handy ist der Schirm halb so breit. Der Bogen
-   passte also nicht nur nicht hinein, er zog die ganze Seite auf seine Breite
-   auf: Der Browser zoomte daraufhin die komplette Oberflaeche heraus, und
-   Kopfzeile, Reiter und Formulare wurden winzig.
+/* The sheet is an A4 page and therefore 210 mm wide - on screen that is
+   roughly 794 pixels. On a phone the screen is half that. So the sheet not
+   only failed to fit, it stretched the whole page to its own width: the
+   browser then zoomed the entire interface out, and header, tabs and forms
+   went tiny.
 
-   Statt den Bogen umzubauen wird er verkleinert. Das ist hier das Richtige,
-   denn er ist eine Druckvorschau - er soll aussehen wie das Blatt, das
-   hinterher aus dem Drucker kommt, nur eben kleiner. zoom verkleinert im
-   Gegensatz zu transform auch den Platz, den das Element einnimmt; es bleibt
-   also kein leerer Streifen darunter stehen, und mehrseitige Boegen liegen
-   weiter sauber untereinander.
+   Rather than rebuild the sheet, it is scaled down. That is the right answer
+   here, because it is a print preview - it should look like the paper that
+   comes out of the printer afterwards, only smaller. Unlike transform, zoom
+   also shrinks the space the element takes up; no empty strip is left below
+   it, and multi-page sheets go on stacking neatly.
 
-   Der Faktor kommt ohne JavaScript aus: atan2 macht aus zwei Laengen einen
-   Winkel, tan daraus wieder das Verhaeltnis der beiden - also die verfuegbare
-   Breite geteilt durch 210 mm. min(1, ...) sorgt dafuer, dass ein Bogen, der
-   ohnehin hineinpasst, in Originalgroesse bleibt. */
+   The factor needs no JavaScript: atan2 turns two lengths into an angle, and
+   tan turns that back into their ratio - the available width divided by
+   210 mm. min(1, ...) makes sure a sheet that fits anyway stays at full
+   size. */
 @media (max-width: 860px) {
   .sheet-page {
     zoom: min(1, tan(atan2(calc(100vw - 2 * var(--page-pad) - 2px), 210mm)));
   }
 }
 
-/* ---------- Druck ---------- */
+/* ---------- print ---------- */
 @media print {
   @page { size: A4 portrait; margin: 0; }
   body { background: #fff; }
@@ -548,23 +557,24 @@ table.sp-table td.num { text-align: right; white-space: nowrap; }
   .sheet-page {
     box-shadow: none; margin: 0; width: 210mm; min-height: 0;
     page-break-after: always; padding: 9mm 11mm;
-    /* Beim Drucken vom Handy meldet der Browser eine schmale Seitenbreite und
-       die Regel oben wuerde greifen - der Ausdruck kaeme dann halb so gross
-       aus dem Drucker. Auf Papier ist A4 immer A4. */
+    /* Printing from a phone, the browser reports a narrow page width and
+       the rule above would apply - the printout would then come out half
+       size. On paper, A4 is always A4. */
     zoom: 1;
   }
   .sheet-page:last-child { page-break-after: auto; }
 }
 
-/* ---------- Support-/Ticketsystem ---------- */
+/* ---------- support / ticket system ---------- */
 .tk-thread { display: flex; flex-direction: column; gap: 10px; margin: 8px 0; }
 .tk-msg { background: var(--card2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
 .tk-msg.tk-admin { border-color: var(--accent-dim); }
 .tk-meta { font-size: 12px; margin-bottom: 4px; }
 .tk-text { line-height: 1.45; }
 .tk-img { max-width: 100%; max-height: 320px; margin-top: 6px; border-radius: 6px; border: 1px solid var(--border); display: block; }
-/* Hinweis auf ungelesene Tickets: rote Zahl am ☁-Knopf und in der Ticketliste.
-   Rot statt Gold, damit er sich vom sonstigen Akzent der Oberfläche abhebt. */
+/* Badge for unread tickets: a red number on the cloud button and in the
+   ticket list. Red rather than gold, so it stands apart from the interface's
+   usual accent. */
 .notify-badge {
   display: inline-block; min-width: 17px; padding: 0 5px; margin-left: 4px;
   background: #d33; color: #fff; border-radius: 9px;
@@ -573,7 +583,7 @@ table.sp-table td.num { text-align: right; white-space: nowrap; }
 }
 .tk-unread td { font-weight: 600; }
 
-/* ---------- Würfelseite ---------- */
+/* ---------- dice page ---------- */
 .roll-pools { display: flex; flex-wrap: wrap; gap: 6px; }
 .roll-pool { background: var(--card2); border: 1px solid var(--border); border-radius: 6px;
   padding: 5px 10px; font-size: 13px; cursor: pointer; }
@@ -591,10 +601,11 @@ table.sp-table td.num { text-align: right; white-space: nowrap; }
 .roll-dice .pips { color: var(--muted); }
 .roll-warn { color: var(--red); font-weight: 600; margin: 6px 0; }
 
-/* ---------- NPC-Gruppengenerator: kompakte Karten ---------- */
-/* Flottenzusammenstellung im NPC-Schiffsgenerator: je Klasse eine Zeile aus
-   Anzahl, „baugleich“ und der Zahl verfügbarer Vorlagen. Kein eigenes Farb-
-   schema – die Felder erben Akzentfarbe und Zeilenhöhe der übrigen Optionen. */
+/* ---------- NPC group generator: compact cards ---------- */
+/* Fleet composition in the NPC ship generator: one row per class holding the
+   count, the "identical" flag and the number of templates available. No
+   colour scheme of its own - the fields inherit accent colour and row height
+   from the other options. */
 .npc-fleet { grid-column: 1 / -1; }
 .npc-fleet-rows { display: flex; flex-direction: column; gap: 6px; padding: 6px 0 2px; }
 .npc-fleet-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -632,14 +643,14 @@ table.sp-table td.num { text-align: right; white-space: nowrap; }
 .npc-line b { color: var(--muted); font-weight: 600; }
 .npc-sheet-title { font-weight: 700; margin: 2mm 0 3mm; font-size: 12pt; }
 
-/* Auf dem gedruckten Bogen: dichter, mehrspaltig, Schwarz auf Weiß */
+/* On the printed sheet: denser, multi-column, black on white */
 .npc-grid.print { grid-template-columns: repeat(2, 1fr); gap: 4mm; margin-top: 3mm; }
 .npc-sheet .npc-card { background: #fff; border: 1px solid #000; font-size: 8.6pt; break-inside: avoid; }
 .npc-sheet .npc-name { color: #000; font-size: 9.6pt; }
 .npc-sheet .npc-attr { background: #fff; border-color: #999; }
 .npc-sheet .npc-attr b, .npc-sheet .npc-sub, .npc-sheet .npc-line b { color: #333; }
 
-/* ---------- Werkstatt: Pannen-Ergebnis (Schiffsseite) ---------- */
+/* ---------- workshop: mishap result (ship page) ---------- */
 .ws-result {
   margin-top: 14px; padding: 12px 14px;
   background: var(--card2); border: 1px solid var(--border);
@@ -655,21 +666,243 @@ table.sp-table td.num { text-align: right; white-space: nowrap; }
 .ws-moderate     { border-left-color: var(--accent); }
 .ws-catastrophic { border-left-color: var(--red); }
 
-/* Auswahllisten mit sehr langen Einträgen (Schiffs- und Waffenkatalog)
-   sonst so breit machen wie ihr längster Eintrag – sie sprengen dann ihren
-   Platz und schieben die Schaltfläche daneben unter sich. */
+/* Left alone, select lists with very long entries (the ship and weapon
+   catalogues) grow as wide as their longest entry - they then burst out of
+   their space and push the button beside them underneath. */
 #tplSelect, #wpnSelect, #tplEra, #wpnScale {
   width: 100%;
   max-width: 100%;
 }
 
-/* Erklärender Kasten in den Umbauten – kein Fehler, sondern ein Hinweis
-   auf einen Fall, den das Regelwerk nicht abdeckt. */
+/* An explanatory box in the modifications - not an error but a note about
+   a case the rules do not cover. */
 .hint.warnbox {
   margin-top: 10px; padding: 10px 12px;
   background: var(--card2); border: 1px solid var(--border);
   border-left: 4px solid var(--accent); border-radius: 6px;
   line-height: 1.5;
 }
-/* Getragene Rüstung hervorheben, damit auf einen Blick klar ist, was zählt. */
+/* Highlight worn armor, so what counts is clear at a glance. */
 table.list tr.worn > td { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+
+/* ---------- the table-top (mini VTT) ---------- */
+/* The map and the controls that belong beside it sit in row one; everything
+   else goes underneath and spreads across the whole width.
+
+   The reason is the shape of a battle map: it is nearly always wider than
+   it is tall. A single column beside it therefore runs on well past the
+   bottom of the picture while the space under the map stays empty - and
+   the dice ended up somewhere below the fold, which is precisely the thing
+   one reaches for most often during play. */
+.vtt-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 14px;
+  align-items: start;
+}
+.vtt-stage-wrap { grid-column: 1; grid-row: 1; }
+/* The sidebar runs down BOTH rows. Left in row one it would stretch that
+   row to its own height - the row is as tall as its tallest item - and a
+   gap as deep as the sidebar is long would open under the map. */
+.vtt-side { grid-column: 2; grid-row: 1 / span 2; display: flex; flex-direction: column; gap: 14px; }
+/* auto-fit: as many columns as fit, at least 300px each. On a wide screen
+   all four cards stand side by side, on a narrow one they stack - without
+   a breakpoint per card count. */
+.vtt-below {
+  grid-column: 1; grid-row: 2;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+.vtt-below > .card { margin: 0; }
+.vtt-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.vtt-bar-spacer { flex: 1; }
+.vtt-mapname { font-weight: 600; color: var(--accent); }
+#vttStatus.neg { color: var(--red); }
+
+/* The stage keeps the map's own proportions: the picture sets the height,
+   the tokens sit on top of it in per-cent coordinates. Any other approach
+   needs the natural size in JavaScript before it can place anything. */
+/* The stage is exactly as large as the map inside it - never larger. That
+   matters for more than looks: tokens are positioned in per cent OF THE
+   STAGE, so if the picture were letterboxed inside a wider box, every
+   token would sit beside where it belongs.
+
+   The height cap is what keeps the page usable. Without it a wide map
+   takes the full column width, grows to whatever height that implies, and
+   pushes the dice below the fold no matter how the panels are arranged. */
+.vtt-stage {
+  position: relative; width: 100%; margin: 0 auto;
+  background: var(--inset);
+  border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  min-height: 220px; touch-action: none; user-select: none;
+}
+/* With a map loaded the stage takes the map's own proportions, given to it
+   by the script as --map-ar (for aspect-ratio) and --map-arn (the same
+   value as a bare number, because calc cannot divide inside a ratio).
+
+   It is then as wide as the column allows but never taller than 62vh - a
+   wide map would otherwise fill the whole window on its own and push the
+   dice below the fold. Because the image fills the stage exactly, the
+   per-cent positions of the tokens stay correct at every size. */
+.vtt-stage.has-map {
+  width: min(100%, calc(62vh * var(--map-arn, 1.5)));
+  aspect-ratio: var(--map-ar, 3 / 2);
+  min-height: 0;
+}
+.vtt-stage.has-map img#mapImg { display: block; width: 100%; height: 100%; }
+.vtt-grid {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,.18) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,.18) 1px, transparent 1px);
+}
+
+/* The fog canvas holds one pixel per cell and is stretched over the map by
+   CSS. image-rendering keeps the cell edges crisp instead of smearing the
+   mask into a soft cloud - a wall should end where the wall ends.
+   It never takes pointer events: while the GM paints, the stage itself
+   handles the brush, so a stroke may start on top of a token. */
+.vtt-fog {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; image-rendering: pixelated;
+}
+.vtt-stage.painting { cursor: crosshair; }
+.vtt-stage.painting .vtt-token { pointer-events: none; }
+.fog-modes { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+.fog-modes .opt-row { text-transform: none; }
+
+/* A token is placed by its CENTRE, hence the translate - otherwise it would
+   hang below and to the right of the spot you dropped it on. */
+.vtt-token {
+  position: absolute; transform: translate(-50%, -50%);
+  width: calc(38px * var(--tok-size, 1)); height: calc(38px * var(--tok-size, 1));
+  border-radius: 50%; border: 2px solid var(--accent);
+  background: var(--card2); overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: #10121f;
+  box-shadow: 0 2px 6px rgba(0,0,0,.5); cursor: default;
+}
+.vtt-token img { width: 100%; height: 100%; object-fit: cover; }
+.vtt-token.mine { cursor: grab; }
+.vtt-token.drag { cursor: grabbing; box-shadow: 0 0 0 3px var(--accent), 0 4px 12px rgba(0,0,0,.6); }
+/* Ships and droids get a different outline, so a glance at the map tells
+   you what is standing there even on the default tokens. */
+.vtt-token.kind-ship { border-radius: 6px; }
+.vtt-token.kind-droid { border-style: dashed; }
+.vtt-token.kind-npc { border-color: var(--muted); }
+
+/* ---------- the map in a window of its own (?view=map) ----------
+   Same page, everything but the map hidden. No second renderer, so the
+   map cannot drift apart from the one in the main window - both draw the
+   same state fetched from the same place. */
+body.map-only #topbar,
+body.map-only footer,
+body.map-only #vttGate,
+body.map-only .vtt-side,
+body.map-only .vtt-below,
+body.map-only #stageHint,
+body.map-only #btnPopout { display: none !important; }
+body.map-only main#content { padding: 0; }
+body.map-only .vtt-layout { grid-template-columns: minmax(0, 1fr); gap: 0; }
+body.map-only .vtt-stage-wrap {
+  grid-column: 1; grid-row: 1;
+  margin: 0; padding: 6px; border: 0; background: none;
+}
+/* Here the window IS the map, so it may take almost all of the height -
+   in the main window 62vh keeps room for the panels underneath. */
+body.map-only .vtt-stage.has-map {
+  width: min(100%, calc(94vh * var(--map-arn, 1.5)));
+}
+body.map-only .vtt-bar { margin: 0 0 4px; padding: 0 4px; }
+
+.au-now { margin: 8px 0; color: var(--accent); font-size: 13px; }
+/* The YouTube player stays visible on purpose: their terms require the
+   embedded player not to be hidden or covered. Small and out of the way is
+   allowed, invisible is not - so it sits here at the size YouTube asks for
+   rather than being tucked away with display:none. */
+.au-yt { margin: 8px 0; }
+.au-yt iframe { border: 0; border-radius: 6px; display: block; }
+#auEl { width: 100%; margin-top: 6px; }
+
+/* A roll thrown onto the map. Sits above the tokens but takes no pointer
+   events - dragging a token must not be blocked by a result floating over
+   it. It fades out by itself after a few seconds. */
+.vtt-roll {
+  position: absolute; transform: translate(-50%, -50%);
+  pointer-events: none; z-index: 5;
+  background: rgba(10, 12, 26, .92);
+  border: 1px solid var(--accent); border-radius: 10px;
+  padding: 8px 12px; text-align: center;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .6);
+  animation: vtt-roll-in .22s ease-out;
+  transition: opacity .9s ease;
+}
+.vtt-roll.fade { opacity: 0; }
+@keyframes vtt-roll-in {
+  from { transform: translate(-50%, -50%) scale(.7); opacity: 0; }
+  to   { transform: translate(-50%, -50%) scale(1);  opacity: 1; }
+}
+.vtt-roll-who { color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+.vtt-roll-dice { display: flex; gap: 3px; justify-content: center; flex-wrap: wrap; margin-bottom: 4px; }
+.vtt-roll-total { color: var(--accent); font-size: 22px; font-weight: 700; line-height: 1; }
+.vtt-roll-comp { color: var(--red); font-size: 11px; margin-top: 3px; }
+.vtt-die {
+  display: inline-block; min-width: 20px; padding: 2px 4px;
+  background: var(--card2); border: 1px solid var(--border); border-radius: 4px;
+  font-size: 12px; font-weight: 600;
+}
+/* The Wild Die decides the roll, so it is told apart at a glance: green
+   when it explodes, red on a complication. */
+.vtt-die.wild { border-color: var(--accent); }
+.vtt-die.good { border-color: var(--green); color: var(--green); }
+.vtt-die.bad  { border-color: var(--red);   color: var(--red); }
+.vtt-die.flat { border-style: dashed; color: var(--muted); }
+
+/* Video tiles. Two per row in the sidebar; the picture fills the tile and
+   is cropped rather than squashed, because a squashed face looks worse
+   than a cropped one. */
+.call-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 8px 0; }
+.call-tile {
+  position: relative; aspect-ratio: 4 / 3; overflow: hidden;
+  background: var(--inset); border: 1px solid var(--border); border-radius: 6px;
+}
+.call-tile video { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Without a camera the tile would be a black hole - a name on a quiet
+   ground says more, and shows at a glance who is actually in the call. */
+.call-tile.no-cam video { display: none; }
+.call-tile.no-cam::before {
+  content: '🎧'; position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px; opacity: .35;
+}
+.call-name {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 2px 5px; font-size: 11px;
+  background: rgba(0, 0, 0, .55); color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Address field and its button on one line; the field takes what is left. */
+.portrait-url { display: flex; gap: 6px; align-items: center; }
+.portrait-url input[type=url] { flex: 1; min-width: 0; }
+
+.roll-gear { margin: 6px 0; max-height: 150px; overflow-y: auto; }
+.roll-gear .opt-row { font-size: 13px; }
+
+.vtt-log { max-height: 320px; overflow-y: auto; }
+.vtt-log-row { padding: 3px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.vtt-log-row b { color: var(--accent); }
+
+/* On a phone the map takes the whole width and the controls go underneath -
+   side by side there would leave neither of them usable. */
+@media (max-width: 900px) {
+  .vtt-layout { grid-template-columns: minmax(0, 1fr); }
+  /* One column: the row spans have to go, or the browser keeps trying to
+     place things into a second column that no longer exists. */
+  .vtt-stage-wrap, .vtt-side, .vtt-below { grid-column: 1; grid-row: auto; }
+  .vtt-side { order: 2; }
+  .vtt-below { order: 3; }
+  .vtt-token { width: calc(30px * var(--tok-size, 1)); height: calc(30px * var(--tok-size, 1)); }
+}

@@ -1,34 +1,28 @@
 # -*- coding: utf-8 -*-
 """
 =============================================================================
- Spieldaten aus der Original-Excel nach data.js übertragen
+ Carry the game data from the original spreadsheet over into data.js
 =============================================================================
 
- Erzeugt die Datei data.js aus dem Excel-Charaktergenerator von
- Chance Gibboney ("Character Generator v2-5.xlsx" bzw. neuer).
+ Generates data.js from Chance Gibboney's Excel character generator
+ ("Character Generator v2-5.xlsx" or newer).
 
- Aufruf:
-     python tools/extract-from-excel.py "Pfad/zur/Character Generator.xlsx"
+ Usage:
+     python tools/extract-from-excel.py "path/to/Character Generator.xlsx"
 
- Ohne Argument wird "Character Generator v2-5.xlsx" im aktuellen Ordner
- gesucht. Das Ergebnis landet als data.js neben dem Skript-Projektordner.
+ With no argument it looks for "Character Generator v2-5.xlsx" in the
+ current folder. The result lands as data.js beside the project folder.
 
- Benötigt: pip install openpyxl
+ Requires: pip install openpyxl
 
  -----------------------------------------------------------------------
- Wichtig bei einer NEUEN Excel-Version:
- Die Zeilen- und Spaltenangaben unten beziehen sich auf den Aufbau von
- v2.5. Ändert sich das Layout, müssen die Bereiche angepasst werden.
- Nach dem Lauf gibt das Skript eine Zusammenfassung aus (Anzahl Spezies,
- Fertigkeiten, Machtkräfte …) – die Zahlen mit der alten Fassung
- vergleichen, dann fällt sofort auf, wenn ein Bereich verrutscht ist.
+ Important with a NEW version of the workbook:
+ The row and column ranges below refer to the v2.5 layout. If that layout
+ changes, the ranges have to be adjusted. After a run the script prints a
+ summary (number of species, skills, Force powers ...) - compare those
+ figures against the previous version and a range that has slipped shows
+ up at once.
  -----------------------------------------------------------------------
-
- Generate data.js from Chance Gibboney's Excel character generator.
- Usage: python tools/extract-from-excel.py "Character Generator v2-5.xlsx"
- Requires openpyxl. Row/column ranges below match the v2.5 layout; if a
- newer workbook rearranges sheets, adjust them and compare the printed
- summary against the previous run.
 =============================================================================
 """
 import json
@@ -52,7 +46,7 @@ ATTR_KEYS = ['dex', 'kno', 'mec', 'per', 'str', 'tec']
 
 
 def v(ws, coord):
-    """Zellwert, aber 0/'0'/'None' gelten als leer."""
+    """The cell value, but 0/'0'/'None' all count as empty."""
     x = ws[coord].value
     if x is None:
         return None
@@ -81,7 +75,7 @@ def s(ws, coord):
 
 
 def dec(val):
-    """'1,5' -> 1.5 (in der Tabelle steht teils Komma als Dezimaltrenner)."""
+    """'1,5' -> 1.5 (the sheet sometimes uses a comma as decimal point)."""
     if isinstance(val, str):
         try:
             return float(val.replace(',', '.'))
@@ -90,9 +84,9 @@ def dec(val):
     return val if val is not None else 0
 
 
-# ---------------------------------------------------------------- Spezies
-r1 = wb['Race Information 1']      # Attributsgrenzen, Move, Startwürfel
-r2 = wb['Race Information 2']      # Fähigkeiten, Story-Faktoren, Bonus-Skills
+# ---------------------------------------------------------------- species
+r1 = wb['Race Information 1']      # attribute limits, move, starting dice
+r2 = wb['Race Information 2']      # abilities, story factors, bonus skills
 
 ATTR_TAG = {'DEX': 'dex', 'KNOW': 'kno', 'MECH': 'mec',
             'PERC': 'per', 'STR': 'str', 'TECH': 'tec'}
@@ -113,19 +107,19 @@ def species_row(row, name_override=None):
         'abilities': [], 'story': [], 'skillImprove': [], 'bonusSkills': [],
         'armorP': num(r2, f'I{row}'), 'armorE': num(r2, f'J{row}'),
     }
-    for col in ['C', 'D', 'E', 'F', 'G', 'H']:          # Spezialfähigkeiten
+    for col in ['C', 'D', 'E', 'F', 'G', 'H']:          # special abilities
         a = v(r2, f'{col}{row}')
         if a:
             sp['abilities'].append(str(a).strip())
-    for col in ['O', 'P', 'Q', 'R']:                     # Story-Faktoren
+    for col in ['O', 'P', 'Q', 'R']:                     # story factors
         a = v(r2, f'{col}{row}')
         if a:
             sp['story'].append(str(a).strip())
-    for col in ['K', 'L', 'M', 'N']:                     # typische Fertigkeiten
+    for col in ['K', 'L', 'M', 'N']:                     # typical skills
         a = v(r2, f'{col}{row}')
         if a:
             sp['skillImprove'].append(str(a).strip())
-    for col in ['S', 'T', 'U']:                          # Bonus-Fertigkeiten
+    for col in ['S', 'T', 'U']:                          # bonus skills
         a = v(r2, f'{col}{row}')
         if not a:
             continue
@@ -138,12 +132,12 @@ def species_row(row, name_override=None):
     return sp
 
 
-species = [species_row(i) for i in range(2, 62)]          # 60 Spezies
-near_humans = [species_row(i) for i in range(64, 73)]      # 9 Near-Human-Varianten
+species = [species_row(i) for i in range(2, 62)]          # 60 species
+near_humans = [species_row(i) for i in range(64, 73)]      # 9 near-human variants
 trianii = {'Female': species_row(76, 'Trianii (Female)'),
            'Male':   species_row(77, 'Trianii (Male)')}
 
-# ------------------------------------------------------------ Fertigkeiten
+# ------------------------------------------------------------------ skills
 def skill_list(sheet):
     ws = wb[sheet]
     return [str(v(ws, f'M{r}')).strip() for r in range(10, 58) if v(ws, f'M{r}')]
@@ -158,7 +152,7 @@ skills = {
     'tec': skill_list('Skill Selection - Technical'),
 }
 
-# ----------------------------------------------------------- Machtkräfte
+# ----------------------------------------------------------- Force powers
 fp = wb['Force Powers']
 fc = wb['Force Powers Calculations']
 
@@ -189,7 +183,7 @@ for cat, a, b in CAT_RANGES:
                        'diff': m.get('diff', ''), 'kept': m.get('kept', ''),
                        'dark': m.get('dark', '')})
 
-# ------------------------------------------------------------- Ausrüstung
+# -------------------------------------------------------------- equipment
 eq = wb['Equipment']
 CATS = {'Communication', 'General', 'Medical', 'Restraining Devices',
         'Special Tools', 'Surveillance', 'Transport', 'Travel Aids',
@@ -208,7 +202,7 @@ for r in range(2, 84):
     equipment.append({'cat': cat, 'name': a, 'cost': num(eq, f'B{r}'),
                       'avail': s(eq, f'C{r}'), 'note': s(eq, f'D{r}')})
 
-# ---------------------------------------------------------------- Rüstung
+# ------------------------------------------------------------------ armor
 df = wb['Defense']
 armor = []
 for r in range(151, 191):
@@ -222,7 +216,7 @@ for r in range(151, 191):
                   'energy': num(df, f'G{r}'), 'loc': s(df, f'H{r}'),
                   'dexPen': num(df, f'I{r}'), 'abilities': abilities})
 
-# ------------------------------------------------------------- Nahkampf
+# --------------------------------------------------------------- melee
 ml = wb['Melee Attack']
 melee = []
 for r in range(152, 168):
@@ -230,14 +224,14 @@ for r in range(152, 168):
     if not nm:
         continue
     nm = str(nm).strip()
-    if nm.startswith('Lightsaber: Custom'):     # kommt aus der Werkstatt
+    if nm.startswith('Lightsaber: Custom'):     # comes from the workshop
         continue
     melee.append({'name': nm, 'cost': num(ml, f'D{r}'), 'avail': s(ml, f'E{r}'),
                   'dmg': num(ml, f'F{r}'), 'maxDmg': num(ml, f'G{r}'),
                   'diff': s(ml, f'H{r}'), 'ability': s(ml, f'I{r}'),
                   'color': s(ml, f'J{r}')})
 
-# ------------------------------------------------------------- Fernkampf
+# -------------------------------------------------------------- ranged
 rg = wb['Ranged Attack']
 ranged = []
 for r in range(148, 181):
@@ -251,7 +245,7 @@ for r in range(148, 181):
                    'rof': s(rg, f'K{r}'), 'ammo': s(rg, f'L{r}'),
                    'ability': s(rg, f'M{r}'), 'skill': s(rg, f'N{r}') or 'Blaster'})
 
-# ----------------------------------------------------------- Sprengstoffe
+# ------------------------------------------------------------ explosives
 ex = wb['Explosives']
 explosives = []
 for r in range(132, 139):
@@ -265,7 +259,7 @@ for r in range(132, 139):
                        'radius': [s(ex, f'{c}{r}') for c in ['N', 'O', 'P', 'Q']],
                        'ability': s(ex, f'R{r}')})
 
-# --------------------------------------------------------- Lichtschwerter
+# ------------------------------------------------------------ lightsabers
 ls = wb['Custom Lightsaber']
 primary = [{'name': str(ls[f'C{r}'].value).strip(), 'color': s(ls, f'D{r}'),
             'dmg': num(ls, f'E{r}'), 'ability': s(ls, f'F{r}')}
@@ -280,14 +274,14 @@ mods = [{'name': str(ls[f'Y{r}'].value).strip(), 'cost': num(ls, f'Z{r}'),
 saber_colors = [str(ls[f'AK{r}'].value).strip()
                 for r in range(151, 158) if ls[f'AK{r}'].value]
 
-# ------------------------------------------------------ Planeten, Geschlecht
+# ------------------------------------------------------- planets, gender
 pi = wb['Personal Information']
 planets = sorted({str(pi[f'P{r}'].value).strip()
                   for r in range(136, 229) if pi[f'P{r}'].value})
 genders = [str(pi[f'H{r}'].value).strip()
            for r in range(136, 141) if pi[f'H{r}'].value]
 
-# ------------------------------------------------------------------ Ausgabe
+# ------------------------------------------------------------------- output
 data = {
     'species': species, 'nearHumans': near_humans, 'trianii': trianii,
     'skills': skills, 'powers': powers, 'equipment': equipment, 'armor': armor,
@@ -298,10 +292,10 @@ data = {
 }
 
 with open(OUT, 'w', encoding='utf-8') as f:
-    f.write('// Automatisch erzeugt aus "%s"\n' % os.path.basename(SRC))
-    f.write('// Quelle: Excel-Charaktergenerator von Chance Gibboney\n')
+    f.write('// Generated from "%s"\n' % os.path.basename(SRC))
+    f.write('// Source: Chance Gibboney\'s Excel character generator\n')
     f.write('// (Star Wars D6, 2nd Edition - West End Games)\n')
-    f.write('// Nicht von Hand bearbeiten - stattdessen tools/extract-from-excel.py laufen lassen.\n')
+    f.write('// Do not edit by hand - run tools/extract-from-excel.py instead.\n')
     f.write('const DATA = ')
     json.dump(data, f, ensure_ascii=False, indent=1)
     f.write(';\n')

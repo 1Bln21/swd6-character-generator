@@ -1,7 +1,7 @@
 // Automatisch erzeugt aus "Character Generator v2-5.xlsx"
 // Quelle: Excel-Charaktergenerator von Chance Gibboney
 // (Star Wars D6, 2nd Edition - West End Games)
-// Nicht von Hand bearbeiten - stattdessen tools/extract-from-excel.py laufen lassen.
+// Do not edit by hand - run tools/extract-from-excel.py instead.
 const DATA = {
  "species": [
   {
@@ -5787,33 +5787,32 @@ const DATA = {
 };
 
 /* =====================================================================
-   Erweiterte Fertigkeiten ("advanced skills", im Buch mit "(A)")
+   Advanced skills (marked "(A)" in the books)
    ---------------------------------------------------------------------
-   Sie beginnen bei 1D statt beim Attributwert, kosten die doppelten
-   Charakterpunkte und lassen sich erst lernen, wenn die Voraussetzung
-   erfuellt ist (R&E S. 65, REUP S. 61 f.).
+   They start at 1D rather than at the attribute value, cost double the
+   character points, and cannot be learned until their prerequisite is met
+   (R&E p. 65, REUP pp. 61 f.).
 
-   Die Liste steht hier und nicht im Charaktergenerator, weil Droiden sie
-   genauso brauchen: Ein 2-1B fuehrt "(A) Bacta tank operation 5D",
-   "(A) Injury/ailment diagnosis 6D" und "(A) Medicine 9D" - ohne diese
-   Eintraege fiel die halbe Ausstattung eines Medizindroiden beim
-   Uebernehmen einer Vorlage ersatzlos weg.
+   The list lives here rather than in the character generator, because
+   droids need it just as much: a 2-1B carries "(A) Bacta tank operation
+   5D", "(A) Injury/ailment diagnosis 6D" and "(A) Medicine 9D" - without
+   these entries half a medical droid's equipment was dropped without
+   replacement when a template was applied.
 
-   Die 16 Ingenieur-Spezialisierungen samt Voraussetzungen stehen so in
-   REUP ("Engineering Prerequisites", S. 62). Bacta-Tank-Bedienung und
-   Diagnose sind dort nicht eigens definiert; sie tauchen nur in den
-   Statbloecken der Medizindroiden auf, weshalb sie ohne Voraussetzung
-   gefuehrt werden - das Attribut ist das, unter dem die Buecher sie
-   dort einordnen.
+   The 16 engineering specialisations and their prerequisites appear this
+   way in REUP ("Engineering Prerequisites", p. 62). Bacta tank operation
+   and diagnosis are not defined separately there; they turn up only in the
+   medical droids' statblocks, which is why they carry no prerequisite - the
+   attribute is the one the books file them under there.
    ===================================================================== */
 const ADV_SKILLS = [
   { name: '(A) Medicine', attr: 'tec', req: 'First Aid 5D' },
   { name: '(A) Bacta Tank Operation', attr: 'mec', req: '' },
   { name: '(A) Injury/Ailment Diagnosis', attr: 'per', req: '' },
-  /* REUP fuehrt Podrennen als erweiterte Fertigkeit (S. 46). */
+  /* REUP lists pod racing as an advanced skill (p. 46). */
   { name: '(A) Pod Racer Operation', attr: 'mec', req: 'Repulsorlift Op. 5D' },
 
-  /* Ingenieurwesen - je Spezialisierung eine eigene Voraussetzung */
+  /* Engineering - one prerequisite per specialisation */
   { name: '(A) Aquatic Vehicle Engineering', attr: 'tec', req: 'Aquatic Vehicle Rep. 4D' },
   { name: '(A) Armor Engineering', attr: 'tec', req: 'Armor Repair 4D' },
   { name: '(A) Capital Ship Engineering', attr: 'tec', req: 'Capital Ship Repair 5D' },

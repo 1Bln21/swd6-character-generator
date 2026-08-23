@@ -1,30 +1,30 @@
 /* =====================================================================
-   Versteckte Zugabe: „TIE BREAKER“ – ein Vektorspiel im Stil der frühen
-   Achtziger (Vectrex/Battlezone: eine Strichfarbe, kein Füllen, alles Linien).
+   Hidden extra: "TIE BREAKER" - a vector game in the style of the early
+   eighties (Vectrex/Battlezone: one stroke colour, no fills, all lines).
    ---------------------------------------------------------------------
-   Start: Doppelklick auf die Überschrift „Optionen“ im ⚙-Menü.
-   Steuerung: Maus oder WASD zielen, linke Maustaste/Leertaste Laser, rechte
-   Maustaste/Alt Rakete (eine regeneriert alle 30 Sekunden). Die Maus wird im
-   Fenster gefangen; Escape gibt sie frei und pausiert, ein zweites Escape
-   schließt. Läuft endlos, bis der Schild aufgebraucht ist.
+   To start: double-click the "Options" heading in the gear menu.
+   Controls: mouse or WASD to aim, left mouse button/space for the laser,
+   right mouse button/alt for a missile (one regenerates every 30 seconds).
+   The mouse is captured inside the window; escape releases it and pauses, a
+   second escape closes. Runs endlessly until the shield is used up.
 
-   Der Ton kommt aus einem einzelnen Rechteck-Oszillator – so klang der
-   PC-Lautsprecher, und es braucht keine Audiodateien.
+   The sound comes out of a single square-wave oscillator - that is how the
+   PC speaker sounded, and it needs no audio files.
 
-   Die Bestenliste ist bewusst kontolos: nur drei Buchstaben und eine Zahl,
-   global für alle Besucher (API-Aktionen arcade_top / arcade_add). Ohne
-   Server läuft das Spiel trotzdem, dann bleibt die Liste lokal.
+   The high score table is deliberately account-less: three letters and a
+   number, global to every visitor (API actions arcade_top / arcade_add).
+   Without a server the game still runs, and the table stays local.
    ===================================================================== */
 'use strict';
 
 (function () {
   const W = 640, H = 480;                 // 4:3
-  const KEY = 'swd6_arcade_local';        // Rückfalliste ohne Server
+  const KEY = 'swd6_arcade_local';        // fallback list when there is no server
 
   let cv, ctx, box, raf = 0, running = false;
   let audio = null;
 
-  /* ---------------- Ton: ein Rechteck-Oszillator, kurz getastet ------- */
+  /* ---------------- sound: one square oscillator, briefly keyed ------- */
   function beep(freq, ms, vol) {
     try {
       if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
@@ -35,7 +35,7 @@
       o.connect(g); g.connect(audio.destination);
       o.start();
       o.stop(audio.currentTime + ms / 1000);
-    } catch (e) { /* Ton ist Beiwerk, nie ein Grund zum Abbruch */ }
+    } catch (e) { /* sound is trimming, never a reason to give up */ }
   }
   function sweep(from, to, ms) {
     try {
@@ -50,7 +50,7 @@
     } catch (e) {}
   }
 
-  /* ---------------- Spielzustand ---------------- */
+  /* ---------------- game state ---------------- */
   const S = {
     keys: {}, foes: [], shots: [], rockets: [], sparks: [],
     aimX: 0, aimY: 0, score: 0, shield: 0, ammo: 0, ammoAt: 0,
@@ -67,10 +67,10 @@
     S.paused = false;
   }
 
-  /* ---------------- Maus ----------------
-     Die Maus wird im Fenster gefangen (Pointer Lock), damit man beim Zielen
-     nicht aus dem Bild fährt. Escape gibt sie frei – das macht der Browser
-     selbst, wir pausieren dann, sonst stirbt man beim Loslassen. */
+  /* ---------------- mouse ----------------
+     The mouse is captured inside the window (pointer lock), so aiming does
+     not run off the picture. Escape releases it - the browser does that
+     itself, and we pause then, or you die the moment it lets go. */
   function lockMouse() { if (cv && cv.requestPointerLock) cv.requestPointerLock(); }
   function mouseLocked() { return document.pointerLockElement === cv; }
   function onPointerLockChange() {
@@ -90,19 +90,19 @@
     if (e.button === 2) fireRocket();
   }
 
-  /* Gegner kommen aus der Tiefe: z läuft von 1 (fern) auf 0 (Cockpit). */
+  /* Enemies come out of the depth: z runs from 1 (far) to 0 (cockpit). */
   function spawn() {
     const ang = Math.random() * Math.PI * 2, r = 0.25 + Math.random() * 0.75;
     S.foes.push({
       x: Math.cos(ang) * r, y: Math.sin(ang) * r * 0.7, z: 1,
-      /* 50 % schneller als ursprünglich – fordernd, aber noch zu treffen. */
+      /* 50 % faster than at first - demanding, but still hittable. */
       spd: (0.055 + Math.random() * 0.05 + S.wave * 0.004) * 1.5,
       roll: Math.random() * Math.PI, hit: 0,
     });
     beep(120, 40, 0.03);
   }
 
-  /* ---------------- Zeichnen (nur Linien, eine Farbe) ---------------- */
+  /* ---------------- drawing (lines only, one colour) ---------------- */
   function proj(f) {
     const s = 1 / (0.15 + f.z * 0.85);
     return { sx: W / 2 + f.x * W * 0.45 * s, sy: H / 2 + f.y * H * 0.45 * s, s: s };
@@ -115,12 +115,12 @@
     ctx.save();
     ctx.translate(p.sx, p.sy);
     ctx.rotate(Math.sin(f.roll) * 0.25);
-    ctx.beginPath();                       // Kugelcockpit
+    ctx.beginPath();                       // ball cockpit
     ctx.arc(0, 0, r * 0.45, 0, Math.PI * 2);
     ctx.stroke();
-    line(-r * 0.45, 0, -r * 0.95, 0);      // Träger
+    line(-r * 0.45, 0, -r * 0.95, 0);      // pylon
     line(r * 0.45, 0, r * 0.95, 0);
-    [-1, 1].forEach(s => {                 // sechseckige Flügel
+    [-1, 1].forEach(s => {                 // hexagonal wings
       ctx.beginPath();
       ctx.moveTo(s * r * 0.95, -r * 1.15);
       ctx.lineTo(s * r * 1.3, -r * 0.5);
@@ -135,7 +135,7 @@
 
   function drawCockpit() {
     ctx.globalAlpha = 0.55;
-    line(0, H * 0.78, W * 0.28, H * 0.62);        // Rahmenstreben
+    line(0, H * 0.78, W * 0.28, H * 0.62);        // frame struts
     line(W, H * 0.78, W * 0.72, H * 0.62);
     line(W * 0.28, H * 0.62, W * 0.72, H * 0.62);
     line(W * 0.5, 0, W * 0.5, H * 0.10);
@@ -163,7 +163,7 @@
     ctx.globalAlpha = 1;
   }
 
-  /* ---------------- Ablauf ---------------- */
+  /* ---------------- main loop ---------------- */
   function fireLaser() {
     S.shots.push({ x: S.aimX, y: S.aimY, t: 0 });
     beep(880, 45, 0.05);
@@ -195,8 +195,8 @@
   }
 
   function step(dt, now) {
-    /* Zielen */
-    const sp = 1.7 * dt;                  // doppelt so flink wie die erste Fassung (0.85)
+    /* aiming */
+    const sp = 1.7 * dt;                  // twice as nimble as the first version (0.85)
     if (S.keys['a']) S.aimX -= sp;
     if (S.keys['d']) S.aimX += sp;
     if (S.keys['w']) S.aimY -= sp;
@@ -204,24 +204,24 @@
     S.aimX = Math.max(-1, Math.min(1, S.aimX));
     S.aimY = Math.max(-1, Math.min(1, S.aimY));
 
-    /* Munition regeneriert */
+    /* ammunition regenerates */
     if (S.ammo < MAX_AMMO && now - S.ammoAt > AMMO_MS) {
       S.ammo++; S.ammoAt = now; beep(1200, 60, 0.03);
     }
 
-    /* Nachschub */
+    /* reinforcements */
     if (now > S.spawnAt) {
       spawn();
       S.wave++;
       S.spawnAt = now + Math.max(450, 1600 - S.wave * 18);
     }
 
-    /* Gegner heranfliegen lassen */
+    /* let the enemies close in */
     for (let i = S.foes.length - 1; i >= 0; i--) {
       const f = S.foes[i];
       f.z -= f.spd * dt;
       f.roll += dt * 1.5;
-      if (f.z <= 0.02) {                    // durchgebrochen
+      if (f.z <= 0.02) {                    // it got through
         S.foes.splice(i, 1);
         S.shield--;
         sweep(200, 60, 320);
@@ -229,7 +229,7 @@
       }
     }
 
-    /* Laser: trifft sofort auf der Ziellinie */
+    /* laser: hits instantly along the line of aim */
     for (let i = S.shots.length - 1; i >= 0; i--) {
       const s = S.shots[i];
       s.t += dt;
@@ -238,7 +238,7 @@
       if (k >= 0) { boom(S.foes[k], 100); S.foes.splice(k, 1); S.shots.splice(i, 1); }
       else if (s.t > 0.12) S.shots.splice(i, 1);
     }
-    /* Raketen: größerer Radius, räumen mehrere ab */
+    /* missiles: a larger radius, they clear several at once */
     for (let i = S.rockets.length - 1; i >= 0; i--) {
       const r = S.rockets[i];
       r.t += dt;
@@ -318,7 +318,7 @@
     loadTop();
   }
 
-  /* ---------------- Bestenliste ---------------- */
+  /* ---------------- high score table ---------------- */
   function localTop() {
     try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { return []; }
   }
@@ -331,7 +331,7 @@
     try {
       const r = await api('arcade_top');
       if (r && Array.isArray(r.scores)) S.top = r.scores;
-    } catch (e) { /* offline: lokale Liste genügt */ }
+    } catch (e) { /* offline: the local list will do */ }
   }
   async function sendScore() {
     const name = (S.name + 'AAA').slice(0, 3).toUpperCase();
@@ -351,7 +351,7 @@
     S.top = localTop();
   }
 
-  /* ---------------- Fenster ---------------- */
+  /* ---------------- window ---------------- */
   function open() {
     if (running) return;
     box = document.createElement('div');
@@ -372,7 +372,7 @@
     document.addEventListener('keydown', onKeyDown, true);
     document.addEventListener('keyup', onKeyUp, true);
     cv.addEventListener('mousedown', onMouseDown);
-    cv.addEventListener('contextmenu', e => e.preventDefault());  // Rechtsklick = Rakete
+    cv.addEventListener('contextmenu', e => e.preventDefault());  // right click = missile
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('pointerlockchange', onPointerLockChange);
     reset(); loadTop();
@@ -402,10 +402,10 @@
 
   function onKeyDown(e) {
     if (!running) return;
-    /* Escape gibt zuerst die Maus frei (das erledigt der Browser selbst und
-       pausiert dadurch); erst das zweite Escape schließt das Fenster. */
+    /* Escape first releases the mouse (the browser does that itself, and
+       that pauses); only a second escape closes the window. */
     if (e.key === 'Escape') {
-      if (mouseLocked()) return;          // Browser hebt den Fang auf → Pause
+      if (mouseLocked()) return;          // the browser drops the capture -> pause
       close(); e.preventDefault(); return;
     }
     if (S.over) {
@@ -428,7 +428,7 @@
     if ('wasd'.indexOf(k) >= 0) S.keys[k] = 0;
   }
 
-  /* ---------------- Auslöser: Doppelklick auf „Optionen“ ------------- */
+  /* ---------------- trigger: double-click on "Options" -------------- */
   document.addEventListener('DOMContentLoaded', () => {
     const title = document.querySelector('#optionsMenu .opt-title');
     if (!title) return;

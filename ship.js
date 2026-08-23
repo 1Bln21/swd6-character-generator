@@ -1,8 +1,8 @@
 /* =====================================================================
-   Star Wars D6 – Schiffs-Generator (Ship Generator v1-1 von C. Gibboney)
-   Basiswerte-Editor + Umbau-Werkstatt: prozentuale Upgrades, Ersatzteile,
-   Waffen, Sensoren, Crew-Skills, Druckbogen.
-   Benötigt genshared.js + gendata.js (SHIP_DATA).
+   Star Wars D6 - ship generator (C. Gibboney's Ship Generator v1-1)
+   Base-value editor plus modification workshop: percentage upgrades,
+   replacement parts, weapons, sensors, crew skills, printable sheet.
+   Needs genshared.js + gendata.js (SHIP_DATA).
    ===================================================================== */
 'use strict';
 
@@ -10,7 +10,7 @@ const PAGE_DOC_KIND = 'ship';
 const LS_CURRENT = 'swd6_ship_current';
 const LS_SAVED = 'swd6_ships';
 
-/* ---------------- Übersetzungen ---------------- */
+/* ---------------- translations ---------------- */
 Object.assign(T.de, {
   title: 'Star Wars D6 – Schiffs- und Fahrzeug-Generator',
   subtitle: 'Schiffs- und Fahrzeug-Generator',
@@ -70,6 +70,7 @@ Object.assign(T.de, {
   sh_install: 'Einbau', sh_mishap_col: 'Panne',
   sh_parts: 'Ersatzteile & Systeme',
   sh_repl_drive: 'Ersatz-Antrieb', sh_repl_hyper: 'Ersatz-Hyperantrieb',
+  sh_drive_class: 'Ionenantrieb Space {n}', sh_hyper_class: 'Hyperantrieb Klasse {n}',
   sh_repl_maneuver: 'Ersatz-Manövriertriebwerke',
   sh_maneuver_hint: 'Hausregel (nicht in den Büchern): kaufbare Manövriertriebwerke, bewusst teuer. Obergrenze je Klasse – Space Transport bis 2D, Capital-Kreuzer bis 1D+2, größere Capital nur 1D, Jäger bis 4D. Preis/Gewicht skalieren mit der Schiffsklasse.',
   sh_shieldgen: 'Schildgenerator', sh_keep: '– Original behalten –',
@@ -108,7 +109,7 @@ Object.assign(T.de, {
   sh_info_block: 'Schiffsdaten', sh_movement: 'Bewegung',
   sh_fees: 'Wartung & Vorräte',
   sh_fees_text: '„Basisgebühr“ × (Crew + Passagiere) × Tage aufzufüllender Vorräte',
-  /* Werkstatt (Galaxy Guide 6) */
+  /* workshop (Galaxy Guide 6) */
   tab_shop: 'Werkstatt',
   ws_intro: 'Erweiterte Regeln aus „Galaxy Guide 6: Tramp Freighters“, Kapitel Acht. Gedacht für leichte Frachter – nicht für Jäger oder Schiffe der Capital-Klasse.',
   ws_mishap: 'Pannen auswürfeln',
@@ -206,6 +207,7 @@ Object.assign(T.en, {
   sh_install: 'Install', sh_mishap_col: 'Mishap',
   sh_parts: 'Replacement parts & systems',
   sh_repl_drive: 'Replacement drive', sh_repl_hyper: 'Replacement hyperdrive',
+  sh_drive_class: 'Ion Drive Space {n}', sh_hyper_class: 'Class {n} Hyperdrive',
   sh_repl_maneuver: 'Replacement maneuver thrusters',
   sh_maneuver_hint: 'House rule (not in the books): purchasable maneuver thrusters, deliberately expensive. Cap per class — space transport up to 2D, capital cruiser up to 1D+2, larger capital only 1D, starfighter up to 4D. Price/weight scale with the ship class.',
   sh_shieldgen: 'Shield generator', sh_keep: '– keep original –',
@@ -244,7 +246,7 @@ Object.assign(T.en, {
   sh_info_block: 'Ship Information', sh_movement: 'Movement',
   sh_fees: 'Maintenance & restocking',
   sh_fees_text: '"Base fee" × (crew + passengers) × days of consumables to restock',
-  /* Workshop (Galaxy Guide 6) */
+  /* workshop (Galaxy Guide 6) */
   tab_shop: 'Workshop',
   ws_intro: 'Expanded rules from "Galaxy Guide 6: Tramp Freighters", Chapter Eight. Written for light freighters – not for starfighters or capital combat ships.',
   ws_mishap: 'Roll for mishaps',
@@ -284,7 +286,7 @@ Object.assign(T.en, {
   ws_source: 'Source',
 });
 
-/* ---------------- Dokument ---------------- */
+/* ---------------- document ---------------- */
 function emptyDoc() {
   return {
     version: 1, kind: 'ship',
@@ -293,10 +295,10 @@ function emptyDoc() {
       skill: 'Space Transports', skillSpec: '', crew: '', passengers: '',
       cargo: '', consumables: '', length: '', cover: 'Not applicable',
       altitude: '', nav: true, hyper: 'x2', hyperBackup: 'None',
-      capitalClass: 'cruiser',      // nur bei Capital-Skala: cruiser | stardestroyer | ssd
+      capitalClass: 'cruiser',      // capital scale only: cruiser | stardestroyer | ssd
       hull: 12, shields: 3, maneuver: 3, space: 4, atmosphere: '',
       costNew: 0, costUsed: 0, mishapBase: 0, portrait: '', notes: '',
-      cargoRule: 'auto',            // auto | strict | off – siehe cargoStatus()
+      cargoRule: 'auto',            // auto | strict | off - see cargoStatus()
     },
     weapons: [],
     sensors: {
@@ -304,12 +306,12 @@ function emptyDoc() {
       searchRange: '', searchBonus: 0, focusRange: '', focusBonus: 0,
     },
     quirks: '',
-    crewSkills: {},                 // Skillname -> Pips
+    crewSkills: {},                 // skill name -> pips
     mods: {
       drive: '', maneuver: '', hyper: '', hull: '', shield: '', wdmg: '',
       replDrive: '', replHyper: '', shieldGen: '', backupHyper: false, replManeuver: '',
-      general: {},                  // Name -> Anzahl
-      cargo: {},                    // Name -> Anzahl
+      general: {},                  // name -> count
+      cargo: {},                    // name -> count
       custom: [],                   // {name, desc, cost, weight}
     },
   };
@@ -322,11 +324,12 @@ function migrate(obj) {
   m.sensors = Object.assign(emptyDoc().sensors, obj.sensors || {});
   m.mods = Object.assign(emptyDoc().mods, obj.mods || {});
   if (!Array.isArray(m.weapons)) m.weapons = [];
-  /* Bis v2.2.1 konnte "Starship" in gespeicherten Schiffen stehen. */
+  /* Up to v2.2.1 a saved ship could carry "Starship" here. */
   m.weapons.forEach(w => {
     w.scale = normScale(w.scale);
-    /* Vor 3.9.2.3 gab es das Feld nicht. Bestehende Boegen als Werksbewaffnung
-       lesen - sonst zoegen sie sich rueckwirkend Laderaum ab. */
+    /* The field did not exist before 3.9.2.3. Read existing sheets as
+       factory armament - otherwise they would retroactively charge
+       themselves cargo space. */
     if (typeof w.stock !== 'boolean') w.stock = true;
   });
   if (!Array.isArray(m.mods.custom)) m.mods.custom = [];
@@ -339,12 +342,11 @@ function emptyWeapon() {
            spaceRange: '', atmRange: '', stock: false };
 }
 
-/* Das Excel führt die Waffen-Größenklassen als "Starship", die des Schiffs
-   als "Starfighter" – dieselbe Skala unter zwei Namen. Dadurch fand die
-   Auswahlliste den voreingestellten Wert nicht und fiel auf die erste
-   Option ("Character") zurück. Hier auf die Schreibweise des Regelwerks
-   vereinheitlicht; gendata.js bleibt unangetastet, weil es aus dem Excel
-   erzeugt wird. */
+/* The spreadsheet calls the weapon scales "Starship" and the ship's own
+   scale "Starfighter" - one scale under two names. Because of that the
+   pick list never found its preselected value and fell back on the first
+   option ("Character"). Normalised here onto the rulebook's spelling;
+   gendata.js is left alone, since it is generated from the spreadsheet. */
 function weaponScaleList() {
   return SHIP_DATA.weaponScales.map(s => (s === 'Starship' ? 'Starfighter' : s));
 }
@@ -352,33 +354,35 @@ function normScale(s) {
   return s === 'Starship' ? 'Starfighter' : (s || '');
 }
 
-/* Kaufbarer Backup-Hyperantrieb: der klassische „Lifesaver 1000" (x5) aus
-   Galaxy Guide 6 – feste Werte, kostet Credits und Gewicht wie ein Ersatzteil.
-   „Muss nach jedem Sprung überholt werden" (Notfallantrieb). */
+/* Backup hyperdrive you can buy: the classic "Lifesaver 1000" (x5) from
+   Galaxy Guide 6 - fixed values, costs credits and weight like any other
+   replacement part. "Must be overhauled after every jump" (emergency
+   drive). */
 const BACKUP_HYPER = { mult: 'x5', cost: 2500, weight: 8 };
 
-/* Gewichts-Faktor der großen Einbausysteme nach Größenklasse. Die GG6-Werte
-   sind für leichte Frachter (Space Transports) ausgelegt – ein Capital-
-   Hyperantrieb oder -Schildgenerator wiegt ein Vielfaches, ein reiner Jäger
-   weniger. Offizielle Scale-Tabelle (R&E S.92): Starfighter 6D, Capital 12D,
-   Death Star 24D; daraus als Hausregel abgeleitete, gerundete Faktoren.
-   Betrifft nur die Großsysteme (Antrieb, Hyperantrieb, Schildgenerator) –
-   Ausrüstung/Frachtumbauten bleiben crew-groß und unskaliert. */
+/* Weight factor of the big installed systems by scale. The GG6 numbers are
+   written for light freighters (space transports) - a capital-scale
+   hyperdrive or shield generator weighs a multiple of that, a pure
+   starfighter less. Official scale table (R&E p.92): Starfighter 6D,
+   Capital 12D, Death Star 24D; the rounded factors below are a house rule
+   derived from it. Applies only to the big systems (drive, hyperdrive,
+   shield generator) - equipment and cargo conversions stay crew-sized and
+   unscaled. */
 function weightScaleFactor(i) {
   switch (i.scale) {
     case 'Capital':
-      /* Innerhalb der Capital-Skala nochmals abgestuft (nur fürs Gewicht):
-         bis Kreuzer < Sternenzerstörer < Super-Sternenzerstörer. */
+      /* Graded once more inside the capital scale (for weight only):
+         up to cruiser < star destroyer < super star destroyer. */
       return i.capitalClass === 'ssd' ? 30
            : i.capitalClass === 'stardestroyer' ? 15 : 6;
-    case 'Deathstar': return 60;    // bleibt die Spitze – größer geht nur DS II / Starkiller ;)
+    case 'Deathstar': return 60;    // still the top - bigger means DS II / Starkiller ;)
     case 'Starfighter': return i.skill === 'Space Transports' ? 1 : 0.5;
-    default:          return 0.5;   // Speeder / Walker / Character
+    default:          return 0.5;   // speeder / walker / character
   }
 }
 
-/* Gewichts-Multiplikator einer Größenklasse (für Waffen, nach deren eigener
-   Skala). Analog zu weightScaleFactor, aber ohne Space-Transport-Sonderfall. */
+/* Weight multiplier of a scale (for weapons, by their own scale). Same
+   idea as weightScaleFactor, minus the space-transport special case. */
 function scaleMultOf(scale) {
   switch (scale) {
     case 'Capital':   return 10;
@@ -386,24 +390,24 @@ function scaleMultOf(scale) {
     case 'Starfighter': return 1;
     case 'Walker':    return 0.6;
     case 'Speeder':   return 0.4;
-    default:          return 0.3;   // Character
+    default:          return 0.3;   // character
   }
 }
-/* Basisgewicht einer Waffe auf Starfighter-Skala (Hausregel), damit
-   Zusatzbewaffnung nicht gewichtslos zum Overpowern taugt. */
+/* Base weight of a starfighter-scale weapon (house rule), so extra guns
+   cannot be bolted on weightlessly to overpower a ship. */
 const WEAPON_BASE_WEIGHT = 2;
 
-/* Ersatz-Manövriertriebwerke (Hausregel – steht so nicht in den Büchern).
-   Obergrenze der erreichbaren Manövrierbarkeit je Klasse (in Pips):
-   Space Transport ≤ 2D, Capital-Kreuzer ≤ 1D+2, größere Capital ≤ 1D,
-   Jäger/Kleingerät großzügiger. Preis/Gewicht skalieren wie die anderen
-   Großsysteme über weightScaleFactor. */
+/* Replacement maneuvering thrusters (house rule - the books do not have
+   these). Ceiling on the maneuverability reachable per class (in pips):
+   space transport <= 2D, capital cruiser <= 1D+2, larger capital <= 1D,
+   fighters and small craft more generously. Price and weight scale over
+   weightScaleFactor like the other big systems. */
 function maneuverCapPips(i) {
   switch (i.scale) {
     case 'Capital':   return i.capitalClass === 'cruiser' ? 5 : 3;   // 1D+2 / 1D
     case 'Deathstar': return 3;                                      // 1D
     case 'Starfighter': return i.skill === 'Space Transports' ? 6 : 12; // 2D / 4D
-    default:          return 12;                                     // Speeder/Walker/Character
+    default:          return 12;                                     // speeder/walker/character
   }
 }
 function maneuverThrusterOptions(i) {
@@ -415,11 +419,11 @@ function maneuverThrusterOptions(i) {
 function maneuverThruster(i, sel) {
   const pips = +sel;
   if (!pips) return null;
-  if (pips > maneuverCapPips(i)) return null;   // über Klassen-Cap → ignorieren
+  if (pips > maneuverCapPips(i)) return null;   // above the class cap -> ignore
   return { value: pips, cost: pips * 6000, weight: Math.max(1, Math.round(pips / 2)) };
 }
 
-/* Wurf-Profil fürs Würfeln: Manöver, Schilde, Waffen-Feuerkontrolle, Crew-Skills. */
+/* Roll profile for the dice roller: maneuver, shields, fire control, crew skills. */
 function buildRollProfile() {
   try {
     const der = shipDerived();
@@ -431,18 +435,21 @@ function buildRollProfile() {
     Object.entries(C.crewSkills || {}).forEach(([n, p]) => {
       if (p > 0) entries.push({ label: skillName(n), pips: p, kind: 'skill' });
     });
+    /* The same profile travels inside the document - see app.js. A ship has
+       no equipment bonuses, hence no gear list. */
+    C._roll = { entries: entries, gear: [] };
     localStorage.setItem('swd6_roll_ship', JSON.stringify({ name: (C.info && C.info.name) || '', entries }));
   } catch (e) {}
 }
 
-/* ---------------- Berechnungen ---------------- */
+/* ---------------- calculations ---------------- */
 function pctMod(list, label) { return list.find(m => m.label === label) || null; }
 
-/* Das Excel beginnt beim Hyperantrieb erst bei x2. Galaxy Guide 6 nennt
-   davor noch den Schritt x4 → x3, der hier vorangestellt wird. */
-/* Rumpf und Schilde: das Excel endet bei +1D+1. Galaxy Guide 6 deckelt den
-   Rumpf dort ausdruecklich und nennt fuer Schilde gar keine Tabelle - die
-   Stufe +1D+2 ist eine bewusst ergaenzte Hausregel (siehe shiprules.js). */
+/* The spreadsheet starts the hyperdrive table at x2. Galaxy Guide 6 names
+   the x4 -> x3 step before that, which is prepended here. */
+/* Hull and shields: the spreadsheet stops at +1D+1. Galaxy Guide 6 caps
+   the hull there explicitly and gives no table for shields at all - the
+   +1D+2 step is a deliberate house rule (see shiprules.js). */
 function hullShieldList(base) {
   const extra = (typeof TRAMP_RULES !== 'undefined' && TRAMP_RULES.hullShieldExtra)
     ? TRAMP_RULES.hullShieldExtra : [];
@@ -453,18 +460,33 @@ function hyperImproveList() {
   const extra = (typeof TRAMP_RULES !== 'undefined') ? TRAMP_RULES.hyperImproveExtra : [];
   return extra.concat(SHIP_DATA.hyperImprove);
 }
+/* Drives are stored by model name, because that is what identifies them in
+   the parts catalogue - but a model name has no business on the sheet. A
+   capital ship does not fly on a Corellian "Evader-GT"; what matters is the
+   class it ends up with. Both the picker and the printed sheet run through
+   here, so they always read the same. Unknown models (hand-edited sheets,
+   older files) fall back to the stored text rather than vanishing. */
+function driveClassName(model) {
+  const d = SHIP_DATA.replDrives.find(x => x.model === model);
+  return d ? t('sh_drive_class').replace('{n}', d.space) : (model || '');
+}
+function hyperClassName(model) {
+  const h = SHIP_DATA.replHyper.find(x => x.model === model);
+  return h ? t('sh_hyper_class').replace('{n}', h.mult) : (model || '');
+}
 function modPips(label) {
-  /* '+0D+1' → 1 Pip usw. */
+  /* '+0D+1' -> 1 pip, and so on */
   const m = /\+?(\d+)D\+(\d+)/.exec(label || '');
   if (m) return (+m[1]) * 3 + (+m[2]);
   const n = /\+(\d+)/.exec(label || '');
   return n ? 0 : 0;
 }
-/* Atmosphärengeschwindigkeit aus dem Space-Wert – die Tabelle steht so im
-   Grundregelwerk ("Ships in an Atmosphere"). Erste Zahl = Move in der
-   Atmosphäre, zweite = Vollgas in km/h. Die Bücher tragen bei den einzelnen
-   Schiffen oft grobe oder gar keine Atmosphärenwerte ein; abgeleitet aus dem
-   (auch modifizierten) Space stimmt es immer und ändert sich mit Umbauten. */
+/* Atmospheric speed derived from the space value - the table is printed
+   this way in the core rules ("Ships in an Atmosphere"). First number =
+   move in atmosphere, second = full throttle in km/h. For individual ships
+   the books often give rough atmosphere values or none at all; derived
+   from the (possibly modified) space value it is always right, and it
+   follows the modifications. */
 const ATMO_TABLE = {
   1: [210, 600], 2: [225, 650], 3: [260, 750], 4: [280, 800],
   5: [295, 850], 6: [330, 950], 7: [350, 1000], 8: [365, 1050],
@@ -474,16 +496,16 @@ function atmoFromSpace(space) {
   const s = Math.round(+space || 0);
   if (s < 1) return null;
   let row = ATMO_TABLE[s];
-  if (!row) {                        // über die Tabelle hinaus fortschreiben
+  if (!row) {                        // continue past the end of the table
     const top = ATMO_TABLE[12];
     row = [top[0] + (s - 12) * 15, top[1] + (s - 12) * 50];
   }
   return { move: row[0], kph: row[1] };
 }
-/* Ein Schiff ohne Atmosphären-Eintrag kann laut Regelwerk gar nicht in eine
-   Atmosphäre – das sagt das Feld aber nur, wenn dort ausdrücklich "N/A" o. ä.
-   steht. Ein leeres Feld ist meist nur eine Lücke der Extraktion (viele Jäger
-   haben Space, aber keinen ausgeschriebenen Atmosphärenwert). */
+/* By the rules a ship with no atmosphere entry cannot enter an atmosphere
+   at all - but the field only says so when it explicitly reads "N/A" or
+   similar. An empty field is usually just a gap in the extraction (many
+   fighters have a space value but no spelled-out atmosphere value). */
 function canEnterAtmosphere(atmoField) {
   return !/^\s*(n\/?a|none|not applicable|keine?|no)\s*$/i.test(atmoField || '');
 }
@@ -507,8 +529,9 @@ function shipDerived() {
     const sel = pctMod(list, md[key]);
     if (sel) { modCost += cost * sel.costPct; mishap += sel.mishap; }
   }
-  /* Großsysteme skalieren mit der Größenklasse – Gewicht UND Preis (Jäger
-     billiger/leichter, Capital nach Multiplikator, siehe weightScaleFactor). */
+  /* The big systems scale with the ship's scale - weight AND price
+     (fighters cheaper and lighter, capital by multiplier, see
+     weightScaleFactor). */
   const wf = weightScaleFactor(i);
   const rd = SHIP_DATA.replDrives.find(x => x.model === md.replDrive);
   if (rd) { modCost += rd.cost * wf; weight += rd.weight * wf; }
@@ -517,7 +540,7 @@ function shipDerived() {
   if (md.backupHyper) { modCost += BACKUP_HYPER.cost * wf; weight += BACKUP_HYPER.weight * wf; }
   const sg = SHIP_DATA.shieldGens.find(x => x.rating === md.shieldGen);
   if (sg) { modCost += sg.cost * wf; weight += sg.weight * wf; }
-  /* Ersatz-Manövriertriebwerke (Hausregel, teuer, Preis/Gewicht nach Klasse). */
+  /* Replacement thrusters (house rule, dear, price/weight by class). */
   const mt = maneuverThruster(i, md.replManeuver);
   if (mt) { modCost += mt.cost * wf; weight += mt.weight * wf; }
   for (const [n, q] of Object.entries(md.general)) {
@@ -529,42 +552,43 @@ function shipDerived() {
     if (g && q > 0) { modCost += g.cost * q; weight += g.weight * q; }
   }
   md.custom.forEach(cm => { modCost += (+cm.cost || 0); weight += (+cm.weight || 0); });
-  /* Nachgerüstete Bewaffnung wiegt mit (je Waffe nach ihrer Skala × Anzahl).
-     Die WERKSBEWAFFNUNG zählt NICHT: Der Laderaum, den die Bücher nennen, ist
-     der eines fertig gebauten Schiffs, die Kanonen sitzen da längst drin. Vorher
-     zog sich ein A-Wing seine eigenen zwei Laser als 4 Tonnen vom 40-Kilo-
-     Stauraum ab. Nur was über `added` als selbst hinzugefügt markiert ist,
-     kostet Platz - Waffen aus einer Vorlage und aus älteren Bögen nicht. */
+  /* Retrofitted armament counts towards the weight (per weapon by its own
+     scale x count). FACTORY armament does NOT: the cargo capacity the books
+     give is that of a finished ship, its guns long since installed. Before
+     this, an A-wing subtracted its own two lasers as 4 tonnes from 40 kilos
+     of storage. Only what `added` marks as fitted by the player costs space
+     - weapons from a template or from older sheets do not. */
   let weaponWeight = 0;
   (C.weapons || []).forEach(w => {
     if (w.stock) return;
     weaponWeight += WEAPON_BASE_WEIGHT * scaleMultOf(w.scale) * Math.max(1, +w.number || 1);
   });
   weight += weaponWeight;
-  weight = Math.round(weight * 10) / 10;   // saubere Anzeige bei ×0.5-Faktor
+  weight = Math.round(weight * 10) / 10;   // tidy display for the x0.5 factor
 
-  /* Effektive Werte */
+  /* effective values */
   const hull = (+i.hull || 0) + modPips(md.hull);
-  /* Der Schildgenerator ist ein Ersatzsystem, kein Zusatz: Er tritt an die
-     Stelle der vorhandenen Schilde, genau wie Ersatz-Antrieb und
-     Ersatz-Hyperantrieb. Bisher wurde er aufaddiert – ein 4D-Generator in
-     einem Schiff mit 3D Schilden ergab 7D statt 4D.
-     Prozentuale Umbauten ("Schilde verstärken") kommen danach obendrauf. */
+  /* The shield generator is a replacement system, not an addition: it
+     takes the place of the shields already there, exactly like the
+     replacement drive and hyperdrive. It used to be added on top - a 4D
+     generator in a ship with 3D shields came to 7D instead of 4D.
+     Percentage modifications ("boost shields") go on top afterwards. */
   const shields = (sg ? sg.pips : (+i.shields || 0)) + modPips(md.shield);
-  /* Ersatz-Triebwerk gibt (wie Ersatz-Antrieb) den neuen Grundwert vor. */
+  /* Replacement thrusters set the new base value, as the drive does. */
   const maneuver = (mt ? mt.value : (+i.maneuver || 0)) + modPips(md.maneuver);
-  /* Ein Ersatz-Antrieb gibt den neuen Grundwert vor; ein zusätzlicher
-     Leistungs-Umbau kommt darauf. Die Quelle sieht das ausdrücklich vor
-     ("Double all difficulties for modifying this drive"), bisher wurde der
-     Umbau bei eingebautem Ersatz-Antrieb stillschweigend verschluckt. */
+  /* A replacement drive sets the new base value; a performance
+     modification on top of it still counts. The source allows this
+     explicitly ("Double all difficulties for modifying this drive"); the
+     modification used to be swallowed silently once a replacement drive
+     was installed. */
   let space = rd ? rd.space : (+i.space || 0);
   const dm = pctMod(SHIP_DATA.driveMods, md.drive);
   if (dm) space += +dm.label.replace('+', '');
 
-  /* Beim Hyperantrieb sind beide Angaben absolute Multiplikatoren, keine
-     Zuschläge. Kleiner ist schneller – deshalb gilt der bessere Wert, sonst
-     würde ein eingebauter x1-Antrieb von einem alten "auf x2 verbessern"
-     wieder ausgebremst. */
+  /* For the hyperdrive both figures are absolute multipliers, not
+     increments. Smaller is faster - so the better value wins, otherwise an
+     installed x1 drive would be slowed back down by an old "improve to
+     x2". */
   let hyper = i.hyper;
   const hyperCandidates = [i.hyper, rh && rh.mult, md.hyper].filter(Boolean);
   if (hyperCandidates.length > 1 || rh || md.hyper) {
@@ -573,8 +597,8 @@ function shipDerived() {
   }
   const wdmgPips = modPips(md.wdmg);
   const atmo = atmoDisplay(space, i.atmosphere);
-  /* Backup-Hyperantrieb: gekaufter (x5) hat Vorrang vor dem manuell im
-     Reiter hinterlegten Wert. „None"/leer = keiner. */
+  /* Backup hyperdrive: a purchased one (x5) wins over whatever was typed
+     into the tab by hand. "None"/empty = none. */
   const hyperBackup = md.backupHyper ? BACKUP_HYPER.mult
     : (i.hyperBackup && i.hyperBackup !== 'None' ? i.hyperBackup : '');
   return Object.assign(
@@ -586,41 +610,43 @@ function shipDerived() {
 }
 
 /* --------------------------------------------------------------------------
-   Frachtraum und Umbauten
+   Cargo space and modifications
 
-   Galaxy Guide 6 unterscheidet klar zwischen zwei Wegen:
+   Galaxy Guide 6 draws a clear line between two routes:
 
      "Modified systems have one tremendous advantage over replaced systems:
       they do not take up extra space. In game terms, as long as the
       characters are modifying an existing system, the ship's cargo capacity
       is unaffected."                                              (Kapitel 8)
 
-   Die prozentualen Leistungs-Umbauten kosten also KEINEN Frachtraum – nur
-   Ersatzsysteme und Einbauten wiegen etwas. Genau deshalb lässt sich auch
-   ein Jäger aufrüsten, obwohl er kaum Laderaum hat.
+   So the percentage performance modifications cost NO cargo space - only
+   replacement systems and installations weigh anything. That is exactly
+   why a starfighter can be upgraded at all, despite having next to no
+   cargo room.
 
-   Dazu kommt der ausdrückliche Geltungsbereich des Kapitels:
+   On top of that comes the chapter's explicit scope:
 
      "All the modifications and replacements listed below were designed for
       light freighters (and other related ships). They should not be used for
       starfighters or capital combat ships."
 
-   Ein Jäger mit 110 kg Laderaum, in den jemand einen 18-Tonnen-Ersatzantrieb
-   einbaut, ist deshalb kein Rechenfehler der App, sondern ein Fall, den das
-   Buch gar nicht vorsieht. Statt einer roten Fehlermeldung erklärt die App
-   das – und überlässt der Spielleitung die Entscheidung:
+   A fighter with 110 kg of cargo space that somebody fits an 18-tonne
+   replacement drive into is therefore not an arithmetic error in the app
+   but a case the book does not cover. Instead of a red error the app
+   explains that - and leaves the decision to the GM:
 
-     auto   – Standard: rechnet mit, meldet aber bei Kleinschiffen ruhig
-              statt alarmierend, weil die Regeln dort nicht greifen
-     strict – rechnet mit und markiert jede Überladung rot
-     off    – Gewicht wird gar nicht gegen den Laderaum gerechnet
+     auto   - default: still counts the weight, but reports it calmly
+              rather than alarmingly on small craft, because the rules do
+              not reach there
+     strict - counts it and marks every overload in red
+     off    - weight is not counted against the cargo hold at all
    -------------------------------------------------------------------------- */
 function cargoStatus(weight) {
   const base = cargoTons();
   const rule = C.info.cargoRule || 'auto';
   const round = v => Math.round(v * 1000) / 1000;
-  /* Kleinschiff: weniger als eine Tonne Laderaum. Das trifft Jäger, deren
-     Stauraum die Bücher in Kilogramm angeben. */
+  /* Small craft: less than a tonne of cargo. That catches the fighters
+     whose storage the books give in kilograms. */
   const small = base > 0 && base < 1;
   const left = round(base - (rule === 'off' ? 0 : weight));
   return {
@@ -629,40 +655,40 @@ function cargoStatus(weight) {
     cargoUnit: small ? 'kg' : 't',
     cargoSmall: small,
     cargoRule: rule,
-    /* Rot nur, wenn die Überladung wirklich als Fehler gelten soll */
+    /* Red only where the overload really should count as an error */
     cargoOver: left < 0 && rule !== 'off' && !(rule === 'auto' && small),
     cargoNote: left < 0 && rule === 'auto' && small,
   };
 }
 
-/* Zahl in der Einheit ausgeben, die zum Schiff passt: Jäger führen ihren
-   Stauraum in Kilogramm, Frachter in Tonnen. */
+/* Print a number in the unit that suits the ship: fighters carry their
+   storage in kilograms, freighters in tonnes. */
 function fmtCargo(tons, unit) {
   if (unit === 'kg') return fmtCr(Math.round(tons * 1000)) + ' kg';
   return fmtCr(Math.round(tons * 100) / 100) + ' t';
 }
 
-/* Die Frachtkapazität steht als Freitext im Quellenbuch
-   ("800 metric tons, in four cargo bays"). Für die Rechnung zählt die
-   erste Zahl; kleine Schiffe sind gelegentlich in Kilogramm angegeben. */
+/* The source book gives cargo capacity as free text ("800 metric tons, in
+   four cargo bays"). For the arithmetic only the first number counts;
+   small ships are occasionally quoted in kilograms. */
 function cargoTons() {
   const txt = String(C.info.cargo || '');
   const num = s => parseFloat(String(s).replace(/,/g, '')) || 0;
-  /* Kilogramm ZUERST prüfen. Die Bücher schreiben die Einheit meist aus
-     ("50 kilograms"), und darauf passte die alte Prüfung auf "kg" nicht –
-     der Wert fiel bis zur nackten Zahl durch und galt dann als Tonnen. Ein
-     Jäger mit 50 kg Stauraum hatte so 50 Tonnen frei. */
+  /* Check kilograms FIRST. The books usually spell the unit out ("50
+     kilograms"), which the old test for "kg" did not match - the value
+     fell through to the bare number and was then read as tonnes. A fighter
+     with 50 kg of storage ended up with 50 tonnes free. */
   const kg = /([\d,.]+)\s*(?:kg\b|kgs\b|kilo\b|kilos\b|kilogramm?e?s?\b)/i.exec(txt);
   if (kg) return num(kg[1]) / 1000;
   const t = /([\d,.]+)\s*(?:metric\s*)?(?:t\b|mt\b|ton|tonne)/i.exec(txt);
   if (t) return num(t[1]);
-  /* Ohne Einheit bleibt es bei Tonnen – so stehen die Frachterangaben in den
-     Büchern, wenn die Einheit nur in der Überschrift steht. */
+  /* With no unit it stays tonnes - that is how the books quote freighters
+     when the unit appears only in the heading. */
   const n = /([\d,.]+)/.exec(txt);
   return n ? num(n[1]) : 0;
 }
 
-/* ---------------- Eingabe-Helfer ---------------- */
+/* ---------------- input helpers ---------------- */
 function diceCtl(path, pips) {
   const d = Math.floor((pips || 0) / 3), p = (pips || 0) % 3;
   return `<span class="dicectl nowrap">
@@ -675,13 +701,13 @@ function selOpts(list, sel, noneLabel) {
   return out + list.map(x => `<option ${x === sel ? 'selected' : ''} value="${esc(x)}">${esc(x)}</option>`).join('');
 }
 
-/* ---------------- Ansichten ---------------- */
-/* ---------------- Vorlagen aus den Regelwerks-PDFs ---------------- */
+/* ---------------- views ---------------- */
+/* ---------------- templates from the rulebook PDFs ---------------- */
 let tplFilter = '';
 let tplEra = '';
 
-/* Ära-Auswahl. Die Schlüssel liefert die erzeugte Katalogdatei mit, damit
-   Dropdown und Daten nicht auseinanderlaufen. */
+/* Era picker. The generated catalogue file supplies the keys, so dropdown
+   and data cannot drift apart. */
 function eraOptions(selected) {
   const list = (typeof PDF_ERAS !== 'undefined') ? PDF_ERAS : [];
   return [`<option value="">${t('era_all')}</option>`].concat(
@@ -700,17 +726,17 @@ function templateCard() {
   const match = x => (!f || x.name.toLowerCase().includes(f) || (x.craft || '').toLowerCase().includes(f)) &&
                      (!tplEra || x.era === tplEra);
   const opt = (x, idx, kind) => `<option value="${kind}:${idx}">${esc(x.name)}${x.scale ? ' · ' + esc(x.scale) : ''}${x.book ? ' · ' + esc(x.book) : ''}</option>`;
-  /* Obergrenze je Gruppe. Sie stammt aus einer Zeit, in der die Liste noch
-     als Bremse galt; gemessen braucht der Browser für 2.000 Einträge rund
-     drei Millisekunden. Der Wert liegt jetzt über dem Bestand, damit nichts
-     stillschweigend hinten abfällt – der Hinweis unten bleibt als Netz. */
+  /* Ceiling per group. It dates from a time when the list was thought to
+     be a bottleneck; measured, the browser needs about three milliseconds
+     for 2,000 entries. The value now sits above the actual stock so
+     nothing drops off the end silently - the note below stays as a net. */
   const CAP = 1500;
   const sHits = ships.map((x, n) => [x, n]).filter(([x]) => match(x));
   const vHits = vehicles.map((x, n) => [x, n]).filter(([x]) => match(x));
   const sOpts = sHits.slice(0, CAP).map(([x, n]) => opt(x, n, 'ship')).join('');
   const vOpts = vHits.slice(0, CAP).map(([x, n]) => opt(x, n, 'vehicle')).join('');
-  /* Stillschweigend abschneiden wäre irreführend – wer nichts findet, soll
-     wissen, dass er die Auswahl eingrenzen muss. */
+  /* Cutting the list off silently would mislead - anyone who finds
+     nothing should know to narrow the search. */
   const cut = (sHits.length > CAP ? sHits.length - CAP : 0) +
               (vHits.length > CAP ? vHits.length - CAP : 0);
   return `
@@ -766,19 +792,19 @@ function applyTemplate() {
   i.costNew = src.cost || 0;
   const used = /([\d,\.]+)\s*\(used/i.exec(src.costText || '');
   i.costUsed = used ? +used[1].replace(/,/g, '') : 0;
-  /* Manche Quellen nennen mehrere Epochen ("8 (Rebellion), 11 (New Republic)").
-     Dann den ersten Wert übernehmen und den Originaltext in die Notizen legen. */
+  /* Some sources name several eras ("8 (Rebellion), 11 (New Republic)").
+     Take the first value then, and put the original text in the notes. */
   const varied = [];
   const firstNum = s2 => { const m = /(\d+)/.exec(String(s2 || '')); return m ? +m[1] : 0; };
   const isVaried = s2 => /,|\(/.test(String(s2 || ''));
   const hyperOk = SHIP_DATA.hyperMults.includes(src.hyper);
   const noHyper = !src.hyper || /^(no|none|0|-|kein)/i.test(String(src.hyper).trim());
   if (hyperOk) i.hyper = src.hyper;
-  else if (noHyper) i.hyper = 'None';                 // Vorlage nennt keinen → keiner (nicht der x2-Default)
+  else if (noHyper) i.hyper = 'None';                 // template names none -> none (not the x2 default)
   else varied.push(t('sh_hyper') + ': ' + src.hyper);
-  /* Nennt die Vorlage keinen Backup-Antrieb, muss der Wert auf "None" -
-     ohne dieses else behielt das neu geladene Schiff den Backup-Antrieb des
-     zuvor geladenen (Container Transport nach BFF-1 zeigte dessen x18). */
+  /* If the template names no backup drive the value has to go to "None" -
+     without this else the newly loaded ship kept the backup drive of the
+     previous one (a container transport after a BFF-1 showed its x18). */
   if (!src.hyperBackup) i.hyperBackup = 'None';
   else if (SHIP_DATA.hyperMults.includes(src.hyperBackup)) i.hyperBackup = src.hyperBackup;
   else { i.hyperBackup = 'None'; varied.push(t('sh_hyperbackup') + ': ' + src.hyperBackup); }
@@ -797,7 +823,7 @@ function applyTemplate() {
   if (src.notes) notes.push(src.notes);
   if (src.era || src.affiliation) notes.push([src.era, src.affiliation].filter(Boolean).join(' · '));
   i.notes = notes.join('\n\n');
-  /* Sensoren */
+  /* sensors */
   const sn = src.sensors || {};
   const put = (key, val) => {
     const m = /^\s*([\d\/]+)\s*\/\s*(\d+D(?:\+\d)?)/.exec(val || '');
@@ -806,7 +832,7 @@ function applyTemplate() {
   };
   put('passive', sn.Passive); put('scan', sn.Scan);
   put('search', sn.Search); put('focus', sn.Focus);
-  /* Waffen */
+  /* weapons */
   C.weapons = (src.weapons || []).slice(0, SHIP_DATA.maxWeapons).map(w => {
     const nw = emptyWeapon();
     nw.name = w.name || '';
@@ -816,7 +842,7 @@ function applyTemplate() {
     const gs = SHIP_DATA.gunSkills.find(g => (w.skill || '').toLowerCase().startsWith(g.toLowerCase()));
     if (gs) nw.skill = gs;
     nw.linked = /fire-?linked/i.test(w.name || '');
-    nw.stock = true;                   // ab Werk verbaut, kostet keinen Laderaum
+    nw.stock = true;                   // fitted at the factory, costs no cargo space
     nw.fireControl = dicePips(w.fireControl);
     nw.damage = dicePips(w.damage);
     nw.crew = w.crew || '';
@@ -889,18 +915,19 @@ function viewShip() {
   </div>`;
 }
 
-/* ---------------- Waffen-Auswahl aus den Regelwerken ----------------
-   Die Bewaffnung steht in den Büchern nur innerhalb der Schiffs-Statblöcke.
-   tools/extract-from-pdfs.py sammelt daraus die Typen (PDF_SHIP_WEAPONS,
-   nach Häufigkeit sortiert), dazu kommt die Waffenübersicht aus
-   Galaxy Guide 6. Auswählen füllt eine neue Waffe mit allen Werten. */
+/* ---------------- weapon picker from the rulebooks ----------------
+   The books give armament only inside the ship statblocks.
+   tools/extract-from-pdfs.py gathers the types out of them
+   (PDF_SHIP_WEAPONS, sorted by how often they occur), joined by the weapon
+   table from Galaxy Guide 6. Picking one fills a new weapon with all its
+   values. */
 let wpnFilter = '';
 let wpnScale = '';
 
 function weaponCatalog() {
   const out = [];
-  /* Galaxy Guide 6 zuerst: eine überschaubare, vom Buch kuratierte Liste
-     mit Preis und Gewicht – für Frachterausbauten die erste Wahl. */
+  /* Galaxy Guide 6 first: a short list curated by the book itself, with
+     price and weight - the first choice for kitting out a freighter. */
   if (typeof TRAMP_RULES !== 'undefined' && TRAMP_RULES.weapons) {
     TRAMP_RULES.weapons.forEach(w => out.push({
       name: w.name, scale: w.scale, damage: w.damage, fireControl: w.fireControl,
@@ -924,16 +951,16 @@ function weaponCard() {
     (!wpnScale || w.scale === wpnScale) &&
     (!f || w.name.toLowerCase().includes(f)));
   const CAP = 300;
-  /* Manche Bücher hängen an den Schadenswert eine Erläuterung
-     ("6D against planetary shields, 3D otherwise"). In der Auswahlzeile
-     zählt nur der Würfelcode – der ganze Text steht danach im Feld. */
+  /* Some books append an explanation to the damage value ("6D against
+     planetary shields, 3D otherwise"). In the pick line only the dice code
+     counts - the full text goes into the field afterwards. */
   const shortDice = s => {
     const m = /^\s*(\d+\s*D(?:\s*\+\s*\d)?)/.exec(String(s || ''));
     return m ? m[1].replace(/\s+/g, '') : '';
   };
   const label = w => {
     const bits = [w.name];
-    if (w.scale) bits.push(w.scale);                    // Starfighter / Capital …
+    if (w.scale) bits.push(w.scale);                    // Starfighter / Capital ...
     const dmg = shortDice(w.damage);
     if (dmg) bits.push(t('damage') + ' ' + dmg);
     const fc = shortDice(w.fireControl);
@@ -1000,13 +1027,13 @@ function addWeaponFromCatalog() {
   nw.crew = src.crew || '';
   nw.spaceRange = src.spaceRange || '';
   nw.atmRange = src.atmRange || '';
-  nw.stock = false;                    // nachgeruestet -> zaehlt gegen den Laderaum
+  nw.stock = false;                    // retrofitted -> counts against the cargo hold
   C.weapons.push(nw);
   wpnMsg = t('sh_wpn_added').replace('{name}', src.name);
   update();
 }
 
-/* '4D+2' -> 14 Pips. Die Kataloge liefern Würfelcodes als Text. */
+/* '4D+2' -> 14 pips. The catalogues supply dice codes as text. */
 function dicePips(s) {
   const m = /(\d+)\s*D(?:\s*\+\s*(\d))?/.exec(String(s || ''));
   return m ? (+m[1]) * 3 + (+(m[2] || 0)) : 0;
@@ -1103,8 +1130,8 @@ function viewMods() {
     <td><button class="mini danger" data-act="delCustomMod" data-idx="${i2}">×</button></td></tr>`).join('');
   const partSel = (key, list, mk, label, none, classOf) => {
     const opts = [`<option value="">${none}</option>`].concat(list.map(x => {
-      /* classOf: nur die Klasse zeigen (z. B. „Space 12" / „x5"), keinen
-         Modellnamen – das Modell wäre je Schiffsklasse ohnehin nicht dasselbe. */
+      /* classOf: show only the class ("Space 12" / "x5"), no model name -
+         the model would not be the same across ship classes anyway. */
       const lbl = classOf ? classOf(x) : (mk === 'rating' ? x.rating : x[mk] + ' (' + (x.maker || '') + ')');
       return `<option ${md[key] === x[mk] ? 'selected' : ''} value="${esc(x[mk])}">${esc(lbl + ' · ' + fmtCr(x.cost) + ' Cr.')}</option>`;
     })).join('');
@@ -1142,8 +1169,8 @@ function viewMods() {
   </div>
   <div class="card"><h2>${t('sh_parts')}</h2>
     <div class="formgrid">
-      ${partSel('replDrive', SHIP_DATA.replDrives, 'model', t('sh_repl_drive'), t('sh_keep'), x => t('sh_space') + ' ' + x.space)}
-      ${partSel('replHyper', SHIP_DATA.replHyper, 'model', t('sh_repl_hyper'), t('sh_keep'), x => x.mult)}
+      ${partSel('replDrive', SHIP_DATA.replDrives, 'model', t('sh_repl_drive'), t('sh_keep'), x => driveClassName(x.model))}
+      ${partSel('replHyper', SHIP_DATA.replHyper, 'model', t('sh_repl_hyper'), t('sh_keep'), x => hyperClassName(x.model))}
       ${partSel('shieldGen', SHIP_DATA.shieldGens, 'rating', t('sh_shieldgen'), t('sh_keep'))}
       <div><label>${t('sh_buy_backup')}</label>
         <select data-bind="mods.backupHyper" data-type="bool">
@@ -1189,7 +1216,7 @@ function viewMods() {
   </div>`;
 }
 
-/* ---------------- Druckbogen ---------------- */
+/* ---------------- printable sheet ---------------- */
 function sheetField(lbl, val, span) {
   return `<div class="sp-field" style="grid-column: span ${span || 3}">
     <span class="lbl">${esc(lbl)}</span><span class="val">${esc(val) || '&nbsp;'}</span></div>`;
@@ -1209,14 +1236,16 @@ function renderSheet() {
   ]) {
     if (C.mods[key]) modList.push(`${label}: ${C.mods[key]}`);
   }
-  if (C.mods.replDrive) modList.push(`${t('sh_repl_drive')}: ${C.mods.replDrive}`);
-  if (C.mods.replHyper) modList.push(`${t('sh_repl_hyper')}: ${C.mods.replHyper}`);
+  /* No label in front of these two: "Ion Drive Space 8" already says what
+     it is, and "Replacement hyperdrive: Class x1 Hyperdrive" said it twice. */
+  if (C.mods.replDrive) modList.push(driveClassName(C.mods.replDrive));
+  if (C.mods.replHyper) modList.push(hyperClassName(C.mods.replHyper));
   if (C.mods.shieldGen) modList.push(`${t('sh_shieldgen')}: ${C.mods.shieldGen}`);
   for (const [n, q] of Object.entries(C.mods.general)) if (q > 0) modList.push(n + (q > 1 ? ' ×' + q : ''));
   for (const [n, q] of Object.entries(C.mods.cargo)) {
     if (q <= 0) continue;
-    /* Frachtabteile als summierte metrische Tonnen Spezial-Frachtraum
-       ausweisen (Gewicht × Anzahl), nicht als „×Anzahl". */
+    /* Show cargo compartments as a summed figure in metric tonnes of
+       special cargo space (weight x count), not as "xcount". */
     const cm = SHIP_DATA.cargoMods.find(x => x.name === n);
     if (cm && /^Cargo Compartment:/.test(n)) modList.push(`${n} — ${(cm.weight || 0) * q} mt`);
     else modList.push(n + (q > 1 ? ' ×' + q : ''));
@@ -1302,10 +1331,10 @@ function renderSheet() {
     </div>${html}`;
 }
 
-/* ---------------- Seiten-Verkabelung ---------------- */
-/* ================= Werkstatt: erweiterte Regeln aus Galaxy Guide 6 =========
-   Reiner Nachschlage- und Rechenbereich. Nichts davon wandert ins Dokument,
-   deshalb steht der Zustand hier und nicht in C. */
+/* ---------------- page wiring ---------------- */
+/* ============ workshop: expanded rules from Galaxy Guide 6 ================
+   Purely a lookup and calculation area. None of it goes into the document,
+   which is why its state lives here and not in C. */
 const WS = {
   system: 'drive', extra: 0, result: null,
   port: 'standard', baseFee: 10, days: 1, people: 0, dockDays: 1,
@@ -1313,7 +1342,7 @@ const WS = {
 
 function firstInt(s) { const m = /(\d+)/.exec(String(s == null ? '' : s)); return m ? +m[1] : 0; }
 
-/* Crew + Passagiere aus den Freitextfeldern schätzen ("4; skeleton 2/+5" → 4) */
+/* Estimate crew + passengers from the free-text fields ("4; skeleton 2/+5" -> 4) */
 function wsPeopleDefault() {
   return firstInt(C.info.crew) + firstInt(C.info.passengers);
 }
@@ -1326,8 +1355,8 @@ function wsSeverity(total) {
 function rollMishap() {
   const die = 1 + Math.floor(Math.random() * 6);
   const total = die + (+WS.extra || 0);
-  /* "A roll of 1 always counts as a minor mishap" – der Modifikator zählt
-     dann nicht, sonst wäre die Zusicherung der Quelle wirkungslos. */
+  /* "A roll of 1 always counts as a minor mishap" - the modifier does not
+     count then, or the source's promise would mean nothing. */
   const sev = die === 1 ? 'minor' : wsSeverity(total);
   const list = TRAMP_RULES.mishaps[WS.system][sev];
   const idx = Math.floor(Math.random() * 6);
@@ -1341,7 +1370,7 @@ function viewWorkshop() {
   const der = shipDerived();
   if (WS.people === 0) WS.people = wsPeopleDefault();
 
-  /* --- Pannen-Würfel --- */
+  /* --- mishap roll --- */
   const sysOpts = TRAMP_RULES.systems.map(s =>
     `<option ${WS.system === s.key ? 'selected' : ''} value="${s.key}">${esc(s[lang])}</option>`).join('');
   const r = WS.result;
@@ -1358,7 +1387,7 @@ function viewWorkshop() {
       <p>${esc(r.text)}</p>
     </div>`;
 
-  /* --- Reparaturkosten --- */
+  /* --- repair costs --- */
   const repairBlocks = Object.values(TRAMP_RULES.repairs).map(grp => {
     const rows = grp.rows.map(row => {
       const cr = grp.ofWeapon || !row.pct ? '–'
@@ -1373,7 +1402,7 @@ function viewWorkshop() {
         ${rows}</table></div>`;
   }).join('');
 
-  /* --- Raumhäfen und laufende Kosten --- */
+  /* --- spaceports and running costs --- */
   const portOpts = TRAMP_RULES.spaceports.map(p =>
     `<option ${WS.port === p.key ? 'selected' : ''} value="${p.key}">${esc(p[lang].name)}</option>`).join('');
   const port = TRAMP_RULES.spaceports.find(p => p.key === WS.port) || TRAMP_RULES.spaceports[2];
@@ -1490,12 +1519,12 @@ function pageAction(el) {
   }
 }
 function pageChange(el) {
-  /* Werkstatt-Felder gehören nicht ins Dokument – nur neu zeichnen,
-     nicht speichern. */
+  /* Workshop fields do not belong in the document - only redraw, do not
+     save. */
   if (el.dataset.ws) {
     const k = el.dataset.ws;
     WS[k] = (el.type === 'number') ? (+el.value || 0) : el.value;
-    if (k === 'system') WS.result = null;   // Ergebnis passt sonst nicht zum System
+    if (k === 'system') WS.result = null;   // otherwise the result no longer fits the system
     update('shop');
     const again = document.querySelector(`[data-ws="${k}"]`);
     if (again && el.type === 'number') { again.focus(); again.select(); }
@@ -1532,8 +1561,8 @@ function pageChange(el) {
     const dEl = wrap.querySelector('[data-part="d"]');
     const pEl = wrap.querySelector('[data-part="p"]');
     const pips = Math.max(0, (+dEl.value || 0)) * 3 + Math.min(2, Math.max(0, (+pEl.value || 0)));
-    /* Skill-Namen können Punkte enthalten ("Ground vehicle Op.") –
-       deshalb hier ohne Pfad-Splitting zuweisen. */
+    /* Skill names may contain full stops ("Ground vehicle Op."), so
+       assign here without splitting on the path separator. */
     if (path.startsWith('crewSkills.')) {
       const name = path.slice('crewSkills.'.length);
       if (pips) C.crewSkills[name] = pips; else delete C.crewSkills[name];

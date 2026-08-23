@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Star Wars D6 – Table</title>
+<link rel="stylesheet" href="style.css">
+<script src="theme.js"></script>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗺️</text></svg>">
+</head>
+<body>
+
+<header id="topbar" class="no-print">
+  <div class="title-block">
+    <h1>STAR WARS <span>D6</span></h1>
+    <div class="subtitle" data-i18n="subtitle">Spieltisch</div>
+    <nav class="page-nav">
+      <a href="index.html" data-i18n="nav_char">Charaktere</a>
+      <a href="droid.html" data-i18n="nav_droid">Droiden</a>
+      <a href="ship.html" data-i18n="nav_ship">Schiffe / Fahrzeuge</a>
+      <a href="npc.html" data-i18n="nav_npc">NPCs</a>
+      <a href="dice.html" data-i18n="nav_dice">Würfeln</a>
+      <a href="vtt.html" class="active" data-i18n="nav_vtt">Spieltisch</a>
+    </nav>
+  </div>
+  <div class="char-manager">
+    <select id="roundSel" title="Runde"></select>
+    <div class="options-wrap">
+      <button id="btnOptions" title="Options / Optionen">⚙</button>
+      <div id="optionsMenu" class="hidden">
+        <div class="opt-title" data-i18n="options">Options</div>
+        <div class="opt-section" data-i18n="opt_language">Sprache / Language</div>
+        <label class="opt-row"><input type="radio" name="langOpt" value="de"> 🇩🇪 Deutsch</label>
+        <label class="opt-row"><input type="radio" name="langOpt" value="en"> 🇺🇸 English</label>
+        <div class="opt-section" data-i18n="opt_theme">Theme</div>
+        <label class="opt-row"><input type="radio" name="themeOpt" value="dark"> <span data-i18n="theme_dark">Dark</span></label>
+        <label class="opt-row"><input type="radio" name="themeOpt" value="light"> <span data-i18n="theme_light">Hell</span></label>
+        <label class="opt-row"><input type="radio" name="themeOpt" value="oled"> <span data-i18n="theme_oled">OLED-Schwarz</span></label>
+        <label class="opt-row"><input type="radio" name="themeOpt" value="bespin"> <span data-i18n="theme_bespin">Bespin</span></label>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main id="content">
+
+  <div id="vttGate" class="card hidden">
+    <h2 data-i18n="gate_title">Spieltisch</h2>
+    <p id="gateText" class="hint"></p>
+  </div>
+
+  <div id="vttMain" class="hidden">
+    <div class="vtt-layout">
+
+      <div class="vtt-stage-wrap card">
+        <div class="vtt-bar">
+          <span id="mapName" class="vtt-mapname"></span>
+          <span class="vtt-bar-spacer"></span>
+          <button id="btnPopout" class="mini" data-i18n="popout" title="">⧉</button>
+          <span id="vttStatus" class="hint"></span>
+        </div>
+        <div id="stage" class="vtt-stage">
+          <img id="mapImg" alt="" draggable="false">
+          <div id="grid" class="vtt-grid hidden"></div>
+          <canvas id="fog" class="vtt-fog"></canvas>
+          <div id="tokens"></div>
+        </div>
+        <p id="stageHint" class="hint"></p>
+      </div>
+
+      <div class="vtt-side">
+
+        <div class="card" id="callCard">
+          <h2 data-i18n="call_title">Sprache &amp; Bild</h2>
+          <p>
+            <button id="btnCallJoin" class="accent" data-i18n="call_join">🎧 Beitreten</button>
+            <button id="btnCallLeave" class="hidden" data-i18n="call_leave">Verlassen</button>
+          </p>
+          <p id="callToggles" class="hidden">
+            <button id="btnMic" data-i18n="call_mic_on">🎤 Mikro an</button>
+            <button id="btnCam" data-i18n="call_cam_off">📷 Kamera aus</button>
+          </p>
+          <div id="callTiles" class="call-tiles"></div>
+          <p id="callMsg" class="hint"></p>
+        </div>
+
+
+        <div class="card" id="gmCard">
+          <h2 data-i18n="gm_title">Spielleitung</h2>
+          <div class="formgrid">
+            <div>
+              <label data-i18n="gm_map_pick">Karte</label>
+              <select id="mapSel"></select>
+            </div>
+            <div>
+              <label data-i18n="gm_grid">Raster (px, 0 = aus)</label>
+              <input type="number" id="gridSize" min="0" max="512" value="0">
+            </div>
+          </div>
+          <p>
+            <button id="btnMapUpload" class="accent" data-i18n="gm_upload">Karte hochladen</button>
+            <button id="btnMapDelete" data-i18n="gm_delete">Karte löschen</button>
+            <input type="file" id="mapFile" accept="image/png,image/jpeg,image/webp" class="hidden">
+          </p>
+          <p class="hint" data-i18n="gm_hint"></p>
+        </div>
+
+        <div class="card" id="fogCard">
+          <h2 data-i18n="fog_title">Nebel</h2>
+          <div class="fog-modes">
+            <label class="opt-row"><input type="radio" name="fogMode" value="off" checked>
+              <span data-i18n="fog_off">Marken bewegen</span></label>
+            <label class="opt-row"><input type="radio" name="fogMode" value="2">
+              <span data-i18n="fog_sight">Im Blick (Marken sichtbar)</span></label>
+            <label class="opt-row"><input type="radio" name="fogMode" value="1">
+              <span data-i18n="fog_known">Erkundet (nur Gelände)</span></label>
+            <label class="opt-row"><input type="radio" name="fogMode" value="0">
+              <span data-i18n="fog_dark">Unerkundet (schwarz)</span></label>
+          </div>
+          <div class="formgrid">
+            <div><label data-i18n="fog_brush">Pinselgröße</label>
+              <input type="number" id="fogBrush" min="1" max="12" value="3"></div>
+          </div>
+          <p>
+            <button id="btnFogAllDark" data-i18n="fog_all_dark">Alles schwärzen</button>
+            <button id="btnFogAllOpen" data-i18n="fog_all_open">Alles aufdecken</button>
+          </p>
+          <p class="hint" data-i18n="fog_hint"></p>
+        </div>
+      </div>
+
+      <!-- Everything that is not needed while looking AT the map goes
+           underneath it. A battle map is usually wider than it is tall, so
+           the column beside it runs on far past the picture and the space
+           below stays empty - which meant scrolling to reach the dice. -->
+      <div class="vtt-below">
+
+        <div class="card">
+          <h2 data-i18n="roll_title">Würfeln</h2>
+
+          <div class="formgrid">
+            <div>
+              <label data-i18n="roll_sheet">Bogen</label>
+              <select id="rollSheet"></select>
+            </div>
+            <div>
+              <label data-i18n="roll_what">Attribut / Fertigkeit</label>
+              <select id="rollWhat"></select>
+            </div>
+          </div>
+          <div id="rollGear" class="roll-gear"></div>
+
+          <div class="formgrid">
+            <div><label data-i18n="dice">Würfel (D)</label><input type="number" id="rollDice" min="0" max="30" value="3"></div>
+            <div><label data-i18n="pips">Pips (+)</label><input type="number" id="rollPips" min="0" max="2" value="0"></div>
+            <div><label data-i18n="modifier">Modifikator</label><input type="number" id="rollMod" value="0"></div>
+          </div>
+          <p id="rollSum" class="hint"></p>
+          <p><label class="opt-row" style="text-transform:none">
+            <input type="checkbox" id="rollWild" checked> <span data-i18n="wild_die">Wild Die</span>
+          </label></p>
+          <p><button id="btnRoll" class="accent" data-i18n="roll">🎲 Würfeln</button></p>
+        </div>
+
+        <div class="card">
+          <h2 data-i18n="tok_title">Marken</h2>
+          <div class="formgrid">
+            <div>
+              <label data-i18n="tok_doc">Aus meinen Bögen</label>
+              <select id="tokDoc"></select>
+            </div>
+            <div>
+              <label data-i18n="tok_color">Farbe</label>
+              <input type="color" id="tokColor" value="#d9a441">
+            </div>
+          </div>
+          <p><label class="opt-row" style="text-transform:none">
+            <input type="checkbox" id="tokUsePortrait" checked>
+            <span data-i18n="tok_portrait">Bild des Bogens als Marke verwenden</span>
+          </label></p>
+          <p><button id="btnTokDoc" class="accent" data-i18n="tok_add_doc">Marke setzen</button></p>
+          <hr>
+          <div class="formgrid">
+            <div><label data-i18n="tok_free_label">Freie Marke</label><input type="text" id="tokLabel" maxlength="60" placeholder="Sturmtruppe"></div>
+            <div><label data-i18n="tok_count">Anzahl</label><input type="number" id="tokCount" min="1" max="20" value="1"></div>
+          </div>
+          <p><button id="btnTokFree" data-i18n="tok_add_free">Freie Marke setzen</button></p>
+          <p class="hint" data-i18n="tok_hint"></p>
+        </div>
+
+        <div class="card" id="audioCard">
+          <h2 data-i18n="au_title">Musik</h2>
+
+          <div id="auGm">
+            <div class="formgrid">
+              <div>
+                <label data-i18n="au_track">Stück</label>
+                <select id="auSel"></select>
+              </div>
+            </div>
+            <p>
+              <button id="btnAuPlay" class="accent" data-i18n="au_play">▶ Abspielen</button>
+              <button id="btnAuPause" data-i18n="au_pause">⏸ Pause</button>
+              <button id="btnAuStop" data-i18n="au_stop">⏹ Aus</button>
+            </p>
+            <p><label class="opt-row" style="text-transform:none">
+              <input type="checkbox" id="auLoop" checked> <span data-i18n="au_loop">Wiederholen</span>
+            </label></p>
+            <hr>
+            <p>
+              <button id="btnAuUpload" data-i18n="au_upload">＋ MP3 hochladen</button>
+              <button id="btnAuDelete" data-i18n="au_delete">Stück entfernen</button>
+              <input type="file" id="auFile" accept="audio/mpeg,audio/ogg,audio/mp4,.mp3,.ogg,.m4a" class="hidden">
+            </p>
+            <div class="formgrid">
+              <div><label data-i18n="au_yt">YouTube-Link</label>
+                <input type="text" id="auYt" placeholder="https://youtu.be/…"></div>
+            </div>
+            <p><button id="btnAuYt" data-i18n="au_yt_add">＋ YouTube übernehmen</button></p>
+          </div>
+
+          <div id="auNow" class="au-now"></div>
+          <p>
+            <button id="btnAuEnable" class="accent hidden" data-i18n="au_enable">🔊 Ton einschalten</button>
+          </p>
+          <div class="formgrid">
+            <div><label data-i18n="au_volume">Lautstärke</label>
+              <input type="range" id="auVol" min="0" max="100" value="60"></div>
+          </div>
+          <audio id="auEl" preload="none"></audio>
+          <div id="auYtBox" class="au-yt hidden"></div>
+          <p class="hint" data-i18n="au_hint"></p>
+        </div>
+
+        <div class="card">
+          <h2 data-i18n="log_title">Protokoll</h2>
+          <div id="log" class="vtt-log"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer class="no-print">
+  <span>Star Wars: The Roleplaying Game, 2nd Edition – West End Games D6-System</span>
+</footer>
+
+<script src="config.js"></script>
+<script src="vtt.js"></script>
+</body>
+</html>

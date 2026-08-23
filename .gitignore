@@ -5,6 +5,14 @@ api/data/
 *.sqlite-wal
 *.sqlite-shm
 
+# Kampfkarten und Token-Bilder der Spielrunden. Nutzerdaten, gehoeren nicht
+# ins Repository - und NICHT in den MariaDB-Dump, also eigene Sicherung.
+api/vtt/
+
+# Zugangsdaten der jeweiligen Installation (DB-Passwort). Bleibt beim
+# Update stehen und darf niemals ins Repository.
+api/config.local.php
+
 # Betriebssystem-Müll
 Thumbs.db
 Desktop.ini

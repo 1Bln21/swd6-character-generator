@@ -1,20 +1,20 @@
 /* =====================================================================
-   Star Wars D6 Generatoren – gemeinsamer Kern für droid.html / ship.html
+   Star Wars D6 generators - shared core for droid.html / ship.html
    ---------------------------------------------------------------------
-   Enthält i18n-Infrastruktur, Helfer und die lokale Speicherverwaltung.
-   Die Seiten definieren: PAGE_DOC_KIND, LS_CURRENT, LS_SAVED, emptyDoc(),
-   C, migrate(), renderTab()/renderAll(), renderSheet() – und sind damit
-   kompatibel zu online.js und legal.js (gleiche Schnittstelle wie app.js).
+   Holds the i18n plumbing, helpers and local storage management.
+   The pages define: PAGE_DOC_KIND, LS_CURRENT, LS_SAVED, emptyDoc(), C,
+   migrate(), renderTab()/renderAll(), renderSheet() - which makes them
+   compatible with online.js and legal.js (the same interface as app.js).
    ===================================================================== */
 'use strict';
 
 const LS_LANG = 'swd6_lang';
-/* Standardsprache Englisch: Das Projekt wird in den englischsprachigen
-   SWD6-Gemeinschaften beworben. Wer einmal auf Deutsch umgestellt hat,
-   bekommt seine Wahl weiterhin aus dem localStorage. */
+/* Default language is English: the project is promoted in the English
+   speaking SWD6 communities. Anyone who has switched to German once keeps
+   that choice, it comes back out of localStorage. */
 let LANG = localStorage.getItem(LS_LANG) || 'en';
 
-/* Basis-Wörterbuch – Seiten und Module ergänzen per Object.assign */
+/* Base dictionary - pages and modules add to it via Object.assign */
 const T = {
 de: {
   options: 'Optionen', opt_language: 'Sprache / Language',
@@ -26,7 +26,7 @@ de: {
   pdf_lib_missing: 'PDF-Bibliotheken nicht geladen (jspdf.min.js / html2canvas.min.js fehlen im Upload).',
   pdf_error: 'PDF-Export fehlgeschlagen: ',
   pdf_empty: 'Der Bogen enthaelt nichts zum Exportieren.',
-  nav_char: 'Charaktere', nav_droid: 'Droiden', nav_ship: 'Schiffe / Fahrzeuge', nav_npc: 'NPCs', nav_dice: 'Würfeln',
+  nav_char: 'Charaktere', nav_droid: 'Droiden', nav_ship: 'Schiffe / Fahrzeuge', nav_npc: 'NPCs', nav_dice: 'Würfeln', nav_vtt: 'Spieltisch',
   saved_placeholder: '– Gespeichert –',
   saved_ok: '✔ Gespeichert',
   prompt_doc_name: 'Name zum Speichern:',
@@ -37,7 +37,7 @@ de: {
   import_invalid: 'Keine gültige Datei für diese Seite',
   yes: 'Ja', no: 'Nein', none_dash: '– keine –', none_one: '– keiner –',
   name: 'Name', cost: 'Preis', avail: 'Verf.', qty: 'Anzahl', sum: 'Summe',
-  /* Ären der Kataloge – die Schlüssel stehen in PDF_ERAS (pdfdata-*.js) */
+  /* catalogue eras - the keys live in PDF_ERAS (pdfdata-*.js) */
   era_label: 'Ära', era_all: 'Alle Ären', era_universal: 'zeitlos',
   era_old_republic: 'Alte Republik', era_rise_empire: 'Aufstieg des Imperiums',
   era_rebellion: 'Rebellion', era_new_republic: 'Neue Republik / Legacy',
@@ -49,6 +49,11 @@ de: {
   sheet_preview: 'Vorschau des Bogens. <b>Drucken / PDF:</b> Knopf unten – im Druckdialog „Als PDF speichern“ wählen.',
   portrait_import: '📷 Bild importieren', portrait_remove: 'Entfernen',
   portrait_placeholder: 'Kein Bild', portrait_error: 'Bild konnte nicht geladen werden.',
+  portrait_url: 'https://… Bildadresse',
+  portrait_url_btn: 'Holen',
+  portrait_url_bad: 'Das ist keine gültige http- oder https-Adresse.',
+  portrait_url_error: 'Das Bild ließ sich von dort nicht holen. Viele Seiten erlauben das Auslesen durch andere Seiten nicht — dann hilft nur, das Bild herunterzuladen und als Datei zu wählen.',
+  portrait_url_hint: 'Das Bild wird einmal geholt und im Bogen gespeichert, die Adresse nicht. So ruft auch beim Weitergeben niemand die fremde Seite auf, und es bleibt erhalten, wenn die Adresse verschwindet.',
   portrait_hint: 'JPG/PNG/WebP – wird automatisch verkleinert. Datei hierher ziehen oder auf den Rahmen klicken. Mit ↺ ↻ drehen.',
   portrait_rotate: 'Um 90° drehen',
 },
@@ -62,7 +67,7 @@ en: {
   pdf_lib_missing: 'PDF libraries not loaded (jspdf.min.js / html2canvas.min.js missing from the upload).',
   pdf_error: 'PDF export failed: ',
   pdf_empty: 'The sheet has nothing to export.',
-  nav_char: 'Characters', nav_droid: 'Droids', nav_ship: 'Ships / Vehicles', nav_npc: 'NPCs', nav_dice: 'Dice',
+  nav_char: 'Characters', nav_droid: 'Droids', nav_ship: 'Ships / Vehicles', nav_npc: 'NPCs', nav_dice: 'Dice', nav_vtt: 'Table',
   saved_placeholder: '– Saved –',
   saved_ok: '✔ Saved',
   prompt_doc_name: 'Name for saving:',
@@ -85,6 +90,11 @@ en: {
   sheet_preview: 'Preview of the sheet. <b>Print / PDF:</b> button below – choose "Save as PDF" in the print dialog.',
   portrait_import: '📷 Import image', portrait_remove: 'Remove',
   portrait_placeholder: 'No image', portrait_error: 'Could not load the image.',
+  portrait_url: 'https://… picture address',
+  portrait_url_btn: 'Fetch',
+  portrait_url_bad: 'That is not a valid http or https address.',
+  portrait_url_error: 'The picture could not be fetched from there. Many sites do not allow other sites to read their images — then the only way is to download it and pick it as a file.',
+  portrait_url_hint: 'The picture is fetched once and stored in the sheet, the address is not. That way nobody calls the other site when the sheet is passed on, and it survives the address going away.',
   portrait_hint: 'JPG/PNG/WebP – resized automatically. Drag a file here or click the frame. Rotate with ↺ ↻.',
   portrait_rotate: 'Rotate 90°',
 },
@@ -92,16 +102,16 @@ en: {
 function t(k) {
   const v = T[LANG] && T[LANG][k];
   if (v !== undefined) return v;
-  /* Fehlt ein Schlüssel, lieber die englische Fassung zeigen als die
-     deutsche – Englisch ist die Standardsprache der App. */
+  /* With a key missing, show the English version rather than the German
+     one - English is the app's default language. */
   if (T.en && T.en[k] !== undefined) return T.en[k];
   if (T.de[k] !== undefined) return T.de[k];
-  /* Fehlt der Schlüssel ganz, wird er selbst angezeigt. Viele Schlüssel werden
-     dynamisch gebaut ("fac_" + npc.faction, "era_" + setup.shipEra) und der
-     dynamische Teil kann aus einem fremden Dokument stammen - ein importierter
-     oder in der Runde freigegebener Bogen. Ergebnisse von t() landen roh im
-     innerHTML, deshalb hier nur harmlose Zeichen durchlassen. Ein fehlender
-     Schlüssel ist ohnehin ein Fehler; verstümmelt angezeigt ist er ungefährlich. */
+  /* When the key is missing entirely, the key itself is shown. Many keys
+     are built dynamically ("fac_" + npc.faction, "era_" + setup.shipEra) and
+     the dynamic part can come out of somebody else's document - a sheet
+     imported or approved in a round. Results of t() go into innerHTML raw,
+     so only harmless characters may pass here. A missing key is a bug in any
+     case; shown mangled, it is harmless. */
   return String(k).replace(/[^\w.:-]/g, '');
 }
 function tCat(cat) { const v = t('cat_' + cat); return v === 'cat_' + cat ? cat : v; }
@@ -116,13 +126,13 @@ function setLang(l) {
   document.title = t('title');
   applyStaticI18n();
   if (typeof renderLegal === 'function') renderLegal();
-  /* Offenen Credits-Dialog mitziehen */
+  /* carry an open credits dialog along */
   const am = document.getElementById('aboutModal');
   if (am && !am.classList.contains('hidden') && typeof renderAbout === 'function') renderAbout();
   renderAll();
 }
 
-/* ---------------- Helfer ---------------- */
+/* ---------------- helpers ---------------- */
 function esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -154,7 +164,7 @@ function stepper(act, params, minus, plus) {
   </span>`;
 }
 
-/* ---------------- Bild-Import (Portrait) ---------------- */
+/* ---------------- picture import (portrait) ---------------- */
 function importPortrait(file) {
   if (!file || !file.type || !file.type.startsWith('image/')) return;
   const rd = new FileReader();
@@ -180,7 +190,31 @@ function importPortrait(file) {
   };
   rd.readAsDataURL(file);
 }
-/* Importiertes Bild um 90° drehen (dir < 0 = gegen den Uhrzeigersinn). */
+
+/* Fetch a picture from an address. Deliberately fetch() and not
+   `img.src = url`: a picture drawn onto a canvas from another origin taints
+   it, and toDataURL() then throws - the very step the import needs. So the
+   bytes are fetched, which needs the other side to allow it (CORS). Where
+   it does not, there is a clear message instead of a broken picture.
+
+   The address itself is NOT stored. The picture is embedded exactly like a
+   file import, so a sheet passed on to somebody else never calls a stranger's
+   server - and it keeps working when that address goes away. */
+function portraitFromUrl(url) {
+  url = String(url || '').trim();
+  if (!/^https?:\/\//i.test(url)) { alert(t('portrait_url_bad')); return; }
+  fetch(url, { mode: 'cors' })
+    .then(res => { if (!res.ok) throw new Error('HTTP ' + res.status); return res.blob(); })
+    .then(blob => {
+      if (!blob.type || !blob.type.indexOf) throw new Error('no type');
+      if (blob.type.indexOf('image/') !== 0) throw new Error('not an image');
+      /* A Blob carries .type just like a File, so the existing import path
+         takes it unchanged - scaling, quality and the size cap included. */
+      importPortrait(blob);
+    })
+    .catch(() => alert(t('portrait_url_error')));
+}
+/* Rotate an imported picture by 90 degrees (dir < 0 = anticlockwise). */
 function rotatePortrait(dir) {
   if (!C.info.portrait) return;
   const img = new Image();
@@ -215,26 +249,31 @@ function portraitCardHtml(title) {
               <button class="mini" data-act="portraitRotR" title="${t('portrait_rotate')}">↻</button>
               <button class="mini danger" data-act="portraitRemove">× ${t('portrait_remove')}</button>` : ''}
           </p>
+          <p class="portrait-url">
+            <input type="url" id="portraitUrl" placeholder="${esc(t('portrait_url'))}">
+            <button class="mini" data-act="portraitUrl">${t('portrait_url_btn')}</button>
+          </p>
           <p class="hint">${t('portrait_hint')}</p>
+          <p class="hint">${t('portrait_url_hint')}</p>
         </div>
       </div>
     </div>`;
 }
 
-/* ---------------- Aktualisieren & Autosave ---------------- */
+/* ---------------- refresh & autosave ---------------- */
 let activeTab = null;
 let saveTimer = null;
 function autosave() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     try { localStorage.setItem(LS_CURRENT, JSON.stringify(C)); } catch (e) {}
-    if (typeof buildRollProfile === 'function') buildRollProfile();   // Wurf-Profil (Schiff/Droide)
+    if (typeof buildRollProfile === 'function') buildRollProfile();   // roll profile (ship/droid)
   }, 300);
 }
 function update(tab) { autosave(); renderTab(tab || activeTab); }
 function renderAll() { renderTab(activeTab); refreshSavedList(); }
 
-/* ---------------- Lokale Speicherverwaltung ---------------- */
+/* ---------------- local storage management ---------------- */
 function getSaved() {
   try { return JSON.parse(localStorage.getItem(LS_SAVED)) || {}; } catch (e) { return {}; }
 }
@@ -312,11 +351,11 @@ function flashButton(id, text) {
   b.textContent = text;
   setTimeout(() => b.textContent = old, 1300);
 }
-/* online.js erwartet diese Funktion – bei Droiden/Schiffen gibt es keine
-   Spezies-Bonus-Fertigkeiten, daher bewusst leer. */
+/* online.js expects this function - droids and ships have no species bonus
+   skills, so it is deliberately empty. */
 function applySpeciesBonusSkills() {}
 
-/* ---------------- Ereignis-Verkabelung (gemeinsam) ---------------- */
+/* ---------------- event wiring (shared) ---------------- */
 function wireCommonEvents() {
   document.getElementById('tabs').addEventListener('click', e => {
     const btn = e.target.closest('button[data-tab]');
@@ -334,6 +373,7 @@ function wireCommonEvents() {
     const el = e.target.closest('[data-act]');
     if (!el) return;
     if (el.dataset.act === 'portraitRemove') { C.info.portrait = ''; update(); return; }
+    if (el.dataset.act === 'portraitUrl') { portraitFromUrl((document.getElementById('portraitUrl') || {}).value); return; }
     if (el.dataset.act === 'portraitRotL') { rotatePortrait(-1); return; }
     if (el.dataset.act === 'portraitRotR') { rotatePortrait(1); return; }
     if (el.dataset.act === 'print') { renderSheet(); window.print(); return; }
@@ -367,7 +407,7 @@ function wireCommonEvents() {
   });
   content.addEventListener('input', e => {
     const el = e.target;
-    /* Suchfelder sollen schon beim Tippen filtern, nicht erst beim Verlassen */
+    /* Search fields should filter while typing, not only on blur */
     const SEARCH_IDS = ['tplSearch', 'wpnSearch', 'pdfsearch'];
     if ((el.dataset.pdfsearch != null || SEARCH_IDS.includes(el.id)) &&
         typeof pageChange === 'function') {
@@ -404,11 +444,11 @@ function wireCommonEvents() {
     r.addEventListener('change', () => { setLang(r.value); });
   });
 }
-/* legal.js greift auf eine globale Variable "optionsMenu" zu */
+/* legal.js reaches for a global variable named "optionsMenu" */
 var optionsMenu = null;
 document.addEventListener('DOMContentLoaded', () => { optionsMenu = document.getElementById('optionsMenu'); });
 
-/* ---------------- Start (von der Seite aufgerufen) ---------------- */
+/* ---------------- startup (called by the page) ---------------- */
 function initPage(defaultTab) {
   optionsMenu = document.getElementById('optionsMenu');
   activeTab = defaultTab;
@@ -421,17 +461,17 @@ function initPage(defaultTab) {
   applyStaticI18n();
   wireCommonEvents();
   renderAll();
-  /* Passwort-Manager (Chrome, Edge UND Firefox) markieren die Eingabefelder
-     einmalig bei der Formularanalyse nach dem Laden als Login-Kandidaten –
-     auch bei autocomplete="off". Ein einmaliges Neu-Rendern nach dem ersten
-     Paint ersetzt sie durch frische Elemente, die dem entgehen (wie beim
-     manuellen Reiterwechsel). */
+  /* Password managers (Chrome, Edge AND Firefox) mark the input fields as
+     login candidates once, during the form analysis that follows loading -
+     even with autocomplete="off". Re-rendering once after the first paint
+     replaces them with fresh elements that escape it (as switching tabs by
+     hand does). */
   requestAnimationFrame(() => requestAnimationFrame(() => renderTab(activeTab)));
 }
 
-/* Rückfall, falls skills-de.js nicht geladen wurde (etwa bei einem
-   unvollständigen Upload): dann bleiben die englischen Namen stehen,
-   statt dass die Seite mit einem ReferenceError abbricht. */
+/* Fallback in case skills-de.js was not loaded (after an incomplete
+   upload, say): the English names then stay in place instead of the page
+   dying with a ReferenceError. */
 if (typeof skillName !== 'function') {
   window.skillName = function (en) { return en; };
 }

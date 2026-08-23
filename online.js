@@ -1,11 +1,11 @@
 /* =====================================================================
-   Star Wars D6 Charaktergenerator – Online-Konten (Client)
-   Login/Registrierung, TOTP-MFA, Cloud-Charaktere, Freigaben.
-   Benötigt app.js (t, LANG, C, esc, migrate, renderAll) und qrcode.js.
+   Star Wars D6 character generator - online accounts (client)
+   Sign-in and registration, TOTP MFA, cloud characters, sharing.
+   Needs app.js (t, LANG, C, esc, migrate, renderAll) and qrcode.js.
    ===================================================================== */
 'use strict';
 
-/* ---------------- Übersetzungen ergänzen ---------------- */
+/* ---------------- add to the translations ---------------- */
 Object.assign(T.de, {
   btn_online: '☁ Login / Registrieren',
   online_title: 'Online-Konto',
@@ -183,7 +183,7 @@ Object.assign(T.en, {
   online_resetcode_for: 'One-time code for “{name}” (valid 24 h) – hand it over personally:',
 });
 
-/* ---- Spielrunden (GM + Gruppen-Freigabe) ---- */
+/* ---- game rounds (GM + group approval) ---- */
 Object.assign(T.de, {
   online_rounds: 'Spielrunden',
   rounds_open: '🎲 Spielrunden öffnen',
@@ -305,11 +305,11 @@ Object.assign(T.en, {
   tk_notify_user: '%n ticket(s) with new replies',
 });
 
-/* ---------------- Zustand & API ---------------- */
+/* ---------------- state & API ---------------- */
 const LS_ONLINE = 'swd6_online';
-/* Dokumenttyp dieser Seite: 'char' (index), 'droid' oder 'ship'.
-   Konto und Anmeldung sind für alle Seiten dieselben – nur die
-   Cloud-Listen werden nach Typ getrennt. */
+/* Document type of this page: 'char' (index), 'droid' or 'ship'.
+   Account and sign-in are the same for every page - only the cloud lists
+   are kept apart by type. */
 const DOC_KIND = (typeof PAGE_DOC_KIND !== 'undefined') ? PAGE_DOC_KIND : 'char';
 function tDoc(key) {
   return t(key).replace('{docs}', t('doc_plural')).replace('{doc}', t('doc_one'));
@@ -322,8 +322,8 @@ let onlineData = { mine: [], shared: [] };
 let onlineMsg = '';
 let mfaSetup = null;            // {secret, otpauth}
 let mfaBackupCodes = [];
-let recoveryCode = '';          // einmalig angezeigter Wiederherstellungscode
-let recoveryNext = 'account';   // wohin nach dem Wegklicken
+let recoveryCode = '';          // recovery code, shown once
+let recoveryNext = 'account';   // where to go after it is dismissed
 let shareOpenId = null;
 let shareLists = {};            // charId -> [usernames]
 let regInfo = { register: true, registerCode: false, registerMode: 'open' };
@@ -336,8 +336,9 @@ async function api(action, body, params) {
   const headers = { 'Content-Type': 'application/json' };
   if (ONLINE.token) {
     headers['Authorization'] = 'Bearer ' + ONLINE.token;
-    /* Zusätzlich als eigener Header: Apache reicht "Authorization" bei
-       PHP-FPM/FastCGI ohne passende Konfiguration nicht an PHP durch. */
+    /* Sent as a header of its own as well: with PHP-FPM/FastCGI, Apache
+       does not pass "Authorization" through to PHP without the right
+       configuration. */
     headers['X-Auth-Token'] = ONLINE.token;
   }
   let url = apiUrl() + '?action=' + encodeURIComponent(action);
@@ -352,8 +353,8 @@ async function api(action, body, params) {
   let data = null, raw = '';
   try { raw = await res.text(); data = JSON.parse(raw); } catch (e) {}
   if (data === null) {
-    /* Keine JSON-Antwort: meist eine PHP-Fehlerseite des Hosters.
-       Den Anfang mitzeigen, sonst ist der Fehler nicht auffindbar. */
+    /* Not a JSON reply: usually the host's own PHP error page. Show the
+       beginning of it, or the error cannot be tracked down. */
     const hint = raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
     const err = new Error((hint || 'HTTP ' + res.status) + ' — api/check.php im Browser öffnen');
     err.status = res.status;
@@ -373,7 +374,7 @@ function setOnlineAuth(o) {
   ONLINE = o;
   localStorage.setItem(LS_ONLINE, JSON.stringify(ONLINE));
   updateOnlineButton();
-  /* Cache der Gruppen-Spezies neu laden (nur auf der Charakter-Seite vorhanden) */
+  /* Reload the group species cache (it exists on the character page only) */
   try { if (typeof cloudSpecies !== 'undefined') cloudSpecies = null; } catch (e) {}
 }
 function updateOnlineButton() {
@@ -382,7 +383,7 @@ function updateOnlineButton() {
   if (!b) return;
   b.style.display = onlineAvailable ? 'inline-block' : 'none';
   const label = ONLINE.username ? '☁ ' + ONLINE.username : t('btn_online');
-  /* Ungelesene Tickets als Zahl am Knopf – nur für Angemeldete. */
+  /* Unread tickets as a number on the button - for signed-in users only. */
   if (ONLINE.token && ticketUnread > 0) {
     b.innerHTML = esc(label)
       + ` <span class="notify-badge">${ticketUnread > 99 ? '99+' : ticketUnread}</span>`;
@@ -393,7 +394,7 @@ function updateOnlineButton() {
   }
 }
 
-/* ---------------- Modal ---------------- */
+/* ---------------- modal ---------------- */
 function onlineModal() {
   let m = document.getElementById('onlineModal');
   if (!m) {
@@ -434,10 +435,10 @@ function fmtDate(ts) {
     { dateStyle: 'short', timeStyle: 'short' });
 }
 
-/* ================= Verwaltung: eigenes Fenster (nur für Administratoren) ==
-   Früher hing die Benutzerverwaltung im Online-Konto-Fenster. Bei vielen
-   Nutzern wird das unübersichtlich – deshalb ein eigenes Fenster mit Suche,
-   das Admins über das ⚙-Menü öffnen. */
+/* ============ administration: a window of its own (admins only) ==========
+   User administration used to hang inside the online account window. With
+   many users that gets unwieldy - hence a separate window with a search,
+   which admins open from the gear menu. */
 let adminFilter = '';
 let adminMsg = '';
 
@@ -456,14 +457,14 @@ function adminModal() {
 async function openAdmin() {
   adminMsg = ''; adminFilter = '';
   adminModal().classList.remove('hidden');
-  renderAdmin();                                   // sofort (evtl. „lädt…“)
+  renderAdmin();                                   // at once (possibly "loading...")
   try { adminData = await api('admin_users'); }
   catch (e) { adminMsg = t('online_error') + e.message; }
   renderAdmin();
 }
 function closeAdmin() { adminModal().classList.add('hidden'); }
 
-/* ⚙-Menü-Knopf nur für Admins zeigen. */
+/* Show the gear-menu button to admins only. */
 function updateAdminButton() {
   const b = document.getElementById('btnAdmin');
   if (b) b.classList.toggle('hidden', !(ONLINE && ONLINE.isAdmin));
@@ -499,7 +500,7 @@ function adminBody() {
   const all = adminData.users || [];
   const pending = all.filter(u => !u.approved).length;
   const f = adminFilter.trim().toLowerCase();
-  // Freigabe-Wartende zuerst, dann alphabetisch – so springt Wichtiges nach oben.
+  // Those awaiting approval first, then alphabetically - so what matters rises.
   const users = all.slice()
     .sort((a, b) => (a.approved - b.approved) || a.username.localeCompare(b.username))
     .filter(u => !f || u.username.toLowerCase().includes(f));
@@ -548,14 +549,14 @@ async function adminClick(el) {
   renderAdmin();
 }
 
-/* ================= Spielrunden: eigenes Fenster =======================
-   Jeder angemeldete Nutzer kann eine Runde anlegen (wird deren GM) oder per
-   Einladungscode beitreten. Spieler melden ihre Charaktere zur Runde an, der
-   GM sieht sie und gibt sie frei – die Freigabe erscheint als Live-Vermerk
-   auf dem Charakterbogen (siehe char_get → roundApprovals). */
+/* ================= game rounds: a window of its own ===================
+   Any signed-in user can create a round (becoming its GM) or join one with
+   an invite code. Players enter their characters into the round, the GM
+   sees them and approves them - the approval appears as a live note on the
+   character sheet (see char_get -> roundApprovals). */
 let roundsData = null;     // { rounds: [...] }
 let roundsMsg = '';
-let roundSel = null;       // ausgewählte Runde (Detailansicht) oder null (Liste)
+let roundSel = null;       // the selected round (detail view) or null (list)
 let roundDetail = null;    // { round, members, gmChars, myChars, myDocs }
 
 function roundsModal() {
@@ -580,9 +581,9 @@ async function openRounds() {
 }
 function closeRounds() { roundsModal().classList.add('hidden'); }
 
-/* Seitenübergreifendes „Ansehen": Der GM klickt in der Runde auf eine Droide/
-   ein Schiff, das nicht zur aktuellen Seite passt. Wir merken das Ziel und
-   wechseln auf die richtige Generator-Seite, die es beim Laden read-only holt. */
+/* "View" across pages: in a round, the GM clicks a droid or ship that does
+   not belong to the current page. We remember the target and switch to the
+   right generator page, which fetches it read-only while loading. */
 const LS_PENDING_VIEW = 'swd6_pending_view';
 const ROUND_VIEW_PAGES = { char: 'index.html', droid: 'droid.html', ship: 'ship.html', npc: 'npc.html' };
 async function checkPendingRoundView() {
@@ -594,16 +595,16 @@ async function checkPendingRoundView() {
     const data = await api('char_get', undefined, { id: p.id });
     if ((data.kind || 'char') !== DOC_KIND) return;
     C = migrate(data.data);
-    C._cloudId = null;                       // GM ist nicht Eigentümer → read-only Kopie
+    C._cloudId = null;                       // the GM is not the owner -> read-only copy
     C._rounds = data.roundApprovals || [];
     applySpeciesBonusSkills();
     autosave(); renderAll();
-  } catch (e) { /* Zugriff verweigert o. Ä. – still ignorieren */ }
+  } catch (e) { /* access denied and the like - ignore quietly */ }
 }
 
-/* Freigabe-Vermerk für den Charakterbogen (Live-Status vom Server, liegt in
-   C._rounds, sobald ein Cloud-Dokument geladen wurde). Wird von den Bögen in
-   app.js / droid.js / ship.js aufgerufen – daher hier zentral und global. */
+/* The approval note for the character sheet (live status from the server,
+   held in C._rounds once a cloud document has been loaded). Called by the
+   sheets in app.js / droid.js / ship.js - hence central and global here. */
 function roundStampHtml() {
   const list = (typeof C !== 'undefined' && C && Array.isArray(C._rounds)) ? C._rounds : [];
   if (!list.length) return '';
@@ -613,8 +614,8 @@ function roundStampHtml() {
     + (a.at ? ` · ${fmtDate(a.at)}` : '') + `</span>`).join('') + `</div>`;
 }
 
-/* Alle eigenen Cloud-Dokumente (Charaktere, Droiden, Schiffe) für die
-   Anmelde-Auswahl – Spezies sind nicht spielbar und bleiben außen vor. */
+/* Every cloud document of one's own (characters, droids, ships) for the
+   entry picker - species are not playable and stay out of it. */
 async function myCloudDocs() {
   const kinds = ['char', 'droid', 'ship'];
   const res = await Promise.all(kinds.map(k =>
@@ -690,7 +691,7 @@ function roundDetailBody() {
         <td class="nowrap">${acts}</td></tr>`;
     }).join('') + `</table>`;
 
-  /* Eigene Charaktere anmelden / abmelden (GM wie Spieler) */
+  /* Enter or withdraw one's own characters (GM and player alike) */
   const assigned = new Set((d.myChars || []).map(c => c.id));
   const mineRows = (d.myChars || []).map(c => {
     const st = (typeof c.state === 'number') ? c.state : (c.approved ? 1 : 0);
@@ -711,23 +712,23 @@ function roundDetailBody() {
   if (opts) html += `<p><select id="rAssignSel">${opts}</select>
       <button class="accent" data-ract="assign" data-id="${r.id}">${t('rounds_assign')}</button></p>`;
 
-  /* GM-Ansicht: alle angemeldeten Charaktere mit Freigabe-Schalter */
+  /* GM view: every entered character with its approval switch */
   if (isGm) {
     const gmRows = (d.gmChars || []).map(c => {
-      /* Gleiche Art → direkt laden; andere Art (Droide/Schiff) → auf die
-         passende Generator-Seite wechseln und dort read-only laden. */
+      /* Same kind -> load directly; another kind (droid/ship) -> switch to
+         the matching generator page and load it read-only there. */
       const viewBtn = c.kind === DOC_KIND
         ? `<button class="mini" data-ract="view" data-cid="${c.id}">${t('online_load')}</button>`
         : `<button class="mini" data-ract="viewElsewhere" data-cid="${c.id}" data-kind="${esc(c.kind)}">↗ ${t('rounds_kind_' + c.kind)}</button>`;
-      /* state: 1 freigegeben, 0 wartet, -1 abgelehnt. Nicht c.approved prüfen –
-         das ist nur ein Wahrheitswert und kennt „abgelehnt“ nicht. */
+      /* state: 1 approved, 0 waiting, -1 rejected. Do not test c.approved -
+         that is only a boolean and knows nothing of "rejected". */
       const st = (typeof c.state === 'number') ? c.state : (c.approved ? 1 : 0);
       const status = st === 1 ? `<span class="ok">✔ ${t('rounds_approved')}</span>`
                    : st === -1 ? `<span class="no">✖ ${t('rounds_rejected')}</span>`
                    : `<span class="hint">${t('rounds_pending')}</span>`;
-      /* Der Spieler speichert in dasselbe Dokument, der GM sieht also stets den
-         aktuellen Bogen – dieser Vermerk zeigt nur, dass sich seit der Freigabe
-         etwas getan hat. */
+      /* The player saves into the same document, so the GM always sees the
+         current sheet - this note merely shows that something has changed
+         since the approval. */
       const changed = c.changedSince ? ` <span class="hint">${t('rounds_changed')}</span>` : '';
       const noteRow = (st === -1 && c.note)
         ? `<br><span class="hint">${t('rounds_reject_note')}: ${esc(c.note)}</span>` : '';
@@ -793,8 +794,8 @@ async function roundsClick(el) {
         await api('round_approve', { id: +el.dataset.id, charId: +el.dataset.cid, approved: el.dataset.appr === '1' });
         await openRoundDetail(+el.dataset.id); return;
       case 'reject': {
-        /* Kurze Begründung mitgeben – Abbrechen im Dialog bricht auch die
-           Ablehnung ab, leer lassen ist erlaubt. */
+        /* Pass a short reason along - cancelling the dialog cancels the
+           rejection too, and leaving it empty is allowed. */
         const note = prompt(t('rounds_reject_prompt').replace('{name}', el.dataset.name), '');
         if (note === null) return;
         await api('round_approve', { id: +el.dataset.id, charId: +el.dataset.cid,
@@ -834,7 +835,7 @@ async function roundsClick(el) {
           break;
         }
         C = migrate(data.data);
-        C._cloudId = null;                 // GM ist nicht Eigentümer → Kopie
+        C._cloudId = null;                 // the GM is not the owner -> a copy
         C._rounds = data.roundApprovals || [];
         applySpeciesBonusSkills();
         autosave(); renderAll();
@@ -842,8 +843,8 @@ async function roundsClick(el) {
         return;
       }
       case 'viewElsewhere': {
-        /* Droide/Schiff auf der passenden Generator-Seite ansehen: Ziel
-           merken und dorthin wechseln – dort lädt online.js es read-only. */
+        /* View a droid or ship on the matching generator page: remember the
+           target and switch there - online.js loads it read-only. */
         const kind = el.dataset.kind, id = +el.dataset.cid;
         localStorage.setItem(LS_PENDING_VIEW, JSON.stringify({ id, kind }));
         const page = ROUND_VIEW_PAGES[kind] || 'index.html';
@@ -855,17 +856,18 @@ async function roundsClick(el) {
   renderRounds();
 }
 
-/* ================= Support-/Ticketsystem =======================
-   Angemeldete Nutzer melden Bugs oder schlagen Schiffe/Spezies/Droiden vor;
-   Admins sehen alle Tickets und antworten. Screenshots als Base64 (≤~1 MB). */
+/* ================= support / ticket system =======================
+   Signed-in users report bugs or suggest ships, species and droids; admins
+   see every ticket and reply. Screenshots as base64 (<=~1 MB). */
 let supportData = null, supportSel = null, supportDetail = null, supportMsg = '';
-let supportImg = '';            // ausstehender Screenshot (Erstellen)
-let supportReplyImg = '';       // ausstehender Screenshot (Antwort)
-let ticketUnread = 0;           // ungelesene Tickets/Antworten (Zahl am ☁-Knopf)
-let lastTicketCheck = 0;        // Zeitpunkt der letzten Abfrage (bremst das Polling)
+let supportImg = '';            // pending screenshot (when creating)
+let supportReplyImg = '';       // pending screenshot (when replying)
+let ticketUnread = 0;           // unread tickets/replies (the number on the cloud button)
+let lastTicketCheck = 0;        // time of the last query (throttles the polling)
 
-/* Zahl der ungelesenen Tickets holen. Admins sehen neue Tickets und Rückfragen,
-   Nutzer die Antworten auf ihre eigenen. Läuft auf jeder Seite mit ☁-Knopf. */
+/* Fetch the number of unread tickets. Admins see new tickets and follow-up
+   questions, users the replies to their own. Runs on every page that has a
+   cloud button. */
 async function refreshTicketStatus(force) {
   if (!onlineAvailable || !ONLINE.token) { ticketUnread = 0; updateOnlineButton(); return; }
   const now = Date.now();
@@ -901,10 +903,10 @@ async function openSupport() {
 }
 function closeSupport() {
   supportModal().classList.add('hidden');
-  refreshTicketStatus(true);      // Gelesenes verschwindet sofort vom Knopf
+  refreshTicketStatus(true);      // what has been read leaves the button at once
 }
 
-/* Screenshot auf ≤~1 MB verkleinern (max 1600 px, JPEG-Qualität herunter). */
+/* Shrink a screenshot to <=~1 MB (max 1600 px, lower the JPEG quality). */
 function resizeTicketImage(file, cb) {
   if (!file || !file.type || !file.type.startsWith('image/')) { cb(''); return; }
   const rd = new FileReader();
@@ -994,7 +996,7 @@ async function openTicket(id) {
   try { supportDetail = await api('ticket_get', undefined, { id }); }
   catch (e) { supportMsg = t('online_error') + e.message; }
   renderSupport();
-  refreshTicketStatus(true);      // Öffnen gilt serverseitig als gelesen
+  refreshTicketStatus(true);      // on the server, opening counts as reading
 }
 async function supportClick(el) {
   const act = el.dataset.sact;
@@ -1181,7 +1183,7 @@ function renderOnline() {
   box.innerHTML = html;
 }
 
-/* ---------------- Aktionen ---------------- */
+/* ---------------- actions ---------------- */
 async function onlineAction(el) {
   const act = el.dataset.oact;
   onlineMsg = '';
@@ -1267,12 +1269,12 @@ async function onlineAction(el) {
         if (!name) { onlineMsg = t('online_no_name'); break; }
         const payload = JSON.parse(JSON.stringify(C));
         delete payload._cloudId;
-        delete payload._rounds;          // Freigaben sind Server-Live-Status, nie mitspeichern
+        delete payload._rounds;          // approvals are live server state, never saved along
         let id = C._cloudId || 0;
-        /* Ohne Verknüpfung zum Online-Dokument (lokal gespeicherter Bogen von
-           früher, Import, anderer Browser) entstünde beim Hochladen ein zweiter
-           Eintrag – und die Spielrunde zeigte weiter den alten. Deshalb hier
-           nachfragen, statt still zu verdoppeln. */
+        /* Without a link to the online document (a sheet saved locally
+           earlier, an import, another browser) uploading would create a
+           second entry - and the round would go on showing the old one. So
+           ask here instead of duplicating silently. */
         if (!id) {
           const same = (onlineData.mine || []).filter(x => x.name === name);
           if (same.length === 1 && confirm(t('online_dup_ask').replace('{name}', name)))
@@ -1293,9 +1295,9 @@ async function onlineAction(el) {
         break;
       }
       case 'replace': {
-        /* Den offenen Bogen ausdrücklich in ein bestimmtes Online-Dokument
-           schreiben. Rettet den Fall, in dem die Verknüpfung verlorenging –
-           die Runden-Freigabe hängt am Dokument und bleibt so bestehen. */
+        /* Write the open sheet explicitly into a particular online
+           document. This rescues the case where the link was lost - the
+           round's approval hangs on the document and so survives. */
         const name = (C.info.name || '').trim();
         if (!name) { onlineMsg = t('online_no_name'); break; }
         if (!confirm(t('online_replace_confirm').replace('{name}', el.dataset.name))) return;
@@ -1433,15 +1435,15 @@ async function onlineAction(el) {
   renderOnline();
 }
 
-/* ---------------- Verkabelung ---------------- */
+/* ---------------- wiring ---------------- */
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-oact]');
   if (!el || !el.closest('#onlineModal')) return;
-  if (el.tagName === 'SELECT') return;          // Auswahlfelder über 'change'
+  if (el.tagName === 'SELECT') return;          // select fields go through 'change'
   e.preventDefault();
   onlineAction(el);
 });
-/* Registrierungsmodus umschalten (Auswahlfeld im Verwaltungsbereich) */
+/* Switch the registration mode (the select in the administration area) */
 document.addEventListener('change', async e => {
   const el = e.target;
   if (!el.dataset || el.dataset.oact !== 'mode' || !el.closest('#onlineModal')) return;
@@ -1454,7 +1456,7 @@ document.addEventListener('change', async e => {
   } catch (err) { onlineMsg = t('online_error') + err.message; }
   renderOnline();
 });
-/* ---- Runden-Fenster: eigene Handler (nur innerhalb #roundsModal) ---- */
+/* ---- rounds window: its own handlers (inside #roundsModal only) ---- */
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-ract]');
   if (!el || !el.closest('#roundsModal')) return;
@@ -1462,7 +1464,7 @@ document.addEventListener('click', e => {
   e.preventDefault();
   roundsClick(el);
 });
-/* ---- Support-Fenster: eigene Handler (nur innerhalb #supportModal) ---- */
+/* ---- support window: its own handlers (inside #supportModal only) ---- */
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-sact]');
   if (!el || !el.closest('#supportModal')) return;
@@ -1494,7 +1496,7 @@ document.addEventListener('keydown', e => {
   }
 });
 
-/* ---- Verwaltungsfenster: eigene Handler (nur innerhalb #adminModal) ---- */
+/* ---- admin window: its own handlers (inside #adminModal only) ---- */
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-aact]');
   if (!el || !el.closest('#adminModal')) return;
@@ -1523,8 +1525,8 @@ document.addEventListener('input', e => {
   const again = document.getElementById('adminSearch');
   if (again) { again.focus(); again.setSelectionRange(pos, pos); }
 });
-/* ⚙-Menü: Verwaltung öffnen (Knopf steht in allen drei Seiten, nur für
-   Admins sichtbar – updateAdminButton() blendet ihn ein/aus). */
+/* Gear menu: open the administration (the button is in all three pages
+   but visible to admins only - updateAdminButton() shows and hides it). */
 (function wireAdminButton() {
   const b = document.getElementById('btnAdmin');
   if (b) b.addEventListener('click', () => {
@@ -1535,7 +1537,7 @@ document.addEventListener('input', e => {
   updateAdminButton();
 })();
 
-/* Sprachwechsel: Online- und Verwaltungs-UI mit übersetzen */
+/* Language switch: translate the online and admin UI along with it */
 const _setLangOrig = setLang;
 setLang = function (l) {
   _setLangOrig(l);
@@ -1549,7 +1551,7 @@ setLang = function (l) {
   if (sm && !sm.classList.contains('hidden')) renderSupport();
 };
 
-/* Server-Erkennung beim Start */
+/* Server detection at startup */
 (async function initOnline() {
   const url = apiUrl();
   if (!url) return;
@@ -1573,16 +1575,16 @@ setLang = function (l) {
         ONLINE.isAdmin = !!me.isAdmin;
         setOnlineAuth(ONLINE);
         if (typeof renderLegal === 'function') renderLegal();
-        await checkPendingRoundView();       // GM wollte eine Droide/ein Schiff ansehen
-        refreshTicketStatus(true);           // Hinweis auf neue Tickets/Antworten
+        await checkPendingRoundView();       // the GM wanted to view a droid or ship
+        refreshTicketStatus(true);           // badge for new tickets and replies
       } catch (e) {}
     }
-  } catch (e) { /* kein Server – rein lokale Nutzung */ }
+  } catch (e) { /* no server - purely local use */ }
 })();
 
-/* Hinweis aktuell halten: alle 2 Minuten, aber nur bei sichtbarem Tab; beim
-   Zurückwechseln sofort (durch die 30-Sekunden-Bremse in refreshTicketStatus
-   bleibt das auch bei häufigem Wechseln sparsam). */
+/* Keep the badge current: every 2 minutes, but only while the tab is
+   visible; and at once when it comes back (the 30-second throttle in
+   refreshTicketStatus keeps that cheap even with frequent switching). */
 setInterval(() => { if (!document.hidden) refreshTicketStatus(); }, 120000);
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) refreshTicketStatus();

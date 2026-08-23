@@ -1,9 +1,9 @@
 /* =====================================================================
-   Darstellungs-Themes (Dark / Light / OLED / Bespin)
+   Colour themes (Dark / Light / OLED / Bespin)
    ---------------------------------------------------------------------
-   Setzt data-theme am <html>-Element. Wird in <head> geladen, damit das
-   Theme schon vor dem ersten Zeichnen steht (kein Aufblitzen). Die Farben
-   selbst stehen als CSS-Variablen in style.css.
+   Sets data-theme on the <html> element. Loaded from <head> so the theme
+   is in place before the first paint (no flash of the wrong colours). The
+   colours themselves live as CSS variables in style.css.
    ===================================================================== */
 (function () {
   'use strict';
@@ -20,7 +20,7 @@
     var radios = document.querySelectorAll('input[name="themeOpt"]');
     for (var i = 0; i < radios.length; i++) radios[i].checked = (radios[i].value === theme);
   }
-  /* Sofort anwenden (Skript steht im <head>, läuft vor dem Body) */
+  /* Apply at once (this script sits in <head> and runs before the body) */
   document.documentElement.setAttribute('data-theme', get());
   window.setTheme = apply;
   window.currentTheme = get;

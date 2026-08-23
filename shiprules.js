@@ -1,19 +1,19 @@
 /* ===========================================================================
-   Erweiterte Werkstatt-Regeln für Raumschiffe
+   Expanded workshop rules for starships
    ---------------------------------------------------------------------------
-   Quelle: "Galaxy Guide 6: Tramp Freighters" (West End Games, WEG40095),
-   Kapitel Acht – "Ship Modifications and Repairs".
+   Source: "Galaxy Guide 6: Tramp Freighters" (West End Games, WEG40095),
+   Chapter Eight - "Ship Modifications and Repairs".
 
-   Diese Datei wird von Hand gepflegt (im Gegensatz zu gendata.js, das aus den
-   Excel-Vorlagen erzeugt wird, und pdfdata-*.js aus den Sammelbänden).
+   This file is maintained by hand (unlike gendata.js, which is generated
+   from the Excel templates, and pdfdata-*.js from the compilations).
 
-   Die Regeltexte der Pannen-Tabellen bleiben bewusst englisch – wie die
-   übrigen Spielbegriffe der App (Skills, Spezies, Ausrüstung). Übersetzt
-   werden nur die Bedienelemente drumherum.
+   The rules text of the mishap tables deliberately stays English - like the
+   app's other game terms (skills, species, equipment). Only the controls
+   around them are translated.
 
-   Wichtiger Hinweis aus der Quelle: Diese Regeln wurden für leichte Frachter
-   entworfen. Für Jäger und Kampfschiffe der Capital-Klasse sind sie nicht
-   gedacht.
+   An important note from the source: these rules were written for light
+   freighters. They are not meant for starfighters or capital combat
+   ships.
    =========================================================================== */
 
 const TRAMP_RULES = {
@@ -21,11 +21,11 @@ const TRAMP_RULES = {
   source: 'Galaxy Guide 6: Tramp Freighters (WEG 40095), Chapter Eight',
 
   /* --------------------------------------------------------------------
-     Wann kommt es zu einer Panne?
-     Ein umgebautes System versagt, wenn der Spieler den Wild Die als 1
-     würfelt UND der Spielleiter eine Komplikation daraus macht, statt nur
-     den höchsten Würfel abzuziehen. Dann 1D werfen, den Pannen-Modifikator
-     des Umbaus addieren und in dieser Tabelle nachsehen.
+     When does a mishap happen?
+     A modified system fails when the player rolls a 1 on the Wild Die AND
+     the GM turns that into a complication rather than merely subtracting
+     the highest die. Then roll 1D, add the modification's mishap modifier
+     and look the result up in this table.
      -------------------------------------------------------------------- */
   severity: [
     { max: 2, key: 'minor' },
@@ -33,8 +33,8 @@ const TRAMP_RULES = {
     { max: 99, key: 'catastrophic' },
   ],
 
-  /* Einbauzeit nach Schwierigkeit des Umbaus. Bezahlte Überstunden oder
-     kräftige Bestechung halbieren die Zeit, kosten aber das Doppelte. */
+  /* Installation time by the difficulty of the modification. Paid overtime
+     or a hefty bribe halves the time but costs twice as much. */
   installTime: [
     { diff: 'Very Easy',      time: '1 hour'  },
     { diff: 'Easy',           time: '6 hours' },
@@ -45,7 +45,7 @@ const TRAMP_RULES = {
   ],
 
   /* --------------------------------------------------------------------
-     Raumhafen-Klassen der Imperialen Raumfahrtbehörde
+     Spaceport classes of the Imperial Space Ministry
      -------------------------------------------------------------------- */
   spaceports: [
     { key: 'landing',  docking: 0,
@@ -76,70 +76,69 @@ const TRAMP_RULES = {
   ],
 
   /* --------------------------------------------------------------------
-     Laufende Kosten
+     Running costs
      -------------------------------------------------------------------- */
   running: {
-    restockBaseTypical: 10,   // Credits, gut angebundene Routen
-    restockBaseRemote:  35,   // Credits, abgelegene Häfen (Outer Rim)
-    /* Restocking = Grundgebühr x (Crew + Passagiere) x Tage an Vorräten */
-    overhaulJumps:      20,   // Generalüberholung nach je 20 Hyperraumsprüngen
+    restockBaseTypical: 10,   // credits, well-connected routes
+    restockBaseRemote:  35,   // credits, remote ports (Outer Rim)
+    /* restocking = base fee x (crew + passengers) x days of consumables */
+    overhaulJumps:      20,   // a full overhaul every 20 hyperspace jumps
     overhaulAvg:      1000,
-    overhaulHeavy:    5000,   // stark umgebaute oder viel genutzte Schiffe
-    repairBayPerDay:   100,   // Miete einer voll ausgerüsteten Reparaturbucht
-    navComputer:      2000,   // Ersatz-Navigationscomputer
+    overhaulHeavy:    5000,   // heavily modified or heavily used ships
+    repairBayPerDay:   100,   // renting a fully equipped repair bay
+    navComputer:      2000,   // replacement navigation computer
   },
 
-  /* Faustregeln aus dem Kapitel */
+  /* rules of thumb from the chapter */
   economics: {
-    usedPartsPct:   0.5,   // Gebrauchtteile kosten die Hälfte – aber unzuverlässig
-    resalePct:      0.25,  // Werften zahlen höchstens 25 % für ein ausgebautes Teil
-    salvagePct:     0.05,  // ist das Teil beschädigt: nur Schrottwert
-    laborMinPct:    0.2,   // Fremdeinbau kostet 20 bis 50 % der Umbaukosten
+    usedPartsPct:   0.5,   // used parts cost half - but are unreliable
+    resalePct:      0.25,  // shipyards pay at most 25 % for a removed part
+    salvagePct:     0.05,  // if the part is damaged: scrap value only
+    laborMinPct:    0.2,   // having it installed costs 20 to 50 % of the work
     laborMaxPct:    0.5,
-    repairLaborPct: 1.0,   // Reparatur durch Dritte: etwa so viel wie die Teile
-    weaponPermitPct: 0.3,  // Imperiale Waffengenehmigung: 30 % des Kaufpreises
+    repairLaborPct: 1.0,   // repairs by a third party: about as much as the parts
+    weaponPermitPct: 0.3,  // Imperial weapon permit: 30 % of the purchase price
     linkCostPerWeapon: 100,
   },
 
-  /* Das Excel kennt beim Hyperantrieb nur die Stufen x2, x1 und x1/2.
-     Die Quelle nennt zusätzlich den Einstiegsschritt "x4/x3 (or more)". */
+  /* For the hyperdrive the spreadsheet knows only the x2, x1 and x1/2
+     steps. The source also names the entry step "x4/x3 (or more)". */
   hyperImproveExtra: [
     { label: 'x3', diff: 'Easy', costPct: 0.10, mishap: 1 },
   ],
 
   /* --------------------------------------------------------------------
-     Hausregel: eine Stufe über dem Buch
+     House rule: one step beyond the book
      ---------------------------------------------------------------------
-     Galaxy Guide 6 deckelt den Rumpf ausdrücklich bei +1D+1 ("Due to
-     current technology standards, it is impossible to improve the hull
-     code by more than +1D+1", S. 36). Für Schilde nennt das Kapitel gar
-     keine Verbesserungstabelle – auf S. 40 heißt es nur, Schilde seien
-     "almost impossible to improve beyond their initial strength"; die
-     Stufen im Generator stammen aus der Excel-Vorlage.
+     Galaxy Guide 6 caps the hull explicitly at +1D+1 ("Due to current
+     technology standards, it is impossible to improve the hull code by
+     more than +1D+1", p. 36). For shields the chapter gives no improvement
+     table at all - p. 40 only says shields are "almost impossible to
+     improve beyond their initial strength"; the steps in the generator
+     come from the Excel template.
 
-     Die Stufe +1D+2 geht damit über beide Quellen hinaus. Sie ist auf
-     Wunsch der Spielleitung ergänzt und folgt der Manövrierfähigkeit,
-     die im Buch bis +1D+2 reicht (Heroic, 25 %, Pannen-Modifikator +3).
-     Wer streng nach Buch spielen will, entfernt diese Liste hier.
+     The +1D+2 step therefore goes beyond both sources. It was added at a
+     GM's request and follows maneuverability, which in the book does reach
+     +1D+2 (Heroic, 25 %, mishap modifier +3). Anyone playing strictly by
+     the book removes this list.
      -------------------------------------------------------------------- */
   hullShieldExtra: [
     { label: '+1D+2', diff: 'Heroic', costPct: 0.25, mishap: 3, houseRule: true },
   ],
 
   /* --------------------------------------------------------------------
-     Waffenübersicht aus Kapitel Acht ("Weapon Summary")
-     Die Preise gelten für den Einbau in einen leichten Frachter; das
-     Gewicht geht vom Frachtraum ab. Für eine legale Bewaffnung verlangt
-     das Imperium eine Genehmigung – 30 % des Kaufpreises, je Waffe
-     einzeln zu erwürfeln.
+     Weapon summary from Chapter Eight
+     The prices are for fitting to a light freighter; the weight comes off
+     the cargo hold. For legal armament the Empire demands a permit - 30 %
+     of the purchase price, rolled for separately per weapon.
 
-     Alle Angaben in Starfighter-Skala. Von Hand übertragen, weil das
-     Buch nur als Scan vorliegt (siehe Kopf dieser Datei).
+     All values at starfighter scale. Transcribed by hand, because the book
+     exists only as a scan (see the head of this file).
      -------------------------------------------------------------------- */
-  /* Die GG6-Tabelle nennt keine Reichweiten. Sie sind hier aus den gaengigen
-     Werten baugleicher Starfighter-Waffen des Katalogs ergaenzt (die haeufigsten
-     Space-/Atmosphaeren-Reichweiten je Waffentyp), damit ein aus GG6 uebernommenes
-     Geschuetz nicht ohne Reichweite dasteht. */
+  /* The GG6 table gives no ranges. They are filled in here from the usual
+     values of identical starfighter-scale weapons in the catalogue (the
+     commonest space and atmosphere ranges per weapon type), so that a gun
+     taken from GG6 does not end up with no range at all. */
   weapons: [
     { name: 'Taim & Bak KX-3 Light Blaster Cannon', scale: 'Starfighter',
       fireControl: '1D', damage: '1D', cost: 1000, weight: 1,
@@ -180,18 +179,18 @@ const TRAMP_RULES = {
       note: 'Pulls a smaller vessel closer; against a larger ship the freighter is drawn in instead.' },
   ],
 
-  /* Bis zu drei baugleiche Waffen lassen sich koppeln. Sie müssen denselben
-     Schadenswert haben. Auch eine zweite Feuerstelle für dieselbe Waffe
-     kostet 100 Credits und zählt als +1 auf den Pannen-Tabellen. */
+  /* Up to three identical weapons can be linked. They must have the same
+     damage value. A second firing position for the same weapon likewise
+     costs 100 credits and counts as +1 on the mishap tables. */
   linked: [
     { count: 2, bonus: '+1D' },
     { count: 3, bonus: '+2D' },
   ],
 
   /* --------------------------------------------------------------------
-     Reparaturkosten – in Prozent des ursprünglichen Kaufpreises des Schiffs
-     (bei Waffen: des Kaufpreises der Waffe). Die Preise gelten für neue
-     Ersatzteile, wenn die Charaktere selbst Hand anlegen.
+     Repair costs - as a percentage of the ship's original purchase price
+     (for weapons: of the weapon's price). The prices are for new parts
+     with the characters doing the work themselves.
      -------------------------------------------------------------------- */
   repairs: {
     maneuver: { deName: 'Manövrierfähigkeit verloren', enName: 'Maneuverability lost', ofWeapon: false, rows: [
@@ -225,7 +224,7 @@ const TRAMP_RULES = {
   },
 
   /* --------------------------------------------------------------------
-     Pannen-Tabellen: fünf Systeme, je drei Schweregrade, je 1D
+     Mishap tables: five systems, three severities each, 1D each
      -------------------------------------------------------------------- */
   systems: [
     { key: 'drive',    de: 'Sublicht-Antrieb',       en: 'Sublight Drives'  },

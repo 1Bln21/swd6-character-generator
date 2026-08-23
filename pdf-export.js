@@ -1,31 +1,31 @@
 /* =====================================================================
-   PDF-Export der Bögen – echter Text statt Bildschirmfoto.
+   PDF export of the sheets - real text instead of a screenshot.
    ---------------------------------------------------------------------
-   Bis v3.7.x wurde jede .sheet-page mit html2canvas abfotografiert und als
-   Bild ins PDF gelegt. Das sah exakt aus wie am Bildschirm, war aber ein
-   Pixelhaufen: nichts auswählbar, nichts durchsuchbar, in Acrobat oder
-   PDF-XChange nicht zu bearbeiten, dazu große Dateien – und die Canvas-Fläche
-   konnte je nach Bogenhöhe die Grenzen des Browsers sprengen („Index or size
-   is negative or greater than the allowed amount“).
+   Up to v3.7.x every .sheet-page was photographed with html2canvas and put
+   into the PDF as an image. That looked exactly like the screen but was a
+   heap of pixels: nothing selectable, nothing searchable, not editable in
+   Acrobat or PDF-XChange, and large files besides - and depending on the
+   sheet's height the canvas could burst the browser's limits ("Index or
+   size is negative or greater than the allowed amount").
 
-   Jetzt läuft ein Zeichner die fertige Bogen-Struktur ab und setzt Linien,
-   Kästen und Textzeilen direkt ins PDF. Er arbeitet generisch über die
-   sp-Klassen der Bögen, gilt damit für Charakter, Droide, Schiff und NPC
-   gleichermaßen und bleibt automatisch synchron, wenn ein Bogen sich ändert.
+   Now a painter walks the finished sheet structure and puts lines, boxes
+   and text straight into the PDF. It works generically off the sheets'
+   sp- classes, so it covers character, droid, ship and NPC alike, and stays
+   in step automatically when a sheet changes.
 
-   Die eingebauten jsPDF-Schriften kennen ✔ ↳ ★ nicht – die werden ersetzt.
-   Umlaute funktionieren (WinAnsi), eine mitgelieferte Schriftdatei ist
-   deshalb nicht nötig.
+   The built-in jsPDF fonts do not carry the check mark, arrow or star -
+   those are substituted. Umlauts work (WinAnsi), so no font file has to be
+   shipped.
    ===================================================================== */
 'use strict';
 
-/* Zeichen, die die Standardschriften nicht fuehren.
+/* Characters the standard fonts do not carry.
 
-   Trifft jsPDF auf ein Zeichen, das die eingebaute Schrift nicht kennt,
-   schaltet es fuer die ganze Zeile auf UTF-16 um. Im fertigen PDF steht dann
-   nicht das gewuenschte Zeichen, sondern die ganze Zeile als Buchstabensalat
-   mit Kaestchen dazwischen - so verunstalteten das Ankreuzkaestchen der
-   Wundtabelle und das typografische Minus bisher jeden Bogen. */
+   When jsPDF meets a character the built-in font does not know, it switches
+   the whole line to UTF-16. What then stands in the finished PDF is not the
+   character you wanted but the entire line as gibberish with little boxes
+   in between - which is how the wound table's tick box and the typographic
+   minus used to disfigure every sheet. */
 function pdfText(s) {
   return String(s == null ? '' : s)
     .replace(/[✔✓]/g, 'OK')
@@ -39,9 +39,9 @@ function pdfText(s) {
     .replace(/…/g, '...')
     .replace(/×/g, 'x')
     .replace(/ /g, ' ')
-    /* Auffangnetz: Was oben nicht erfasst wurde und ausserhalb von WinAnsi
-       liegt, faellt weg. Lieber ein fehlendes Sonderzeichen als eine
-       zerschossene Zeile. Umlaute und Euro gehoeren zu WinAnsi und bleiben. */
+    /* Safety net: anything not caught above that falls outside WinAnsi is
+       dropped. Better a missing special character than a wrecked line.
+       Umlauts and the euro sign are part of WinAnsi and stay. */
     .replace(/[^\x20-\xff\u20ac\u201a\u0192\u201e\u2026\u2020\u2021\u02c6\u2030\u0160\u2039\u0152\u017d\u2018\u2019\u201c\u201d\u2022\u2013\u2014\u02dc\u2122\u0161\u203a\u0153\u017e\u0178]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -64,15 +64,15 @@ async function exportSheetPdf(btn) {
 
   try {
     const pdf = new JsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-    const M = 12, PW = 210, PH = 297, CW = PW - 2 * M;   // Rand und Satzbreite
-    const COL = CW / 12;                                  // die Bögen rastern in 12 Spalten
+    const M = 12, PW = 210, PH = 297, CW = PW - 2 * M;   // margin and text width
+    const COL = CW / 12;                                  // the sheets are laid out on 12 columns
     let y = M;
 
     const seite = () => pdf.internal.getCurrentPageInfo().pageNumber;
-    /* Platz schaffen. Beim Spaltensatz laufen mehrere Spalten nacheinander
-       über dieselbe Seitengrenze; jede darf dann nur auf die nächste Seite
-       wechseln, nicht eine eigene anlegen - sonst bekommt jede Spalte ihr
-       eigenes leeres Blatt. */
+    /* Make room. In a multi-column layout several columns cross the same
+       page boundary one after another; each may then only move to the next
+       page, not start one of its own - otherwise every column gets a blank
+       sheet to itself. */
     const need = h => {
       if (y + h <= PH - M) return;
       if (seite() < pdf.internal.getNumberOfPages()) pdf.setPage(seite() + 1);
@@ -84,7 +84,7 @@ async function exportSheetPdf(btn) {
       pdf.setFontSize(size);
       pdf.setTextColor(grey ? 110 : 20);
     };
-    /* Text auf eine Breite umbrechen und zeilenweise setzen. */
+    /* Wrap text to a width and set it line by line. */
     const put = (txt, x, size, style, grey, maxW) => {
       const s = pdfText(txt);
       if (!s) return 0;
@@ -94,7 +94,7 @@ async function exportSheetPdf(btn) {
       return lines.length;
     };
 
-    /* ---- Bausteine der Bögen ---- */
+    /* ---- building blocks of the sheets ---- */
     function drawFields(grid, x0, width) {
       const cols = Math.max(1, Math.round(width / COL));
       let used = 0, rowTop = y, rowH = 0;
@@ -130,14 +130,14 @@ async function exportSheetPdf(btn) {
       y = startY + (title ? 6.5 : 3);
       walk(box, x0 + 2.5, width - 5, head);
       y += 2;
-      /* Rahmen und Überschrift nur, wenn der Kasten auf einer Seite blieb -
-         sonst zöge der Rahmen quer über das halbe Blatt. */
+      /* Frame and heading only when the box stayed on one page - otherwise
+         the frame would be drawn across half the sheet. */
       if (seite() !== startSeite) { y += 3; return; }
       pdf.setDrawColor(60);
       pdf.setLineWidth(0.35);
       pdf.rect(x0, startY, width, y - startY);
-      /* Die Überschrift zuletzt: Auf dem Bogen sitzt sie als schwarzer Balken
-         auf dem Kastenrand, und der Balken muss über dem Rahmen liegen. */
+      /* The heading last: on the sheet it sits as a black bar on the box's
+         edge, and the bar has to lie on top of the frame. */
       if (title) {
         pdf.setFillColor(20);
         pdf.rect(x0, startY, width, 6, 'F');
@@ -174,18 +174,17 @@ async function exportSheetPdf(btn) {
       pdf.text(left, x0, y + 2.8);
       setFont(8, 'bold');
       pdf.text(right, x0 + width, y + 2.8, { align: 'right' });
-      /* Enger Zeilenabstand mit Absicht: Der Bogen ist auf eine A4-Seite
-         gerechnet. Bei 4,4 mm je Fertigkeit lief ein Charakter mit vielen
-         Fertigkeiten über, und die letzten zwei Kästen landeten allein auf
-         einem zweiten Blatt. */
+      /* Tight leading on purpose: the sheet is figured for one A4 page. At
+         4.4 mm per skill a character with many skills overran, and the last
+         two boxes ended up alone on a second sheet. */
       y += 3.7;
     }
 
-    /* Attributüberschrift: links der Name, rechts der Würfelwert, darunter ein
-       Strich – wie auf dem Bogen. Ohne eigene Behandlung landete sie im
-       Auffangzweig, der nur den reinen Text zeichnet: aus „Dexterity 2D“ wurde
-       „Dexterity2D“, und bei einem Charakter ohne Fertigkeiten klebten alle
-       sechs Attribute in einer einzigen Zeile aneinander. */
+    /* Attribute heading: name on the left, dice value on the right, a rule
+       beneath - as on the sheet. Without handling of its own it fell into
+       the catch-all branch, which draws the plain text only: "Dexterity 2D"
+       came out as "Dexterity2D", and for a character with no skills all six
+       attributes were stuck together on a single line. */
     function drawAttrHead(el, x0, width) {
       const parts = el.querySelectorAll('span');
       need(7);
@@ -205,11 +204,10 @@ async function exportSheetPdf(btn) {
         const kopf = c.tagName === 'TH';
         setFont(kopf ? 6 : 7.6, kopf ? 'bold' : 'normal', kopf);
       };
-      /* Spaltenbreiten nach Inhalt verteilen. Gleich breite Spalten zwangen
-         die Wirkungsspalte der Wundtabelle in den Umbruch, während daneben
-         "0 - 3" ein Drittel der Zeile belegte. Jede Spalte bekommt jetzt so
-         viel, wie ihr breitester Eintrag braucht - gedeckelt, damit eine
-         lange Notiz die übrigen nicht erdrückt. */
+      /* Distribute column widths by content. Equal columns forced the wound
+         table's effect column to wrap while "0 - 3" took up a third of the
+         line beside it. Each column now gets what its widest entry needs -
+         capped, so one long note cannot crush the rest. */
       const spalten = Math.max(1, ...Array.prototype.map.call(
         rows, r => r.querySelectorAll('th, td').length));
       const wunsch = new Array(spalten).fill(5);
@@ -227,10 +225,10 @@ async function exportSheetPdf(btn) {
       rows.forEach((tr, ri) => {
         const cells = tr.querySelectorAll('th, td');
         if (!cells.length) return;
-        /* Erst alle Zellen umbrechen: Eine Notiz wie "Easy Business roll is
-           required for repairs" passt nicht in eine Spalte. Bisher wurde nur
-           die erste Zeile gesetzt und der Rest fiel weg - Notizen brachen
-           mitten im Satz ab. Die höchste Zelle bestimmt die Zeilenhöhe. */
+        /* Wrap every cell first: a note like "Easy Business roll is
+           required for repairs" does not fit in one column. Only the first
+           line used to be set and the rest was dropped - notes broke off
+           mid-sentence. The tallest cell decides the row height. */
         const inhalte = Array.prototype.map.call(cells, (c, i) => {
           schrift(c);
           return pdf.splitTextToSize(pdfText(c.textContent), breiten[i] - 1.5).slice(0, 4);
@@ -242,7 +240,7 @@ async function exportSheetPdf(btn) {
           lines.forEach((l, n) => pdf.text(l, x0 + links[ci], y + 2.8 + n * 3.2));
         });
         y += (zeilen - 1) * 3.2 + 3.8;
-        /* Der Strich gehört unter die Grundlinie, nicht in die Buchstaben. */
+        /* The rule belongs below the baseline, not through the letters. */
         if (ri === 0) { pdf.setDrawColor(200); pdf.line(x0, y - 0.6, x0 + width, y - 0.6); }
       });
       y += 1.5;
@@ -260,25 +258,25 @@ async function exportSheetPdf(btn) {
       y += h + 2;
     }
 
-    /* Nebeneinander statt untereinander.
+    /* Side by side instead of stacked.
 
-       Der Bogen setzt seine Blöcke in Spalten: die sechs Attribute in drei,
-       Ausrüstung und Waffen in zwei, und im Kopf steht das Bild neben den
-       Personalien. Der Zeichner kannte diese Behälter nicht, lief einfach
-       hinein und stapelte alles untereinander - aus einer Seite wurden vier,
-       und mit dem Layout ging die Übersicht verloren.
+       The sheet sets its blocks in columns: the six attributes in three,
+       equipment and weapons in two, and in the header the portrait stands
+       beside the personal details. The painter did not know these
+       containers, walked straight into them and stacked everything - one
+       page became four, and with the layout went the overview.
 
-       Gezeichnet wird Spalte für Spalte vom selben oberen Rand aus; danach
-       steht der Stift unter der längsten. */
+       Drawing goes column by column from the same top edge; afterwards the
+       pen stands below the longest one. */
     function drawColumns(node, x0, width, breiten) {
       const kinder = Array.prototype.slice.call(node.children);
       if (kinder.length < 2) { walk(node, x0, width); return; }
       const luecke = 3;
       const rest = width - luecke * (kinder.length - 1);
       const w = breiten || kinder.map(() => rest / kinder.length);
-      /* Jede Spalte beginnt auf derselben Seite am selben oberen Rand.
-         Danach steht der Stift dort, wo die längste Spalte geendet hat -
-         auch wenn die über die Seitengrenze hinausgereicht hat. */
+      /* Every column starts on the same page at the same top edge.
+         Afterwards the pen stands where the longest column ended - even
+         when that one reached past the page boundary. */
       const startSeite = seite(), oben = y;
       let endSeite = startSeite, unten = y, x = x0;
       kinder.forEach((k, i) => {
@@ -295,12 +293,12 @@ async function exportSheetPdf(btn) {
       y = unten;
     }
 
-    /* Eine Zeile, die im Bogen nebeneinander gesetzt ist */
+    /* A row the sheet sets side by side */
     function istFlexZeile(el) {
       return /display\s*:\s*flex/i.test(el.getAttribute('style') || '');
     }
 
-    /* Läuft die Kinder eines Knotens ab und behandelt, was er kennt. */
+    /* Walks a node's children and handles what it recognises. */
     function walk(node, x0, width, skip) {
       Array.prototype.forEach.call(node.children, el => {
         if (el !== skip) drawNode(el, x0, width);
@@ -327,10 +325,10 @@ async function exportSheetPdf(btn) {
       if (cl.contains('ah')) { drawAttrHead(el, x0, width); return; }
       if (cl.contains('sp-attr')) { walk(el, x0, width); return; }
       if (cl.contains('sp-footer')) {
-        /* Auf dem Bogen klebt die Fußzeile am unteren Blattrand. Lief sie hier
-           im Fluss mit, drückte sie eine randvolle Seite über die Kante - und
-           landete als einzige Zeile auf einem eigenen Blatt. Sie wird deshalb
-           fest unten gesetzt, ohne Umbruch. */
+        /* On the sheet the footer sticks to the bottom edge. Carried along
+           in the flow here, it pushed a brim-full page over the edge - and
+           landed as the only line on a sheet of its own. So it is placed
+           firmly at the bottom, with no page break. */
         const merk = y;
         setFont(6, 'italic', true);
         pdf.text(pdfText(el.textContent), x0, PH - M + 3.5);
@@ -339,13 +337,13 @@ async function exportSheetPdf(btn) {
       }
       if (el.tagName === 'TABLE') { drawTable(el, x0, width); return; }
       if (drawStats(el, x0, width)) return;
-      /* Spaltensatz des Bogens übernehmen */
+      /* take the sheet's column layout over */
       if (cl.contains('sp-cols3') || cl.contains('sp-cols2')) {
         drawColumns(el, x0, width); return;
       }
       if (istFlexZeile(el)) {
-        /* Im Kopf steht das Bild rechts neben den Personalien und hat eine
-           feste Breite; sonst werden die Spalten gleich breit. */
+        /* In the header the portrait stands to the right of the personal
+           details at a fixed width; otherwise the columns come out equal. */
         const bild = el.querySelector(':scope > .sp-portrait');
         if (bild && el.children.length === 2) {
           drawColumns(el, x0, width, [width - 37, 34]);
@@ -354,10 +352,10 @@ async function exportSheetPdf(btn) {
         }
         return;
       }
-      /* Nur weiter absteigen, wenn darunter noch etwas Strukturiertes liegt.
-         Sonst würde eine Zeile wie „<b>Beute:</b> 310 Credits …“ nur das <b>
-         zeichnen und den Text dahinter verlieren – genau das passierte auf
-         den NPC-Karten. */
+      /* Only descend further when something structured lies below.
+         Otherwise a line like "<b>Loot:</b> 310 credits ..." would draw only
+         the <b> and lose the text behind it - which is exactly what happened
+         on the NPC cards. */
       const strukturiert = el.querySelector(
         '.sp-grid, .sp-box, .sp-skill, .sp-attr, .sp-stat, .sp-portrait, .sp-header, .sp-footer, table');
       if (strukturiert) { walk(el, x0, width); return; }
@@ -366,8 +364,8 @@ async function exportSheetPdf(btn) {
 
     for (let p = 0; p < pages.length; p++) {
       if (p > 0) {
-        /* Nach mehrspaltigem Satz kann der Stift auf einer früheren Seite
-           stehen; die nächste Bogenseite gehört trotzdem ans Ende. */
+        /* After a multi-column stretch the pen can stand on an earlier
+           page; the next sheet page still belongs at the end. */
         pdf.setPage(pdf.internal.getNumberOfPages());
         pdf.addPage();
         y = M;
@@ -375,9 +373,9 @@ async function exportSheetPdf(btn) {
       walk(pages[p], M, CW);
     }
 
-    /* Leere Blätter am Ende wegwerfen. Ein Bogen, dessen letzter Kasten genau
-       auf die Kante fällt, lässt eine angefangene Seite zurück, auf der nie
-       etwas gezeichnet wurde. */
+    /* Throw away blank sheets at the end. A sheet whose last box falls
+       exactly on the edge leaves behind a started page that was never drawn
+       on. */
     for (let n = pdf.internal.getNumberOfPages(); n > 1; n--) {
       const inhalt = (pdf.internal.pages[n] || []).join('');
       if (/\(.+\) Tj|\bre\b|\bDo\b/.test(inhalt)) break;

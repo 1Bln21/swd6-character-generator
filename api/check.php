@@ -1,25 +1,20 @@
 <?php
 /* =====================================================================
-   Star Wars D6 Charaktergenerator – Installations-Check
+   Star Wars D6 character generator - installation check
    ---------------------------------------------------------------------
-   Diese Seite prüft, ob der Webspace alles mitbringt, was die Online-
-   Funktionen brauchen. Einfach im Browser aufrufen:
+   This page checks whether your web space brings everything the online
+   features need. Just open it in a browser:
 
-       https://DEINE-SEITE.de/api/check.php
+       https://YOUR-SITE.example/api/check.php
 
-   Sie ändert nichts an deinen Daten (nur ein Testeintrag, der sofort
-   wieder gelöscht wird). Nach erfolgreicher Einrichtung kann die Datei
-   gelöscht werden.
-
-   This page checks whether your web space supports the online features.
-   Open it in a browser; it does not modify your data. Delete the file
-   once everything works.
+   It changes nothing in your data (only one test row, deleted again at
+   once). Once setup has succeeded, the file can be removed.
    ===================================================================== */
 
 define('SWD6_CONFIG_ONLY', true);
 $CONFIG = require __DIR__ . '/index.php';
 
-$rows = [];       // [status, titel, text]  status: ok | warn | err | info
+$rows = [];       // [status, title, text]  status: ok | warn | err | info
 function add($status, $title, $text = '') { global $rows; $rows[] = [$status, $title, $text]; }
 function h($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 
@@ -39,7 +34,7 @@ foreach (['random_bytes' => 'Sichere Zufallszahlen (Passwort-Token, Codes)',
       function_exists($fn) ? $why : 'FEHLT – ' . $why . '. Meist Folge einer zu alten PHP-Version.');
 }
 
-/* ---------------- Datenbank-Treiber ---------------- */
+/* ---------------- database drivers ---------------- */
 $hasMysql  = extension_loaded('pdo_mysql');
 $hasSqlite = extension_loaded('pdo_sqlite');
 add($hasMysql ? 'ok' : 'info', 'PHP-Erweiterung pdo_mysql',
@@ -62,7 +57,7 @@ if (!$useMysql && !$hasSqlite) {
     . 'im Block \'db\' ein.');
 }
 
-/* ---------------- Verbindung ---------------- */
+/* ---------------- connection ---------------- */
 $db = null;
 if ($useMysql || $hasSqlite) {
   try {
@@ -98,7 +93,7 @@ if ($useMysql || $hasSqlite) {
   }
 }
 
-/* ---------------- Tabellen & Spalten ---------------- */
+/* ---------------- tables & columns ---------------- */
 if ($db) {
   $tables = [];
   try {
@@ -132,7 +127,7 @@ if ($db) {
               : 'Vollständig (' . count($cols) . ' Spalten).');
   }
 
-  /* Schreibtest */
+  /* write test */
   try {
     $db->exec('CREATE TABLE IF NOT EXISTS swd6_checktest (k VARCHAR(32) PRIMARY KEY, v VARCHAR(32))');
     $db->exec("DELETE FROM swd6_checktest");
@@ -142,7 +137,7 @@ if ($db) {
   } catch (Exception $e) {
     add('err', 'Schreiben in die Datenbank fehlgeschlagen', h($e->getMessage()));
   }
-  /* ALTER-Test (wird für Updates gebraucht) */
+  /* ALTER test (needed for updates) */
   try {
     $db->exec('ALTER TABLE swd6_checktest ADD COLUMN probe INT DEFAULT 0');
     add('ok', 'Tabellen ändern (ALTER TABLE)', 'Erlaubt – Updates können neue Spalten nachrüsten.');
@@ -153,7 +148,7 @@ if ($db) {
   try { $db->exec('DROP TABLE swd6_checktest'); } catch (Exception $e) {}
 }
 
-/* ---------------- Ergebnis ---------------- */
+/* ---------------- result ---------------- */
 $errors = 0; $warns = 0;
 foreach ($rows as $r) { if ($r[0] === 'err') $errors++; if ($r[0] === 'warn') $warns++; }
 ?><!DOCTYPE html>
@@ -198,9 +193,9 @@ foreach ($rows as $r) { if ($r[0] === 'err') $errors++; if ($r[0] === 'warn') $w
 
 <div id="authbox"></div>
 <script>
-/* Prüft im Browser, ob der Server Anmelde-Header an PHP durchreicht.
-   Das ist der häufigste Grund dafür, dass die Anmeldung scheitert,
-   obwohl Registrierung und Passwort-Reset funktionieren. */
+/* Checks in the browser whether the server passes authorisation headers
+   through to PHP. That is the commonest reason for sign-in to fail while
+   registration and password reset work fine. */
 (async function () {
   var box = document.getElementById('authbox');
   function item(cls, title, desc) {

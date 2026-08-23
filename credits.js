@@ -1,22 +1,22 @@
 /* =====================================================================
-   Über & Credits – gemeinsam für alle drei Generatoren
+   About & credits - shared by all three generators
    ---------------------------------------------------------------------
-   Der Star-Wars-Crawl mit der Danksagung und die Angaben zu Lizenz und
-   Quellcode. Lag früher in app.js und war damit nur auf der
-   Charakterseite erreichbar; Droiden- und Schiffsseite hatten im
-   ⚙-Menü nur die Sprachwahl.
+   The Star Wars crawl with the acknowledgements, plus the licence and
+   source code details. This used to live in app.js and so was reachable
+   only from the character page; the droid and ship pages had nothing but
+   the language picker in their gear menu.
 
-   Wird von allen drei Seiten NACH dem jeweiligen Seitenskript geladen,
-   damit das Wörterbuch T bereits existiert.
+   Loaded by all three pages AFTER their own page script, so the dictionary
+   T already exists.
 
-   Hier steht auch APP_VERSION – die Versionsnummer gehört zur App als
-   Ganzes, nicht zu einer einzelnen Seite.
+   APP_VERSION lives here too - the version number belongs to the app as a
+   whole, not to any single page.
    ===================================================================== */
 'use strict';
 
-const APP_VERSION = '3.9.3.4';
+const APP_VERSION = '4.0.0-beta.7';
 
-/* ---------------- Übersetzungen ---------------- */
+/* ---------------- translations ---------------- */
 Object.assign(T.de, {
   opt_about: 'Info', about_open: 'ℹ Über & Credits',
   about_title: 'Über & Credits',
@@ -63,7 +63,7 @@ Object.assign(T.en, {
   ],
 });
 
-/* ---------------- Über / About & Credits ---------------- */
+/* ---------------- about & credits ---------------- */
 function aboutModal() {
   let m = document.getElementById('aboutModal');
   if (!m) {
@@ -77,10 +77,10 @@ function aboutModal() {
   return m;
 }
 
-/* ---------------- Musik ----------------
-   Der Titel läuft, solange das Fenster offen ist, und hört beim Schließen auf –
-   sonst dudelt er weiter, während man am Charakter arbeitet. Die Stummschaltung
-   merkt sich der Browser, damit niemand sie bei jedem Öffnen neu drücken muss. */
+/* ---------------- music ----------------
+   The track plays while the window is open and stops when it closes -
+   otherwise it would drone on while you work on your character. The browser
+   remembers the mute setting, so nobody has to press it again every time. */
 const LS_CREDITS_MUTED = 'swd6_credits_muted';
 function creditsAudio() { return document.getElementById('creditsAudio'); }
 function creditsMuted() { return localStorage.getItem(LS_CREDITS_MUTED) === '1'; }
@@ -88,9 +88,9 @@ function startCreditsMusic() {
   const a = creditsAudio();
   if (!a) return;
   a.muted = creditsMuted();
-  /* Das Öffnen ist ein Klick, also erlauben Browser das Abspielen. Wird es
-     doch abgelehnt (z. B. strenge Autoplay-Regeln), bleibt der Player sichtbar
-     und man startet ihn von Hand – deshalb den Fehler nur schlucken. */
+  /* Opening it is a click, so browsers allow playback. If it is refused
+     anyway (strict autoplay rules, say), the player stays visible and you
+     start it by hand - hence simply swallowing the error. */
   const p = a.play();
   if (p && p.catch) p.catch(() => {});
 }
@@ -117,9 +117,9 @@ function openAbout() { aboutModal().classList.remove('hidden'); renderAbout(); s
 window.renderAbout = function renderAbout() {
   const box = document.getElementById('aboutBox');
   if (!box) return;
-  /* Beim Sprachwechsel wird der Kasten neu aufgebaut – das ersetzt auch das
-     <audio>-Element. Position und Zustand vorher merken, damit der Titel nicht
-     mittendrin abbricht und von vorne anfängt. */
+  /* Switching language rebuilds the box - which replaces the <audio>
+     element too. Remember position and state beforehand, so the track does
+     not break off half way and start again from the top. */
   const old = creditsAudio();
   const keep = old ? { at: old.currentTime, playing: !old.paused } : null;
   const crawl = t('about_crawl');
@@ -150,7 +150,7 @@ window.renderAbout = function renderAbout() {
       <button data-about="replay">${t('about_replay')}</button>
       <button class="accent" data-about="close">${t('about_close')}</button>
     </p>`;
-  /* Wiedergabe über den Neuaufbau hinweg fortsetzen */
+  /* carry playback across the rebuild */
   if (keep) {
     const a = creditsAudio();
     if (a) {
@@ -162,8 +162,8 @@ window.renderAbout = function renderAbout() {
 };
 const btnAbout = document.getElementById('btnAbout');
 if (btnAbout) btnAbout.addEventListener('click', () => {
-  /* Nicht auf die Variable optionsMenu aus app.js zugreifen – die gibt es
-     auf der Droiden- und Schiffsseite nicht. */
+  /* Do not reach for app.js's optionsMenu variable - it does not exist on
+     the droid and ship pages. */
   const om = document.getElementById('optionsMenu');
   if (om) om.classList.add('hidden');
   openAbout();

@@ -1,24 +1,25 @@
 # -*- coding: utf-8 -*-
 """
 =============================================================================
- Waffennamen aus Schiffs- und Fahrzeug-Statbloecken saeubern
+ Clean weapon names out of ship and vehicle statblocks
 =============================================================================
 
- Die Waffenliste eines Schiffs ist die unruhigste Stelle der Textebene: die
- Buecher setzen sie zweispaltig, mit Aufzaehlungszeichen, Fussnoten und
- Seitenfuessen dazwischen. Dabei entstehen zwei Sorten von Schrott:
+ A ship's weapon list is the most unruly part of the text layer: the books
+ set it in two columns, with bullet characters, footnotes and running feet
+ in between. Two kinds of rubbish come out of that:
 
-   1. reparierbar - der Name traegt Ballast VOR sich her
+   1. repairable - the name drags ballast along IN FRONT of it
       "Scan 80/2D Search 100/3D Focus 5/4D 6 Dual Turbolaser Cannons"
-      (die Sensorzeile ist in die Waffenzeile gelaufen)
+      (the sensor line has run into the weapon line)
 
-   2. Phantomwaffen - eine Zeile aus dem Statblock der VORIGEN Waffe wurde
-      als eigene Waffe gelesen: "1.7 km", "(Atmosphere)", "5 batteries rear".
-      Der Gymsnor-2 Freighter kam so auf zwei Waffen statt einer.
+   2. phantom weapons - a line from the PREVIOUS weapon's statblock was read
+      as a weapon of its own: "1.7 km", "(Atmosphere)", "5 batteries rear".
+      That is how the Gymsnor-2 freighter ended up with two weapons instead
+      of one.
 
- Eigenes Modul, weil zwei Werkzeuge dieselben Regeln brauchen:
- extract-from-pdfs.py beim Einlesen der PDFs und repair-catalogs.py, das
- die bereits erzeugten pdfdata-*.js nachtraeglich in Ordnung bringt.
+ A module of its own, because two tools need the same rules:
+ extract-from-pdfs.py while reading the PDFs, and repair-catalogs.py, which
+ puts an already generated pdfdata-*.js back in order.
 =============================================================================
 """
 import re
@@ -28,31 +29,31 @@ BULLET_CHARS = '■□▪▫•●◆·'
 LIG = {'ﬁ': 'fi', 'ﬂ': 'fl', 'ﬀ': 'ff', '’': "'", '‘': "'", '“': '"', '”': '"',
        '–': '-', '—': '-', ' ': ' ', ' ': ' '}
 
-# Zeilen aus dem Statblock, die als eigene Waffe gelesen wurden. "space" nur
-# vor "Range", sonst fiele der "Space Mine Layer" mit durch.
+# Lines from the statblock that were read as weapons of their own. "space"
+# only before "Range", or the "Space Mine Layer" would fall through too.
 WEAPON_JUNK_FIRST = re.compile(
-    # Wortanfaenge - "Atmosph" steht fuer "Atmosphere" wie fuer die am
-    # Zeilenende abgeschnittene Fassung
+    # word beginnings - "Atmosph" covers "Atmosphere" as well as the
+    # version clipped at the end of a line
     r'^(?:space\s*ran|atmosph|fire\s*control|fire\s*arc|blast\s*radi|auto-?fire'
-    # ganze Woerter
+    # whole words
     r'|(?:damage|scale|crew|ammo|range|skill|batter(?:y|ies)|may)\b)', re.I)
 
-# Feuerwinkel-Zeilen ohne jeden Waffennamen ("Rear/Left, 2 Rear/Right")
+# Fire arc lines with no weapon name at all ("Rear/Left, 2 Rear/Right")
 WEAPON_ARCS = re.compile(
     r'^(?:\d+\s+)?(?:front|rear|back|left|right|turret|forward|dorsal|ventral|'
     r'port|starboard)(?:[\s/,]+(?:\d+\s+)?(?:front|rear|back|left|right|turret|'
     r'forward|dorsal|ventral|port|starboard))*\*?\s*$', re.I)
 
-# Seitenfuss der Quellbuecher ("Galaxy Guide 16: The Old Republic 284")
+# The source books' running foot ("Galaxy Guide 16: The Old Republic 284")
 WEAPON_FOOTER = re.compile(
     r'\b(guide|sourcebook|compendium|anthology|handbook|companion|journal)\b'
     r'[^,]*\s\d{1,3}\s*$', re.I)
 
-# Ein einzelnes Eigenschaftswort ist kein Waffenname
+# A single adjective is not a weapon name
 WEAPON_ADJ = {'heavy', 'light', 'medium', 'twin', 'quad', 'dual', 'double'}
 
-# Woerter, an denen sich ein am Zeilenende abgeschnittener Name erkennen
-# laesst: "70 Heavy Turbolas", "102 Proton Torp", "Energy Bom"
+# Words that give away a name clipped at the end of a line: "70 Heavy
+# Turbolas", "102 Proton Torp", "Energy Bom"
 WEAPON_WORDS = ('cannon', 'laser', 'turbolaser', 'blaster', 'missile', 'torpedo',
                 'launcher', 'turret', 'projector', 'disruptor', 'bomb', 'rocket',
                 'battery', 'defense', 'atmosphere', 'range', 'scattergun',
@@ -72,23 +73,23 @@ WEAPON_PLURAL = {
 def _clean(s):
     for a, b in LIG.items():
         s = s.replace(a, b)
-    s = re.sub(r'\[\d+\]', '', s)                     # Fussnotenverweise
+    s = re.sub(r'\[\d+\]', '', s)                     # footnote markers
     return re.sub(r'[ \t]+', ' ', s).strip()
 
 
 def clean_weapon_name(raw):
-    """Ballast vor dem eigentlichen Waffennamen abraeumen."""
+    """Clear away the ballast in front of the actual weapon name."""
     n = _clean(raw or '').strip()
     n = n.lstrip(BULLET_CHARS + ' *').strip()
-    n = re.sub(r'^.*[%s]\s*' % BULLET_CHARS, '', n)   # Seitenfuss + Kaestchen
+    n = re.sub(r'^.*[%s]\s*' % BULLET_CHARS, '', n)   # running foot + box char
     n = re.sub(r'^[^.]*\bper (?:round|turn)\.\s*', '', n, flags=re.I)
     n = re.sub(r'^.*\bFocus\s*:?\s*\S+\s+(?=[0-9A-Za-z])', '', n, flags=re.I)
     n = re.sub(r'^.*\(pages?\s+[^)]*\)\s*(?=[A-Za-z])', '', n, flags=re.I)
     n = re.sub(r'^\([^)]{0,40}\)\s*(?=[0-9A-Za-z])', '', n)
     n = n.strip()
-    # Statwerte vor dem Namen: den abschliessenden grossgeschriebenen
-    # Ausdruck herausziehen ("... 11D if a heavy proton bomb is used.
-    # Tractor Beam" -> "Tractor Beam")
+    # stat values in front of the name: pull out the capitalised phrase at
+    # the end ("... 11D if a heavy proton bomb is used. Tractor Beam" ->
+    # "Tractor Beam")
     if re.search(r'\dD', n):
         m = re.search(r'([A-Z][A-Za-z-]*(?:\s+[A-Z][A-Za-z-]*){0,3})\s*$', n)
         if m and m.start() > 0 and re.search(r'\dD', n[:m.start()]):
@@ -99,10 +100,10 @@ def clean_weapon_name(raw):
 
 
 def plausible_weapon_name(n):
-    """False = Phantomwaffe oder unbrauchbar abgeschnittener Name."""
+    """False = a phantom weapon, or a name clipped beyond use."""
     if not n or not re.match(r'[A-Za-z0-9"]', n):
         return False
-    if re.search(r'\bkm\b', n, re.I):                 # Reichweitenzeile
+    if re.search(r'\bkm\b', n, re.I):                 # a range line
         return False
     if re.search(r'\d\s*/\s*\d', n):                  # "300/700 for torpedoes"
         return False
@@ -117,8 +118,8 @@ def plausible_weapon_name(n):
         return False
     if n.lower().strip('*') in WEAPON_ADJ:
         return False
-    # Am Zeilenende abgeschnitten: das letzte Wort ist nur der Anfang eines
-    # Waffenworts ("Turbolas", "Torp", "Bom")
+    # clipped at the end of a line: the last word is only the start of a
+    # weapon word ("Turbolas", "Torp", "Bom")
     tail = re.findall(r'[A-Za-z]+', n)
     if tail:
         last = tail[-1].lower()
@@ -128,15 +129,15 @@ def plausible_weapon_name(n):
     return True
 
 
-# --------------------------------------------------------- Apostrophe
-# Die Textebene setzt hinter dem Apostroph gern ein Leerzeichen
-# ("Toth' s Starfighter", "Warrior' s Armor", "Vua' spar Interdictor"), und
-# .title() macht aus "HOUND'S TOOTH" ein "Hound'S Tooth".
+# --------------------------------------------------------- apostrophes
+# The text layer likes to put a space after the apostrophe ("Toth' s
+# Starfighter", "Warrior' s Armor", "Vua' spar Interdictor"), and .title()
+# turns "HOUND'S TOOTH" into "Hound'S Tooth".
 #
-# Ein Apostroph am WORTENDE ist dagegen richtig - der Genitiv im Plural:
-# "Kuat Drive Yards' Escort Carrier", "Boss Nass' Custom Bongo". Deshalb
-# wird nur zusammengezogen, wenn hinter dem Leerzeichen ein KLEIN
-# geschriebenes Wort folgt.
+# An apostrophe at the END of a word, by contrast, is correct - the plural
+# possessive: "Kuat Drive Yards' Escort Carrier", "Boss Nass' Custom Bongo".
+# So the two halves are only joined when a LOWER case word follows the
+# space.
 APOS_SPLIT = re.compile(r"([A-Za-z])['’]\s+([a-z])")
 APOS_TITLE = re.compile(r"([a-z])['’]S\b")
 
@@ -146,8 +147,8 @@ def fix_apostrophes(n):
     return APOS_TITLE.sub(r"\1's", n)
 
 
-# Trennzeichen, die vorne stehen bleiben, wenn better_name() einen von zwei
-# per "/" oder "-" verbundenen Herstellern abschneidet
+# Separators left at the front when better_name() cuts off one of two
+# manufacturers joined by "/" or "-"
 # ("Corellian Engineering Corporation/Wereling Spaceworks' Corvette").
 def strip_lead_punct(n):
     return (n or '').lstrip("/-–— \t").strip()
@@ -155,10 +156,10 @@ def strip_lead_punct(n):
 
 def weapon_base_name(n):
     """'2 Pulse Laser Cannons' -> 'Pulse Laser Cannon'
-       Die Stueckzahl gehoert in das eigene Feld, nicht in den Namen."""
+       The count belongs in its own field, not in the name."""
     n = WEAPON_COUNT_RE.sub('', (n or '').strip())
-    n = re.sub(r'\s*\([^)]*\)\s*$', '', n).strip()    # "(2 fire-linked)" o. ae.
-    # Mehrzahl nur bei den ueblichen Waffenwoertern zuruecknehmen
+    n = re.sub(r'\s*\([^)]*\)\s*$', '', n).strip()    # "(2 fire-linked)" and the like
+    # undo the plural only on the usual weapon words
     n = re.sub(r'\b(%s)\b' % '|'.join(WEAPON_PLURAL),
                lambda m: WEAPON_PLURAL[m.group(1)], n)
     return n.strip()

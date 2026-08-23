@@ -1,10 +1,10 @@
 /* =====================================================================
-   Star Wars D6 – NSC-/NPC-Gruppengenerator (für Spielleiter)
+   Star Wars D6 - NPC group generator (for game masters)
    ---------------------------------------------------------------------
-   Erzeugt ganze NPC-Gruppen mit kompakten Statblöcken: Größe, Spezies-
-   Modus (nur Menschen / gemischt / eine Spezies / nur Aliens) und eine
-   Fraktion (Imperium, Rebellen, Piraten, CIS …). Baut auf genshared.js
-   (t, esc, fmtD, C, autosave, renderAll, initPage) und data.js (Spezies).
+   Builds whole NPC groups with compact statblocks: size, species mode
+   (humans only / mixed / one species / aliens only) and a faction (Empire,
+   Rebels, pirates, CIS ...). Built on genshared.js (t, esc, fmtD, C,
+   autosave, renderAll, initPage) and data.js (species).
    ===================================================================== */
 'use strict';
 
@@ -12,7 +12,7 @@ const PAGE_DOC_KIND = 'npc';
 const LS_CURRENT = 'swd6_npc_current';
 const LS_SAVED   = 'swd6_npc_saved';
 
-/* ---------------- Übersetzungen ---------------- */
+/* ---------------- translations ---------------- */
 Object.assign(T.de, {
   title: 'Star Wars D6 – NPC-Generator',
   subtitle: 'NPC-Gruppengenerator',
@@ -128,8 +128,8 @@ Object.assign(T.en, {
   npc_ship_hint: 'Random ships of the chosen classes and era from the catalog; crew dice and extra weapons scale with the experience level.',
 });
 
-/* ---------------- Spielwerte ---------------- */
-/* Attribut-Reihenfolge wie in DATA.species: dex, kno, mec, per, str, tec */
+/* ---------------- game values ---------------- */
+/* Attribute order as in DATA.species: dex, kno, mec, per, str, tec */
 const NPC_ATTRS = [
   { key: 'dex', name: 'Dexterity' }, { key: 'kno', name: 'Knowledge' },
   { key: 'mec', name: 'Mechanical' }, { key: 'per', name: 'Perception' },
@@ -137,7 +137,7 @@ const NPC_ATTRS = [
 ];
 const AI = { dex: 0, kno: 1, mec: 2, per: 3, str: 4, tec: 5 };
 
-/* Bedrohungsstufen: Ziel-Attributsumme (Pips) + Skill-Bonus-Spanne (Pips) */
+/* Threat levels: target attribute total (pips) + skill bonus range (pips) */
 const NPC_THREAT = {
   green:   { attr: 33, skillMin: 0, skillMax: 3 },
   average: { attr: 42, skillMin: 3, skillMax: 6 },
@@ -145,9 +145,10 @@ const NPC_THREAT = {
   elite:   { attr: 60, skillMin: 9, skillMax: 13 },
 };
 
-/* Fraktions-Archetypen. focus = Gewicht je Attribut (dex,kno,mec,per,str,tec)
-   bei der Attributsverteilung. skills: {name(EN, via skillName lokalisiert), attr}.
-   weapon: {name(EN), dmg (Pips) ODER str:+Pips für Nahkampf, rng}. armor = Pips. */
+/* Faction archetypes. focus = weight per attribute (dex,kno,mec,per,str,tec)
+   when distributing attributes. skills: {name (EN, localised via skillName),
+   attr}. weapon: {name (EN), dmg (pips) OR str:+pips for melee, rng}.
+   armor = pips. */
 const NPC_FACTIONS = {
   imperial: {
     focus: [3, 1, 1, 2, 2, 1], armor: 3,
@@ -197,7 +198,7 @@ const NPC_FACTIONS = {
     weapon: { name: 'Hold-out Blaster', dmg: 9, rng: '3-4/8/12' },
     gear: { de: 'Alltagskleidung, Komlink', en: 'Everyday clothing, comlink' },
   },
-  /* ---- Berufe / Rollen: Nicht-Kampf-NPCs mit den passenden Fertigkeiten ---- */
+  /* ---- trades and roles: non-combat NPCs with the skills to match ---- */
   trader: {
     focus: [1, 3, 2, 3, 1, 1], armor: 0,
     skills: [['Bargain', 'per'], ['Value', 'kno'], ['Streetwise', 'kno'], ['Con', 'per'], ['Space Transports', 'mec']],
@@ -250,12 +251,12 @@ const NPC_FACTIONS = {
 const FACTION_ORDER = ['imperial', 'rebel', 'pirate', 'cis', 'bounty', 'crime', 'merc', 'civilian',
   'trader', 'customs', 'smuggler', 'pilot', 'mechanic', 'medic', 'scout', 'official'];
 
-/* Alien-Pool für „gemischt“ / „nur Aliens“ – zur Laufzeit auf tatsächlich
-   in DATA.species vorhandene Namen gefiltert. */
+/* Alien pool for "mixed" / "aliens only" - filtered at run time down to the
+   names DATA.species actually holds. */
 const NPC_ALIEN_POOL = ['Rodian', "Twi'lek", 'Duros', 'Bothan', 'Trandoshan', 'Wookiee',
   'Sullustan', 'Gran', 'Quarren', 'Zabrak', 'Gamorrean', 'Devaronian', 'Ithorian', 'Aqualish'];
 
-/* Namensbausteine */
+/* name components */
 const NPC_HUMAN_FIRST = ['Kael', 'Drenn', 'Mara', 'Jorin', 'Talon', 'Vesa', 'Cade', 'Nyla',
   'Rurik', 'Sella', 'Bran', 'Ione', 'Garr', 'Lenn', 'Tavi', 'Marek', 'Dessa', 'Corlan'];
 const NPC_HUMAN_LAST = ['Vane', 'Korr', 'Halcyon', 'Detta', 'Ryland', 'Sunder', 'Mott',
@@ -263,7 +264,7 @@ const NPC_HUMAN_LAST = ['Vane', 'Korr', 'Halcyon', 'Detta', 'Ryland', 'Sunder', 
 const NPC_ALIEN_SYL = ['va', 'to', 'ka', 'ru', 'zi', 'na', 'do', 'sh', 'ee', 'ba', 'qu', 'ok',
   'ta', 'mo', 'lu', 'gi', 'ce', 'ro', 'wa', 'th'];
 
-/* ---------------- Zufall (deterministisch pro Wurf) ---------------- */
+/* ---------------- randomness (deterministic per roll) ---------------- */
 function rngInt(n) { return Math.floor(Math.random() * n); }
 function rngPick(arr) { return arr[rngInt(arr.length)]; }
 function rngRange(a, b) { return a + rngInt(b - a + 1); }
@@ -273,11 +274,11 @@ function shuffled(arr) {
   return a;
 }
 
-/* ---------------- Spezies-Zugriff ---------------- */
+/* ---------------- species access ---------------- */
 function npcSpecies(name) {
   const sp = (DATA.species || []).find(s => s.name === name);
   if (sp) return sp;
-  /* Fallback Mensch */
+  /* fall back on human */
   return { name: name || 'Human', min: [6, 6, 6, 6, 6, 6], max: [12, 12, 12, 12, 12, 12], move: 10 };
 }
 function npcAlienPool() {
@@ -288,7 +289,7 @@ function allSpeciesNames() {
   return (DATA.species || []).map(s => s.name).sort((a, b) => a.localeCompare(b));
 }
 
-/* ---------------- Namensgenerator ---------------- */
+/* ---------------- name generator ---------------- */
 function npcName(speciesName) {
   if (speciesName === 'Human') return rngPick(NPC_HUMAN_FIRST) + ' ' + rngPick(NPC_HUMAN_LAST);
   const parts = rngRange(2, 3);
@@ -299,7 +300,7 @@ function npcName(speciesName) {
   return s;
 }
 
-/* ---------------- Speziesverteilung ---------------- */
+/* ---------------- species distribution ---------------- */
 function roundRobin(n, arr) {
   const out = [];
   for (let i = 0; i < n; i++) out.push(arr[i % arr.length]);
@@ -314,7 +315,7 @@ function buildSpeciesList(count, mode, single) {
     const k = Math.min(pool.length, Math.max(1, Math.min(4, count)));
     return shuffled(roundRobin(count, shuffled(pool).slice(0, k)));
   }
-  /* mixed: Menschen bilden die Mehrheit (leicht größer als jede Alien-Gruppe) */
+  /* mixed: humans form the majority (a little above any alien group) */
   const k = Math.min(pool.length, count <= 2 ? 1 : rngRange(2, 3));
   const aliens = shuffled(pool).slice(0, Math.max(1, k));
   let humans = Math.max(1, Math.round(count * (0.4 + Math.random() * 0.15)));
@@ -327,7 +328,7 @@ function buildSpeciesList(count, mode, single) {
   return shuffled(list);
 }
 
-/* ---------------- Ein NPC ---------------- */
+/* ---------------- one NPC ---------------- */
 function genAttrs(sp, targetPips, focus) {
   const pips = sp.min.slice();
   const cap = sp.max.slice();
@@ -336,7 +337,7 @@ function genAttrs(sp, targetPips, focus) {
   let target = Math.max(floor, Math.min(targetPips, ceil));
   let cur = floor, guard = 0;
   while (cur < target && guard++ < 2000) {
-    /* gewichtete Auswahl eines noch nicht gedeckelten Attributs */
+    /* weighted pick of an attribute that has not hit its cap yet */
     const avail = [];
     for (let i = 0; i < 6; i++) if (pips[i] < cap[i]) for (let w = 0; w < focus[i]; w++) avail.push(i);
     if (!avail.length) break;
@@ -344,10 +345,10 @@ function genAttrs(sp, targetPips, focus) {
   }
   return pips;
 }
-/* ---------------- Beute ----------------
-   Was die Gruppe findet, wenn sie den NPC durchsucht. Credits nach
-   Gefährlichkeit (ein Grünschnabel trägt keine 2000 Credits spazieren),
-   dazu ein bis zwei Fundstücke aus dem Fraktions- und dem allgemeinen Topf. */
+/* ---------------- loot ----------------
+   What the party finds when it searches the NPC. Credits by how dangerous
+   they are (a greenhorn does not walk around with 2000 credits), plus one
+   or two finds from the faction pot and the general one. */
 const NPC_LOOT_CREDITS = {
   green:   [5, 50],
   average: [25, 200],
@@ -381,7 +382,7 @@ function genLoot(factionId, threatId) {
   const credits = Math.round(rngRange(rangeC[0], rangeC[1]) / 5) * 5;
   const pot = (NPC_LOOT_ITEMS[factionId] || []).concat(NPC_LOOT_ITEMS.common);
   const picked = [];
-  const want = 1 + rngInt(2);                      // 1 oder 2 Fundstücke
+  const want = 1 + rngInt(2);                      // one or two finds
   while (picked.length < want && picked.length < pot.length) {
     const cand = pot[rngInt(pot.length)];
     if (!picked.includes(cand)) picked.push(cand);
@@ -398,12 +399,12 @@ function genNPC(speciesName, factionId, threatId) {
     name, attr, pips: attrs[AI[attr]] + rngRange(th.skillMin, th.skillMax),
   }));
   const weapon = Object.assign({}, fac.weapon);
-  if (weapon.str != null) weapon.dmg = attrs[AI.str] + weapon.str;   // Nahkampf: STR + Bonus
+  if (weapon.str != null) weapon.dmg = attrs[AI.str] + weapon.str;   // melee: STR + bonus
   return {
     name: npcName(speciesName),
     species: speciesName,
-    /* Die Rolle gehört zur Figur, nicht zur Gruppe – eine Truppe kann
-       Sturmtruppen UND Offiziere enthalten. */
+    /* The role belongs to the figure, not to the group - one squad can
+       hold stormtroopers AND officers. */
     faction: NPC_FACTIONS[factionId] ? factionId : 'imperial',
     attrs, skills, weapon,
     move: sp.move || 10,
@@ -413,10 +414,10 @@ function genNPC(speciesName, factionId, threatId) {
   };
 }
 
-/* ---------------- Dokument ---------------- */
-/* Fremde Dokumente säubern. Strings werden beim Rendern escaped; hier geht es
-   um die Felder, die als Zahl oder als Übersetzungsschlüssel weiterverwendet
-   werden - die landen sonst roh im Markup. */
+/* ---------------- document ---------------- */
+/* Clean up documents from elsewhere. Strings are escaped while rendering;
+   what matters here are the fields used on as a number or as a translation
+   key - those otherwise end up in the markup raw. */
 function sanitizeNpc(n) {
   if (!n || typeof n !== 'object') return { name: '', species: '', attrs: [], skills: [], weapon: {} };
   n.move = +n.move || 0;
@@ -424,9 +425,9 @@ function sanitizeNpc(n) {
   if (!NPC_FACTIONS[n.faction]) n.faction = 'imperial';
   if (n.loot && typeof n.loot === 'object') {
     n.loot.credits = +n.loot.credits || 0;
-    /* Der Bogen liest itemsDe/itemsEn ohne Absicherung. Fehlen sie im fremden
-       Dokument, bricht das Rendern der GANZEN Gruppe ab - ein Spielleiter
-       saehe nur eine leere Seite. */
+    /* The sheet reads itemsDe/itemsEn without a guard. If a foreign
+       document lacks them, rendering of the WHOLE group breaks off - a game
+       master would see nothing but a blank page. */
     if (!Array.isArray(n.loot.itemsDe)) n.loot.itemsDe = [];
     if (!Array.isArray(n.loot.itemsEn)) n.loot.itemsEn = [];
   } else {
@@ -450,14 +451,14 @@ function emptyDoc() {
     info: { name: '' },
     setup: { count: 6, gen: 'people', mode: 'mixed', species: 'Human',
              faction: 'imperial', threat: 'average',
-             /* Truppe aus mehreren Rollen: 6 Sturmtruppen + 2 Offiziere statt
-                einer einzigen Fraktion für die ganze Gruppe. */
+             /* A squad of several roles: 6 stormtroopers + 2 officers,
+                rather than one single faction for the whole group. */
              troop: [{ faction: 'imperial', n: 6 }],
-             /* Mehrere Klassen gleichzeitig: eine Patrouille aus Jägern UND
-                einem Transporter ist der Normalfall, nicht die Ausnahme. */
-             /* Anzahl UND „identisch“ getrennt je Klasse: eine Patrouille
-                aus 4 gleichen Jägern und 2 gleichen Transportern ist der
-                Normalfall, nicht 6 Maschinen desselben Modells. */
+             /* Several classes at once: a patrol of fighters AND a
+                transport is the normal case, not the exception. */
+             /* Count AND "identical" kept separate per class: a patrol of
+                4 identical fighters and 2 identical transports is the normal
+                case, not 6 craft of the same model. */
              shipCounts: { starfighter: 0, transport: 6, capital: 0 },
              shipSame:   { starfighter: false, transport: false, capital: false },
              shipEra: '' },
@@ -470,12 +471,12 @@ function migrate(obj) {
   if (obj && typeof obj === 'object') {
     if (obj.info) d.info.name = obj.info.name || '';
     if (obj.setup) Object.assign(d.setup, obj.setup);
-    /* Bis 3.8.0.2 gab es genau EINE Klasse (setup.shipSize) und eine
-       Gesamtzahl (setup.count). Die Prüfung muss am EINGANGSOBJEKT hängen:
-       d.setup ist durch emptyDoc() immer gefüllt, ein Test darauf würde den
-       alten Wert stillschweigend verwerfen. */
+    /* Up to 3.8.0.2 there was exactly ONE class (setup.shipSize) and one
+       total (setup.count). The test has to hang on the INCOMING object:
+       emptyDoc() always fills d.setup, so testing that would discard the old
+       value silently. */
     const alt = obj.setup || {};
-    /* Bis 3.8.0.2 galt EINE Fraktion (setup.faction) für setup.count Personen. */
+    /* Up to 3.8.0.2 ONE faction (setup.faction) covered setup.count people. */
     if (!Array.isArray(alt.troop) || !alt.troop.length) {
       d.setup.troop = [{ faction: FACTION_ORDER.includes(alt.faction) ? alt.faction : 'imperial',
                          n: Math.max(1, Math.min(30, +alt.count || 6)) }];
@@ -489,15 +490,15 @@ function migrate(obj) {
       d.setup.shipCounts = { starfighter: 0, transport: 0, capital: 0 };
       d.setup.shipCounts[k] = Math.max(1, Math.min(30, +alt.count || 6));
     }
-    /* Nur bekannte Klassen, nur gültige Zahlen – und nie alles auf null. */
+    /* Known classes only, valid numbers only - and never everything at zero. */
     SHIP_SIZES.forEach(k => {
       d.setup.shipCounts[k] = Math.max(0, Math.min(30, +d.setup.shipCounts[k] || 0));
       d.setup.shipSame[k] = !!d.setup.shipSame[k];
     });
     if (!shipTotal(d.setup)) d.setup.shipCounts.transport = 6;
-    /* Auswahlfelder gegen ihre bekannten Werte prüfen. Ein fremdes Dokument mit
-       einer unbekannten Ära würde sonst wortlos eine leere Flotte erzeugen -
-       der Pool filtert auf einen Wert, den kein Eintrag hat. */
+    /* Check select fields against their known values. A foreign document
+       with an unknown era would otherwise produce an empty fleet without a
+       word - the pool filters on a value no entry carries. */
     const eras = (typeof PDF_ERAS !== 'undefined') ? PDF_ERAS : [];
     if (eras.indexOf(d.setup.shipEra) < 0) d.setup.shipEra = '';
     if (['people', 'ships'].indexOf(d.setup.gen) < 0) d.setup.gen = 'people';
@@ -506,10 +507,10 @@ function migrate(obj) {
     delete d.setup.shipSize;
     delete d.setup.shipSizes;
     delete d.setup.sameShip;
-    /* Die Karten kommen ungeprüft aus der Datei oder aus der Cloud - ein
-       importierter oder in einer Runde freigegebener Bogen ist fremder Input.
-       Zahlenfelder deshalb hart auf Zahl zwingen und die Fraktion gegen die
-       bekannte Liste prüfen, damit nichts davon roh ins Markup gerät. */
+    /* The cards arrive unchecked from the file or from the cloud - a sheet
+       imported or approved in a round is foreign input. So force numeric
+       fields hard to numbers and check the faction against the known list,
+       so none of it reaches the markup raw. */
     if (Array.isArray(obj.npcs)) d.npcs = obj.npcs.map(sanitizeNpc);
     if (Array.isArray(obj.ships)) d.ships = obj.ships.map(sanitizeShip);
     if (obj._cloudId) d._cloudId = obj._cloudId;
@@ -517,22 +518,23 @@ function migrate(obj) {
   return d;
 }
 
-/* ---------------- NPC-Schiffe ---------------- */
+/* ---------------- NPC ships ---------------- */
 const SHIP_SIZES = ['starfighter', 'transport', 'capital'];
-/* Ordnet einen Katalogeintrag einer Größenkategorie zu. */
+/* Files a catalogue entry under a size category. */
 function npcShipCat(s) {
   const scale = s.scale, skill = (s.skill || '').toLowerCase();
   if (scale === 'Capital') return 'capital';
   if (skill.indexOf('space transport') >= 0) return 'transport';
   if (scale === 'Starfighter') return 'starfighter';
-  return null;   // Fahrzeuge / sonstiges
+  return null;   // vehicles and the rest
 }
-/* Crew-Würfel (Piloting/Gunnery, in Pips) je Bedrohungsstufe. */
+/* Crew dice (piloting/gunnery, in pips) per threat level. */
 const NPC_SHIP_CREW = { green: 9, average: 12, veteran: 15, elite: 21 };
-/* Schiffs-Pool nach Klassen und Ära. Ohne Ära-Wahl zählt alles, auch die
-   72 Einträge ohne Ära-Angabe – die sonst grundlos unter den Tisch fielen. */
-/* ship.js hat eine eigene eraOptions() – npc.html lädt ship.js nicht, die
-   era_*-Texte stehen aber in genshared.js und gelten hier genauso. */
+/* Ship pool by class and era. With no era chosen everything counts, the 72
+   entries with no era among them - which would otherwise be dropped for no
+   good reason. */
+/* ship.js has an eraOptions() of its own - npc.html does not load ship.js,
+   but the era_* texts live in genshared.js and apply here just the same. */
 function npcEraOptions(selected) {
   const list = (typeof PDF_ERAS !== 'undefined') ? PDF_ERAS : [];
   return [`<option value="">${t('era_all')}</option>`].concat(
@@ -559,9 +561,9 @@ function troopTotal(s) {
 function shipTotal(s) {
   return SHIP_SIZES.reduce((a, k) => a + (+((s.shipCounts || {})[k]) || 0), 0);
 }
-/* Baut die Gruppe klassenweise: jede Klasse hat ihre eigene Anzahl und ihr
-   eigenes „identisch“. Bei identisch wird das Modell (samt Besatzung und
-   Zusatzbewaffnung) EINMAL für diese Klasse gezogen. */
+/* Builds the group class by class: every class has its own count and its
+   own "identical" flag. When identical, the model (crew and extra armament
+   included) is drawn ONCE for that class. */
 function genShips(setup) {
   const threat = setup.threat, era = setup.shipEra;
   const th = NPC_THREAT[threat] || NPC_THREAT.average;
@@ -573,7 +575,7 @@ function genShips(setup) {
     const n = Math.max(0, Math.min(30, +((setup.shipCounts || {})[k]) || 0));
     if (!n) return;
     const pool = shipPool([k], era);
-    if (!pool.length) return;                  // Klasse in dieser Ära leer
+    if (!pool.length) return;                  // that class is empty in this era
     if ((setup.shipSame || {})[k]) {
       const src = rngPick(pool), c = crewRoll(), e = extraRoll();
       for (let i = 0; i < n; i++) out.push(shipEntry(src, c, e));
@@ -583,9 +585,9 @@ function genShips(setup) {
   });
   return out;
 }
-/* Einzelnes Schiff nachziehen (+ / Neu würfeln). Gezogen wird aus den
-   Klassen, die überhaupt angefordert sind; „identisch“ greift hier bewusst
-   NICHT – wer eine Karte neu würfelt, will Abwechslung. */
+/* Draw a single further ship (+ / reroll). It is drawn from the classes
+   that were asked for at all; "identical" deliberately does NOT apply here -
+   anyone rerolling a card wants some variety. */
 function genOneShip() {
   const s = C.setup;
   const active = SHIP_SIZES.filter(k => +((s.shipCounts || {})[k]) > 0);
@@ -600,12 +602,13 @@ function genOneShip() {
 function generateGroup() {
   const s = C.setup;
   const n = Math.max(1, Math.min(30, +s.count || 1));
-  s.count = n;   /* nur noch Rückfall für Altstände; die Zeilen zählen */
+  s.count = n;   /* now only a fallback for old saves; the rows are what count */
   if (s.gen === 'ships') {
     C.ships = genShips(s);
   } else {
-    /* Die Spezies-Verteilung gilt für die GESAMTE Truppe (sonst bekäme jede
-       Rolle ihre eigene Mensch-Mehrheit), die Fraktion dagegen zeilenweise. */
+    /* The species distribution covers the WHOLE squad (otherwise every role
+       would get a human majority of its own); the faction, by contrast, goes
+       row by row. */
     const roles = [];
     s.troop.forEach(r => { for (let i = 0; i < r.n; i++) roles.push(r.faction); });
     if (!roles.length) roles.push(s.troop[0] ? s.troop[0].faction : 'imperial');
@@ -637,7 +640,7 @@ function shipCard(sh, i, editable) {
   </div>`;
 }
 
-/* ---------------- Rendering: Setup + Liste ---------------- */
+/* ---------------- rendering: setup + list ---------------- */
 function factionOpts(sel) {
   return FACTION_ORDER.map(f =>
     `<option value="${f}" ${sel === f ? 'selected' : ''}>${t('fac_' + f)}</option>`).join('');
@@ -758,7 +761,7 @@ function renderTab(tab) {
     ${list}`;
 }
 
-/* ---------------- Aktionen ---------------- */
+/* ---------------- actions ---------------- */
 function pageAction(el) {
   const act = el.dataset.act;
   if (act === 'generate') { generateGroup(); renderTab('setup'); return; }
@@ -771,8 +774,8 @@ function pageAction(el) {
   if (act === 'reroll') {
     const i = +el.dataset.idx;
     if (C.npcs[i]) {
-      /* Die Fraktion steckt in der Karte – sonst würde eine neu gewürfelte
-         Offizierskarte still zur Sturmtruppe. */
+      /* The faction sits in the card - otherwise a rerolled officer card
+         would quietly turn into a stormtrooper. */
       const fac = C.npcs[i].faction || (C.setup.troop[0] || {}).faction || 'imperial';
       C.npcs[i] = genNPC(C.npcs[i].species, fac, C.setup.threat); autosave(); renderTab('setup');
     }
@@ -799,7 +802,7 @@ function pageAction(el) {
   }
   if (act === 'removeShip') { const i = +el.dataset.idx; C.ships.splice(i, 1); autosave(); renderTab('setup'); return; }
 }
-/* Namensfelder (nicht an C gebunden – eigenes data-Attribut) */
+/* Name fields (not bound to C - they use a data attribute of their own) */
 function pageChange(el) {
   if (el.dataset.npcname != null) {
     const i = +el.dataset.npcname;
@@ -821,8 +824,8 @@ function pageChange(el) {
     if (r) { r.n = Math.max(0, Math.min(30, +el.value || 0)); el.value = r.n; autosave(); renderTab('setup'); }
     return true;
   }
-  /* Anzahl je Schiffsklasse. 0 heißt „diese Klasse nicht“; nur wenn alle
-     drei auf 0 stünden, gäbe es nichts zu erzeugen – das fängt der Knopf ab. */
+  /* Count per ship class. 0 means "not this class"; only if all three stood
+     at 0 would there be nothing to build - the button catches that. */
   if (el.dataset.shipcount != null) {
     const k = el.dataset.shipcount;
     if (SHIP_SIZES.indexOf(k) >= 0) {
@@ -840,7 +843,7 @@ function pageChange(el) {
   return false;
 }
 
-/* ---------------- Kompakter Bogen ---------------- */
+/* ---------------- compact sheet ---------------- */
 function renderSheet() {
   const ships = C.setup.gen === 'ships';
   const cards = ships
@@ -869,5 +872,5 @@ function renderSheet() {
     </div>${html}`;
 }
 
-/* ---------------- Start ---------------- */
+/* ---------------- startup ---------------- */
 initPage('setup');

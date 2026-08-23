@@ -1,30 +1,30 @@
 # -*- coding: utf-8 -*-
 """
 =============================================================================
- Schiffe aus einer gesammelten Textdatei in pdfdata-craft.js einpflegen
+ Bring ships from a collected text file into pdfdata-craft.js
 =============================================================================
 
- Der Nutzer sammelt Schiffe von verschiedenen Fan-Seiten und legt sie als
- Textdatei ab (new ships.txt). Bloecke sind durch eine Unterstrichzeile
- getrennt, innerhalb eines Blocks steht "Feld: Wert" - allerdings mit den
- Schwankungen, die man bei zusammenkopierten Quellen erwartet:
+ The maintainer collects ships from various fan sites and files them as a
+ text file (new ships.txt). Blocks are separated by a line of underscores,
+ and inside a block it is "field: value" - with all the variation you would
+ expect from sources copied together:
 
-   * Der Name steht mal unter "Name:", mal unter "Craft:", mal unter
-     "Model:", gelegentlich sogar unter "Type:".
+   * The name appears sometimes under "Name:", sometimes "Craft:", sometimes
+     "Model:", occasionally even "Type:".
    * "Hyperdrive:" vs. "Hyperdrive Multiplier:", "Space:" vs. "Space Range:",
-     "Fire Arc:" mit mehreren Winkeln ("2 front, 3 left").
-   * Sensor- und Waffenbloecke sind eingerueckt, unterschiedlich tief, und
-     die Waffen tragen ihre Unterfelder in wechselnder Reihenfolge.
-   * Tippfehler und OCR-Reste: "Fire Control: 20" statt "2D", "Passive: 15/00"
-     statt "15/0D", "Hull: XD" (Wert fehlt in der Quelle).
+     "Fire Arc:" with several arcs at once ("2 front, 3 left").
+   * Sensor and weapon blocks are indented, to varying depths, and the
+     weapons carry their sub-fields in changing order.
+   * Typos and OCR leftovers: "Fire Control: 20" instead of "2D", "Passive:
+     15/00" instead of "15/0D", "Hull: XD" (value missing in the source).
 
- Das Skript parst so viel wie moeglich, meldet den Rest und schreibt NICHTS,
- solange --write nicht gesetzt ist. Bloecke, deren Pflichtwerte fehlen,
- landen im Bericht statt still im Katalog.
+ The script parses as much as it can, reports the rest and writes NOTHING
+ unless --write is given. Blocks whose required values are missing end up in
+ the report rather than silently in the catalogue.
 
- Aufruf:
-   python tools/parse-txt-ships.py "new ships.txt"            # Trockenlauf
-   python tools/parse-txt-ships.py "new ships.txt" --write    # einpflegen
+ Usage:
+   python tools/parse-txt-ships.py "new ships.txt"            # dry run
+   python tools/parse-txt-ships.py "new ships.txt" --write    # apply
 =============================================================================
 """
 import json, re, sys, os, bisect
@@ -38,10 +38,10 @@ HYPER_MULTS = ["None", "x0.5", "x0.75"] + ["x%d" % n for n in range(1, 21)] + ["
 PILOT_SKILLS = ["Archaic Starship Piloting", "Capital Ship Piloting", "Ground Vehicle Operation",
                 "Hover Vehicle Operation", "Repulsorlift Operation", "Space Transports",
                 "Starfighter Piloting", "Swoop Operation", "Walker Operation"]
-# Die Quellen schreiben denselben Skill sehr unterschiedlich ("Starfighter
-# Pilot", "Starship Piloting", "Space Transport Piloting"). Reihenfolge zaehlt:
-# "capital ship" muss vor "starship" greifen, sonst landet ein Grosskampfschiff
-# beim Jaeger-Skill.
+# The sources write the same skill in wildly different ways ("Starfighter
+# Pilot", "Starship Piloting", "Space Transport Piloting"). Order matters:
+# "capital ship" has to match before "starship", or a capital ship ends up
+# with the starfighter skill.
 SKILL_ALIASES = [
     (r"capital\s*ship", "Capital Ship Piloting"),
     (r"space\s*transport", "Space Transports"),
@@ -53,10 +53,10 @@ SKILL_ALIASES = [
 ]
 
 # --------------------------------------------------------------------------
-# Kleinkram
+# odds and ends
 
 def dice_pips(s):
-    """'4D+1' -> 13, '0D+2' -> 2, '2D' -> 6. Unlesbares -> None."""
+    """'4D+1' -> 13, '0D+2' -> 2, '2D' -> 6. Anything unreadable -> None."""
     if not s:
         return None
     m = re.match(r"\s*(\d+)\s*D\s*(?:\+\s*(\d+))?", str(s), re.I)
@@ -65,7 +65,7 @@ def dice_pips(s):
     return int(m.group(1)) * 3 + int(m.group(2) or 0)
 
 def norm_dice(s):
-    """Vereinheitlicht Wuerfelangaben und faengt die '20'-statt-'2D'-Tippfehler."""
+    """Normalises dice values and catches the '20'-for-'2D' typos."""
     if not s:
         return ""
     s = str(s).strip()
@@ -75,7 +75,7 @@ def norm_dice(s):
     return s
 
 def clean(s):
-    """Typografische Anfuehrungszeichen und Gedankenstriche vereinheitlichen."""
+    """Normalise typographic quotes and dashes."""
     return (s.replace("‘", "'").replace("’", "'")
              .replace("“", '"').replace("”", '"')
              .replace("–", "-").replace("—", "-")).strip()
@@ -91,7 +91,7 @@ def num(s):
         return 0
 
 # --------------------------------------------------------------------------
-# Aera raten
+# guessing the era
 
 ERA_HINTS = [
     ("old-republic", r"high republic|jedi civil war|sith war|old republic|great galactic war|"
@@ -114,7 +114,7 @@ def guess_era(text):
     return hits[0][0]
 
 # --------------------------------------------------------------------------
-# Feldzugriff
+# field access
 
 def field(block, *keys):
     for k in keys:
@@ -128,7 +128,7 @@ def parse_sensors(block):
     for key in ("Passive", "Scan", "Search", "Focus"):
         v = field(block, key)
         if v:
-            # '15/00' ist ein OCR-Rest fuer '15/0D'
+            # '15/00' is an OCR leftover for '15/0D'
             v = re.sub(r"/(\d)0$", r"/\g<1>D", v)
             v = re.sub(r"/\+(\d)$", r"/0D+\1", v)
             out[key] = v
@@ -136,9 +136,9 @@ def parse_sensors(block):
             out[key] = ""
     return out
 
-# "ammo", "rate of fire" usw. gehoeren ZUR Waffe. Fehlen sie hier, beginnt das
-# Skript bei so einer Zeile eine neue Waffe - und der danach folgende Schaden
-# landet an der Geisterwaffe statt am Torpedowerfer.
+# "ammo", "rate of fire" and the like belong TO the weapon. Left out here,
+# the script starts a new weapon at such a line - and the damage that follows
+# lands on the phantom weapon instead of on the torpedo launcher.
 WEAPON_SUBFIELDS = ("fire arc", "fire control", "firecontrol", "space", "space range",
                     "atmosphere range", "atmosphere", "damage", "skill", "crew", "scale",
                     "ammo", "ammunition", "rate of fire", "rof", "range", "capacity",
@@ -146,8 +146,9 @@ WEAPON_SUBFIELDS = ("fire arc", "fire control", "firecontrol", "space", "space r
                     "atmoshpere range", "fire rate", "arc", "notes", "note")
 
 def parse_weapons(block):
-    """Der Waffenteil beginnt bei 'Weapons:' und endet beim naechsten Absatz,
-       der wie Fliesstext aussieht (Description/Background/Capsule/Game Note)."""
+    """The weapon section starts at 'Weapons:' and ends at the next
+       paragraph that looks like prose (Description/Background/Capsule/Game
+       Note)."""
     m = re.search(r"^[ \t]*Weapons?[ \t]*:?[ \t]*$|^[ \t]*Weapons?[ \t]*:[ \t]*(.+)$",
                   block, re.I | re.M)
     if not m:
@@ -168,7 +169,7 @@ def parse_weapons(block):
         kv = re.match(r"^([A-Za-z][A-Za-z /]*?)\s*:\s*(.*)$", s)
         key = kv.group(1).strip().lower() if kv else ""
         if kv and key in WEAPON_SUBFIELDS:
-            if cur is None:                      # Unterfeld ohne Kopfzeile
+            if cur is None:                      # a sub-field with no heading
                 continue
             cur.setdefault(key, kv.group(2).strip())
         else:
@@ -178,9 +179,10 @@ def parse_weapons(block):
     if cur:
         weapons.append(cur)
 
-    # Manche Eintraege haengen Fliesstext an den Waffenteil an ("Stealth Hull:
-    # ...", Patzertabellen, Munitionslisten). Ohne Schaden, Feuerkontrolle UND
-    # Reichweite ist es keine Waffe, sondern Prosa - die gehoert in die Notizen.
+    # Some entries hang prose off the end of the weapon section ("Stealth
+    # Hull: ...", mishap tables, ammunition lists). With no damage, no fire
+    # control AND no range it is not a weapon but prose - which belongs in
+    # the notes.
     prose, real = [], []
     for w in weapons:
         if any(w.get(k) for k in ("damage", "fire control", "firecontrol", "space range", "space")):
@@ -191,7 +193,7 @@ def parse_weapons(block):
 
     out = []
     for w in weapons:
-        name = re.sub(r"^\d+\s*[x*]\s*", lambda mm: mm.group(0), w["name"])   # '3 x ...' behalten
+        name = re.sub(r"^\d+\s*[x*]\s*", lambda mm: mm.group(0), w["name"])   # keep '3 x ...'
         arc_raw = w.get("fire arc", "")
         arc = ""
         for a in ARCS:
@@ -243,8 +245,8 @@ def parse_block(block):
             scale = s
             break
     if not scale:
-        # Die Quelle schweigt. Aus dem Pilot-Skill ableiten statt leer lassen -
-        # ohne Groessenklasse laedt die Vorlage sonst unbrauchbar.
+        # The source says nothing. Derive it from the pilot skill rather
+        # than leave it empty - without a scale the template loads useless.
         scale = "Capital" if re.search(r"capital", field(block, "Skill"), re.I) else "Starfighter"
         warn.append("Scale fehlt - aus dem Skill auf %s geschlossen" % scale)
 
@@ -273,7 +275,7 @@ def parse_block(block):
     extra_notes = []
 
     def hyper_val(raw, label):
-        """'x2 (attached pod)' -> 'x2' plus Notiz; 'N/A', 'No' -> leer."""
+        """'x2 (attached pod)' -> 'x2' plus a note; 'N/A', 'No' -> empty."""
         if not raw or re.match(r"^\W*(no|none|n\W*a|kein)\b", raw, re.I):
             return ""
         paren = re.search(r"\(([^)]*)\)", raw)
@@ -313,8 +315,9 @@ def parse_block(block):
     for w in weapons:
         raw = w.pop("_arcRaw", "")
         if "," in raw:
-            # Der Katalog kennt je Waffe genau EINEN Winkel. Den ersten nehmen und
-            # die volle Angabe in die Notizen, damit die Batterie nicht verschwindet.
+            # The catalogue knows exactly ONE arc per weapon. Take the
+            # first and put the full value in the notes, so the battery does
+            # not disappear.
             extra_notes.append("%s - Feuerwinkel laut Quelle: %s" % (w["name"], raw))
             warn.append("mehrere Feuerwinkel: %s" % w["name"][:32])
     if hp is None:
@@ -368,11 +371,11 @@ def main():
     s, i, end, ships = load_catalog()
     have = {x["name"].strip().lower(): x for x in ships}
 
-    # Der Katalog fuehrt viele Schiffe OHNE Herstellernamen ("Cantwell-class
-    # Arrestor Cruiser"), die Textdatei MIT ("Kuat Drive Yards Cantwell-class
-    # Arrestor Cruiser"). Ein reiner Namensvergleich uebersieht das. Deshalb
-    # zusaetzlich ueber den Kern des Namens vergleichen: Hersteller-Vorspann,
-    # Klassen-Zusaetze und Fuellwoerter weg, Rest normalisiert.
+    # The catalogue lists many ships WITHOUT the manufacturer ("Cantwell-
+    # class Arrestor Cruiser"), the text file WITH it ("Kuat Drive Yards
+    # Cantwell-class Arrestor Cruiser"). A plain name comparison misses
+    # that. So compare on the core of the name as well: strip the maker's
+    # prefix, the class suffixes and the filler words, normalise the rest.
     MAKERS = (r"incom(-freitek)?|freitek|frei'?tek|koensayr( manufacturing)?|kuat( drive yards| systems"
               r" engineering)?|corellian engineering( corporation)?|cec|sorosuub( corporation)?|"
               r"subpro|sienar(-chall)?|cygnus spaceworks|slayn & korpil|gallofree yards,? inc\.?|"
@@ -391,7 +394,7 @@ def main():
     def core_name(n):
         n = n.lower()
         n = re.sub(r"^(?:" + MAKERS + r")\b[\s'/-]*", "", n)
-        n = re.sub(r"^(?:" + MAKERS + r")\b[\s'/-]*", "", n)   # zweiter Vorspann
+        n = re.sub(r"^(?:" + MAKERS + r")\b[\s'/-]*", "", n)   # a second prefix
         n = re.sub(r"\b(class|type|-class|-type|starfighter|fighter|freighter|transport|shuttle|"
                    r"cruiser|frigate|carrier|yacht|interceptor|bomber|hauler|courier)\b", " ", n)
         n = re.sub(r"[^a-z0-9]+", "", n)
@@ -417,23 +420,24 @@ def main():
             continue
         ck = core_name(e["name"])
         if ck and ck in core:
-            # Standardmaessig NICHT einfuegen: das waere derselbe Kahn unter zwei
-            # Namen. Echte Varianten (T-65B vs. T-65C-A2) haben verschiedene
-            # Kerne und laufen hier gar nicht auf.
+            # By default do NOT insert: that would be the same tub under
+            # two names. Genuine variants (T-65B vs. T-65C-A2) have
+            # different cores and never reach this point.
             near.append((e["name"], ", ".join(x["name"] for x in core[ck][:2])))
             if "--replace-near" in sys.argv:
-                # Die Textdatei ist handverlesen, der Katalogeintrag stammt aus
-                # der Texterkennung. Werte also ersetzen - aber den EINGETRAGENEN
-                # NAMEN behalten, damit die Vorlage dort bleibt, wo sie gesucht
-                # wird, und die Herkunftsangabe des Buches nicht verlorengeht.
+                # The text file is hand-picked, the catalogue entry comes
+                # from OCR. So replace the values - but keep the EXISTING
+                # NAME, so the template stays where people look for it and
+                # the book's attribution is not lost.
                 tgt = core[ck][0]
-                # Normalerweise gewinnt der eingetragene Name - dort wird die
-                # Vorlage gesucht. Ist er aber selbst abgeschnitten ("Nu Attack",
-                # "Blade-32"), gewinnt der Name aus der Textdatei ohne den
-                # Herstellervorspann. Bedingung: er enthaelt jedes Wort des alten
-                # und hat mehr davon, sonst bleibt es beim alten.
+                # Normally the existing name wins - that is where people
+                # look for the template. But if it is itself clipped ("Nu
+                # Attack", "Blade-32"), the name from the text file wins,
+                # minus the maker's prefix. Condition: it contains every
+                # word of the old one and has more of them, otherwise the
+                # old one stays.
                 cand = e["name"]
-                for _ in range(2):        # "Incom/Subpro ..." nennt zwei Hersteller
+                for _ in range(2):        # "Incom/Subpro ..." names two makers
                     cand = re.sub(r"^(?:" + MAKERS + r")\b[\s'/-]*", "", cand, flags=re.I).strip()
                 words = lambda x: set(w for w in re.split(r"[^A-Za-z0-9]+", x.lower()) if w)
                 keep_name = tgt["name"]

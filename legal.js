@@ -1,22 +1,21 @@
 /* =====================================================================
-   Star Wars D6 Charaktergenerator – Impressum & Datenschutzerklärung
+   Star Wars D6 character generator - legal notice & privacy policy
    ---------------------------------------------------------------------
-   Eingebaute Rechtstexte, die mit den Angaben des Betreibers gefüllt
-   werden. Speicherung:
-     1. Server (api/data/legal.json) – gilt für ALLE Besucher, nur Admin
-     2. SITE_CONFIG.legal in config.js – für Hosting ohne PHP
-     3. localStorage – nur dieser Browser (lokale Nutzung)
-   Optional kann stattdessen auf eigene externe Seiten verlinkt werden.
+   Built-in legal texts, filled in with the operator's details. Storage:
+     1. server (api/data/legal.json) - applies to ALL visitors, admin only
+     2. SITE_CONFIG.legal in config.js - for hosting without PHP
+     3. localStorage - this browser only (local use)
+   Alternatively they can link out to pages of the operator's own.
 
-   HINWEIS: Die Texte sind eine Muster-Vorlage ohne Gewähr und ersetzen
-   keine Rechtsberatung.
+   NOTE: the texts are a sample template offered without warranty and are
+   no substitute for legal advice.
    ===================================================================== */
 'use strict';
 
-/* ---------------- Übersetzungen ---------------- */
+/* ---------------- translations ---------------- */
 Object.assign(T.de, {
-  /* Diese fünf standen früher in app.js und fehlten damit auf der
-     Droiden- und Schiffsseite – sie gehören zu diesem Modul. */
+  /* These five used to live in app.js and were therefore missing from the
+     droid and ship pages - they belong to this module. */
   opt_legal: 'Rechtliches (fürs Hosting)',
   legal_impressum_label: 'Link zum Impressum',
   legal_datenschutz_label: 'Link zur Datenschutzerklärung',
@@ -85,11 +84,11 @@ Object.assign(T.en, {
   legal_updated: 'Last updated',
 });
 
-/* ---------------- Datenhaltung ---------------- */
+/* ---------------- storage ---------------- */
 const LS_LEGAL = 'swd6_legal';
 const LEGAL_FIELDS = ['name', 'street', 'zip', 'city', 'country', 'email', 'phone',
                       'responsible', 'vatId', 'provider', 'providerAddress'];
-let legalServer = null;      // vom Server geladen (gilt für alle Besucher)
+let legalServer = null;      // loaded from the server (applies to all visitors)
 let legalMsg = '';
 let legalSnippetOpen = false;
 
@@ -101,7 +100,7 @@ function legalEmpty() {
 function legalLocal() {
   let raw = {};
   try { raw = JSON.parse(localStorage.getItem(LS_LEGAL)) || {}; } catch (e) {}
-  /* Migration der alten Fassung: { impressum: url, datenschutz: url } */
+  /* Migrating the old shape: { impressum: url, datenschutz: url } */
   if (raw && typeof raw.impressum === 'string' && !raw.urls) {
     raw = { urls: { impressum: raw.impressum || '', datenschutz: raw.datenschutz || '' } };
   }
@@ -126,7 +125,7 @@ function legalConfig() {
 function legalHasContent(d) {
   return !!(d && (d.name || d.urls.impressum || d.urls.datenschutz));
 }
-/* Wirksame Daten: Server > config.js > localStorage */
+/* Which data applies: server > config.js > localStorage */
 function legalData() {
   if (legalHasContent(legalServer)) return legalServer;
   const cfg = legalConfig();
@@ -140,7 +139,7 @@ function legalApiAvailable() {
   return typeof onlineAvailable !== 'undefined' && onlineAvailable;
 }
 
-/* ---------------- Rechtstexte ---------------- */
+/* ---------------- the legal texts ---------------- */
 function legalAddress(d) {
   const parts = [];
   if (d.name) parts.push(esc(d.name));
@@ -239,7 +238,7 @@ function docPrivacy(d) {
     <p>Eine automatisierte Entscheidungsfindung oder ein Profiling im Sinne des Art. 22 DSGVO findet nicht statt.</p>`;
 }
 
-/* ---------------- Anzeige der Rechtstexte ---------------- */
+/* ---------------- showing the legal texts ---------------- */
 function legalDocModal() {
   let m = document.getElementById('legalDocModal');
   if (!m) {
@@ -269,7 +268,7 @@ function openLegalDoc(which) {
   legalDocModal().classList.remove('hidden');
 }
 
-/* ---------------- Einstellungen ---------------- */
+/* ---------------- settings ---------------- */
 function legalSettingsModal() {
   let m = document.getElementById('legalSetModal');
   if (!m) {
@@ -298,11 +297,11 @@ function legalFormValues() {
 function renderLegalSettings() {
   const box = document.getElementById('legalSetBox');
   if (!box) return;
-  /* Beim Bearbeiten immer die aktuell wirksame Quelle vorbelegen */
+  /* When editing, always prefill from whichever source currently applies */
   const d = legalData();
-  /* Läuft ein Server, dürfen nur Administratoren die Angaben ändern – sie
-     gelten dann für alle Besucher. Ohne Server (rein lokale Nutzung) darf
-     jeder seine eigenen Angaben eintragen. */
+  /* With a server running, only administrators may change the details -
+     they then apply to every visitor. Without a server (purely local use)
+     anyone may enter their own. */
   const canEdit = !legalApiAvailable() || legalIsAdmin();
   const ro = canEdit ? '' : 'disabled';
   const field = (key, id, type) => `
@@ -361,9 +360,9 @@ function legalSnippet() {
     `\n    urls: { impressum: ${q(d.urls.impressum)}, datenschutz: ${q(d.urls.datenschutz)} },\n  },`;
 }
 async function legalSave() {
-  /* Sicherheitsnetz: Läuft ein Server, speichert nur der Administrator.
-     Ohne diese Prüfung könnte ein Besucher sich lokale Angaben anlegen,
-     die nur ihn selbst verwirren. Serverseitig wird ohnehin abgewiesen. */
+  /* Safety net: with a server running, only the administrator saves.
+     Without this check a visitor could create local details that would only
+     confuse themselves. The server rejects it anyway. */
   if (legalApiAvailable() && !legalIsAdmin()) {
     legalMsg = t('legal_locked');
     renderLegalSettings();
@@ -393,13 +392,12 @@ async function legalSave() {
   renderLegalSettings();
 }
 
-/* ---------------- Footer-Links & Menü-Eintrag ----------------
-   Bewusst über window: app.js bringt eine Stub-Funktion renderLegal()
-   mit, genshared.js (Droiden- und Schiffsseite) nicht. Eine einfache
-   Zuweisung "renderLegal = …" wirft dort im Strict Mode einen
-   ReferenceError – und damit brach der Rest dieser Datei ab, weshalb
-   der Menü-Eintrag für Impressum und Datenschutz auf beiden Seiten
-   fehlte. */
+/* ---------------- footer links & menu entry ----------------
+   Deliberately via window: app.js brings a stub renderLegal() with it,
+   genshared.js (the droid and ship pages) does not. A plain assignment
+   "renderLegal = ..." throws a ReferenceError there in strict mode - and
+   that broke off the rest of this file, which is why the menu entry for the
+   legal notice and privacy policy was missing from both pages. */
 window.renderLegal = function () {
   const d = legalData();
   const links = [];
@@ -423,7 +421,7 @@ window.renderLegal = function () {
   }
 };
 
-/* ---------------- Events ---------------- */
+/* ---------------- events ---------------- */
 document.addEventListener('click', e => {
   const open = e.target.closest('[data-legal-open]');
   if (open) { e.preventDefault(); openLegalDoc(open.dataset.legalOpen); return; }
@@ -455,12 +453,13 @@ document.addEventListener('keydown', e => {
     if (m) m.classList.add('hidden');
   });
 });
-/* Das Options-Menü stoppt die Propagation – daher dort ein eigener Listener.
+/* The options menu stops propagation - hence a listener of its own there.
 
-   Das Element direkt holen, nicht die Variable optionsMenu benutzen:
-   app.js setzt sie beim Einlesen, genshared.js (Droiden- und Schiffsseite)
-   erst bei DOMContentLoaded. Da diese Datei vorher läuft, war sie dort noch
-   undefined – der Listener wurde nie gehängt und der Menüpunkt tat nichts. */
+   Fetch the element directly rather than use the optionsMenu variable:
+   app.js sets it while parsing, genshared.js (the droid and ship pages)
+   only at DOMContentLoaded. Since this file runs earlier, it was still
+   undefined there - the listener was never attached and the menu entry did
+   nothing. */
 const legalOptionsMenu = document.getElementById('optionsMenu');
 if (legalOptionsMenu) {
   legalOptionsMenu.addEventListener('click', e => {
@@ -472,7 +471,7 @@ if (legalOptionsMenu) {
   });
 }
 
-/* ---------------- Start ---------------- */
+/* ---------------- startup ---------------- */
 (async function initLegal() {
   renderLegal();
   const url = (typeof SITE_CONFIG !== 'undefined' && SITE_CONFIG.apiUrl) || '';
@@ -492,5 +491,5 @@ if (legalOptionsMenu) {
       legalServer = o;
       renderLegal();
     }
-  } catch (e) { /* kein Server – lokale Angaben gelten */ }
+  } catch (e) { /* no server - the local details apply */ }
 })();

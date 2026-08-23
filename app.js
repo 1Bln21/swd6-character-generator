@@ -1,24 +1,24 @@
 /* =====================================================================
-   Star Wars D6 (2nd Edition) – Charaktergenerator / Character Generator
-   Logik & UI  –  basiert auf "Character Generator v2-5.xlsx"
+   Star Wars D6 (2nd Edition) - character generator
+   Logic and UI  -  based on "Character Generator v2-5.xlsx"
    ===================================================================== */
 'use strict';
 
 /* =====================================================================
-   SPRACHEN / LANGUAGES
+   LANGUAGES
    ===================================================================== */
 const LS_LANG = 'swd6_lang';
-/* Standardsprache Englisch: Das Projekt wird in den englischsprachigen
-   SWD6-Gemeinschaften beworben. Wer einmal auf Deutsch umgestellt hat,
-   bekommt seine Wahl weiterhin aus dem localStorage. */
+/* Default language is English: the project is promoted in the English
+   speaking SWD6 communities. Anyone who has switched to German once keeps
+   that choice, it comes back out of localStorage. */
 let LANG = localStorage.getItem(LS_LANG) || 'en';
 
-/* Wird im ⚙-Menü unter „Über & Credits“ angezeigt.
-   Bei jedem Release mit der Versionsnummer des Git-Tags abgleichen! */
+/* Shown in the gear menu under "About & credits".
+   Keep this in step with the git tag on every release! */
 
-/* Rückfall, falls skills-de.js nicht geladen wurde (etwa bei einem
-   unvollständigen Upload): dann bleiben die englischen Fertigkeitsnamen
-   stehen, statt dass die Seite mit einem ReferenceError abbricht. */
+/* Fallback in case skills-de.js was not loaded (after an incomplete
+   upload, say): the English skill names then stay in place instead of the
+   page dying with a ReferenceError. */
 if (typeof skillName !== 'function') {
   window.skillName = function (en) { return en; };
 }
@@ -31,7 +31,7 @@ de: {
   options: 'Optionen', opt_language: 'Sprache / Language',
   opt_theme: 'Darstellung', theme_dark: 'Dunkel', theme_light: 'Hell',
   theme_oled: 'OLED-Schwarz', theme_bespin: 'Bespin (warm)',
-  nav_char: 'Charaktere', nav_droid: 'Droiden', nav_ship: 'Schiffe / Fahrzeuge', nav_npc: 'NPCs', nav_dice: 'Würfeln',
+  nav_char: 'Charaktere', nav_droid: 'Droiden', nav_ship: 'Schiffe / Fahrzeuge', nav_npc: 'NPCs', nav_dice: 'Würfeln', nav_vtt: 'Spieltisch',
   doc_one: 'Charakter', doc_plural: 'Charaktere',
   pdf_catalog: 'Erweiterter Katalog aus den Regelwerken',
   pdf_search: 'Suchen', pdf_add: '+ Übernehmen',
@@ -74,7 +74,7 @@ de: {
   note: 'Notiz', notes: 'Notizen', add_entry: '+ Eintrag', item: 'Gegenstand',
   skill: 'Skill', damage: 'Schaden', difficulty: 'Schwierigkeit', special: 'Besonderes',
   weapon: 'Waffe', color: 'Farbe', max_short: 'Max.',
-  /* Info-Tab */
+  /* info tab */
   personal_data: 'Persönliche Daten',
   char_name: 'Charaktername', player_name: 'Spielername', occupation: 'Beruf / Template',
   species: 'Spezies', nh_variant: 'Near-Human-Variante', nh_choose: '– Variante wählen –',
@@ -90,13 +90,18 @@ de: {
   typical_skills: 'Typische Fertigkeiten', bonus_skills: 'Bonus-Fertigkeiten (automatisch hinzugefügt)',
   portrait: 'Charakterbild', portrait_import: '📷 Bild importieren',
   portrait_remove: 'Entfernen', portrait_placeholder: 'Kein Bild',
+  portrait_url: 'https://… Bildadresse',
+  portrait_url_btn: 'Holen',
+  portrait_url_bad: 'Das ist keine gültige http- oder https-Adresse.',
+  portrait_url_error: 'Das Bild ließ sich von dort nicht holen. Viele Seiten erlauben das Auslesen durch andere Seiten nicht — dann hilft nur, das Bild herunterzuladen und als Datei zu wählen.',
+  portrait_url_hint: 'Das Bild wird einmal geholt und im Bogen gespeichert, die Adresse nicht. So ruft auch beim Weitergeben niemand die fremde Seite auf, und es bleibt erhalten, wenn die Adresse verschwindet.',
   portrait_hint: 'JPG/PNG/WebP – wird automatisch verkleinert. Datei hierher ziehen oder auf den Rahmen klicken. Mit ↺ ↻ drehen.',
   portrait_rotate: 'Um 90° drehen',
   portrait_error: 'Bild konnte nicht geladen werden.',
   custom_species_def: 'Eigene Spezies definieren', species_name: 'Name der Spezies',
   attr_limits: 'Attribut-Grenzen (in Pips: 3 Pips = 1D, z. B. 6 = 2D, 12 = 4D)',
   min: 'Min.', max: 'Max.',
-  /* Attribute-Tab */
+  /* attributes tab */
   attr_pool: 'Attributs-Pool', distributed: 'Verteilt', left: 'Übrig',
   start_dice: 'Startwürfel', override_attr: 'Override Startwürfel (D):',
   attrs_heading: 'Attribute (+/− in Pips, 3 Pips = 1D)',
@@ -112,7 +117,7 @@ de: {
   fp_dsp: 'Machtpunkte & Dunkle Seite', fp_start: 'Start-Machtpunkte',
   fp_current: 'Machtpunkte aktuell', dsp: 'Punkte der Dunklen Seite',
   movement: 'Bewegung', base_species: 'Basis (Spezies)', improvement: 'Verbesserung (+)', total: 'Gesamt',
-  /* Skills-Tab */
+  /* skills tab */
   skill_pool: 'Fertigkeits-Pool',
   skill_hint: 'max. +2D pro Fertigkeit bei der Erschaffung · ★ = typische Spezies-Fertigkeit: 2 für 1 (ein Pool-Pip bringt zwei Pips, steigt daher in Zweierschritten)',
   override_skill: 'Override Skillwürfel (D):',
@@ -127,7 +132,7 @@ de: {
   prompt_skill: 'Name der neuen Fertigkeit:',
   prompt_adv: 'Name der fortgeschrittenen Fertigkeit (z. B. "(A) Engineering"):',
   prompt_adv_req: 'Voraussetzung (z. B. "Repulsorlift Repair 5D"):',
-  /* Macht-Tab */
+  /* Force tab */
   the_force: 'Die Macht',
   not_sensitive: 'Dieser Charakter ist nicht Macht-sensitiv.',
   not_sensitive_hint: 'Stelle auf dem Tab „Charakter“ die Option <b>Macht-sensitiv</b> auf „Ja“, um Machtfertigkeiten und -kräfte zu wählen.',
@@ -135,13 +140,13 @@ de: {
   override_powers: 'Override zusätzl. Kräfte:',
   powers_hint: 'Wie in der Excel-Vorlage: Anzahl lernbarer Kräfte = Summe der Pips in Control, Sense und Alter (+ Override). Die Machtfertigkeiten selbst werden auf dem Tab „Attribute“ gesteigert.',
   keep_up: 'Aufrechterhalten', maybe_missing: '⚠ evtl. nicht erfüllt', dark_side_title: 'Dunkle Seite',
-  /* Ausrüstung */
+  /* equipment */
   equip_cost: 'Ausrüstungskosten', credits_left: 'Credits übrig',
   other_equip: 'Sonstige Ausrüstung', credits_word: 'Credits',
   cat_Communication: 'Kommunikation', cat_General: 'Allgemeines', cat_Medical: 'Medizin',
   'cat_Restraining Devices': 'Fesselungsgeräte', 'cat_Special Tools': 'Spezialwerkzeuge',
   cat_Surveillance: 'Überwachung', cat_Transport: 'Transport', 'cat_Travel Aids': 'Reisehilfen',
-  /* Waffen */
+  /* weapons */
   sub_melee: 'Nahkampf', sub_ranged: 'Fernkampf', sub_expl: 'Sprengstoffe', sub_saber: 'Lichtschwert-Werkstatt',
   my_melee: 'Meine Nahkampfwaffen', my_ranged: 'Meine Fernkampfwaffen', my_sabers: 'Meine Lichtschwerter',
   custom_melee: 'Eigene Nahkampfwaffen', custom_ranged: 'Eigene Fernkampfwaffen',
@@ -157,7 +162,7 @@ de: {
   build_saber: '⚔ Lichtschwert bauen', properties: 'Eigenschaften',
   alert_primary: 'Bitte einen Primärkristall wählen.',
   custom_saber: 'Custom-Lichtschwert',
-  /* Rüstung */
+  /* armor */
   str_resist: 'Widerstand gegen Schaden (STR)',
   armor_hint: 'Rüstungsboni werden auf den Stärke-Wurf gegen Schaden addiert.',
   my_armor: 'Meine Rüstung', custom_armor: 'Eigene Rüstung', cat_armor: 'Katalog: Rüstungen',
@@ -174,7 +179,7 @@ de: {
   loans: 'Kredite / Schulden', loan: 'Kredit', creditor: 'Gläubiger',
   amount_owed: 'Geschuldeter Betrag', interest: 'Zins (% / Monat)', monthly_due: 'Monatlich fällig',
   amount: 'Betrag', interest_short: 'Zins', monthly: 'Monatlich',
-  /* Charakterbogen */
+  /* character sheet */
   sheet_preview: 'Vorschau des Bogens. <b>Drucken / PDF:</b> Knopf unten (oder oben rechts) – im Druckdialog kannst du „Als PDF speichern“ wählen.',
   print_pdf: '🖨 Drucken / Als PDF speichern',
   sheet_title: 'Das Rollenspiel · D6 · Charakterbogen',
@@ -208,7 +213,7 @@ en: {
   options: 'Options', opt_language: 'Sprache / Language',
   opt_theme: 'Theme', theme_dark: 'Dark', theme_light: 'Light',
   theme_oled: 'OLED black', theme_bespin: 'Bespin (warm)',
-  nav_char: 'Characters', nav_droid: 'Droids', nav_ship: 'Ships / Vehicles', nav_npc: 'NPCs', nav_dice: 'Dice',
+  nav_char: 'Characters', nav_droid: 'Droids', nav_ship: 'Ships / Vehicles', nav_npc: 'NPCs', nav_dice: 'Dice', nav_vtt: 'Table',
   doc_one: 'character', doc_plural: 'characters',
   pdf_catalog: 'Extended catalog from the sourcebooks',
   pdf_search: 'Search', pdf_add: '+ Add',
@@ -251,7 +256,7 @@ en: {
   note: 'Note', notes: 'Notes', add_entry: '+ Add entry', item: 'Item',
   skill: 'Skill', damage: 'Damage', difficulty: 'Difficulty', special: 'Special',
   weapon: 'Weapon', color: 'Color', max_short: 'Max.',
-  /* Info tab */
+  /* info tab */
   personal_data: 'Personal Data',
   char_name: 'Character Name', player_name: 'Player Name', occupation: 'Occupation / Template',
   species: 'Species', nh_variant: 'Near-Human Variant', nh_choose: '– choose variant –',
@@ -267,13 +272,18 @@ en: {
   typical_skills: 'Typical Skills', bonus_skills: 'Bonus Skills (added automatically)',
   portrait: 'Character Portrait', portrait_import: '📷 Import image',
   portrait_remove: 'Remove', portrait_placeholder: 'No image',
+  portrait_url: 'https://… picture address',
+  portrait_url_btn: 'Fetch',
+  portrait_url_bad: 'That is not a valid http or https address.',
+  portrait_url_error: 'The picture could not be fetched from there. Many sites do not allow other sites to read their images — then the only way is to download it and pick it as a file.',
+  portrait_url_hint: 'The picture is fetched once and stored in the sheet, the address is not. That way nobody calls the other site when the sheet is passed on, and it survives the address going away.',
   portrait_hint: 'JPG/PNG/WebP – resized automatically. Drag a file here or click the frame. Rotate with ↺ ↻.',
   portrait_rotate: 'Rotate 90°',
   portrait_error: 'Could not load the image.',
   custom_species_def: 'Define Custom Species', species_name: 'Species Name',
   attr_limits: 'Attribute limits (in pips: 3 pips = 1D, e.g. 6 = 2D, 12 = 4D)',
   min: 'Min.', max: 'Max.',
-  /* Attributes tab */
+  /* attributes tab */
   attr_pool: 'Attribute Pool', distributed: 'Distributed', left: 'Left',
   start_dice: 'starting dice', override_attr: 'Override starting dice (D):',
   attrs_heading: 'Attributes (+/− in pips, 3 pips = 1D)',
@@ -289,7 +299,7 @@ en: {
   fp_dsp: 'Force Points & Dark Side', fp_start: 'Starting Force Points',
   fp_current: 'Force Points (current)', dsp: 'Dark Side Points',
   movement: 'Movement', base_species: 'Base (species)', improvement: 'Improvement (+)', total: 'Total',
-  /* Skills tab */
+  /* skills tab */
   skill_pool: 'Skill Pool',
   skill_hint: 'max. +2D per skill at creation · ★ = typical species skill: 2 for 1 (one pool pip buys two pips, so it steps in twos)',
   override_skill: 'Override skill dice (D):',
@@ -382,16 +392,16 @@ en: {
 function t(k) {
   const v = T[LANG] && T[LANG][k];
   if (v !== undefined) return v;
-  /* Fehlt ein Schlüssel, lieber die englische Fassung zeigen als die
-     deutsche – Englisch ist die Standardsprache der App. */
+  /* With a key missing, show the English version rather than the German
+     one - English is the app's default language. */
   if (T.en && T.en[k] !== undefined) return T.en[k];
   if (T.de[k] !== undefined) return T.de[k];
-  /* Fehlt der Schlüssel ganz, wird er selbst angezeigt. Viele Schlüssel werden
-     dynamisch gebaut ("era_" + eintrag.era, "loc_" + treffer) und der dynamische
-     Teil kann aus einem fremden Dokument stammen. Ergebnisse von t() landen roh
-     im innerHTML, deshalb hier nur harmlose Zeichen durchlassen. Dieselbe
-     Absicherung steht in genshared.js und dice.js - jede Seite lädt nur eine
-     dieser Dateien. */
+  /* When the key is missing entirely, the key itself is shown. Many keys
+     are built dynamically ("era_" + entry.era, "loc_" + hit) and the dynamic
+     part can come out of somebody else's document. Results of t() go into
+     innerHTML raw, so only harmless characters may pass here. The same guard
+     stands in genshared.js and dice.js - each page loads only one of those
+     files. */
   return String(k).replace(/[^\w.:-]/g, '');
 }
 function tCat(cat) { return t('cat_' + cat); }
@@ -407,10 +417,10 @@ function setLang(l) {
   renderAll();
 }
 
-/* ---------------- Impressum & Datenschutz ----------------
-   Die eigentliche Umsetzung liegt in legal.js und überschreibt diese
-   Platzhalter-Funktion, sobald die Datei geladen ist. */
-function renderLegal() { /* siehe legal.js */ }
+/* ---------------- legal notice & privacy policy ----------------
+   The real implementation lives in legal.js and overwrites this
+   placeholder as soon as that file is loaded. */
+function renderLegal() { /* see legal.js */ }
 function applyStaticI18n() {
   document.querySelectorAll('[data-i18n]').forEach(el => {
     el.innerHTML = t(el.dataset.i18n);
@@ -419,7 +429,7 @@ function applyStaticI18n() {
 }
 
 /* =====================================================================
-   KONSTANTEN / ZUSTAND
+   CONSTANTS / STATE
    ===================================================================== */
 const ATTRS = [
   { key: 'dex', name: 'Dexterity' },
@@ -434,11 +444,11 @@ const FORCE = [
   { key: 'sense', name: 'Sense' },
   { key: 'alter', name: 'Alter' },
 ];
-/* Die erweiterten Fertigkeiten stehen in data.js: Droiden brauchen dieselbe
-   Liste, und zwei Fassungen davon laufen zwangsläufig auseinander. */
-/* "First Aid 5D" / "Repulsorlift Op. 5D" -> ist die Fertigkeit hoch genug?
-   Ohne erkennbare Angabe gilt die Voraussetzung als erfüllt: eine unlesbare
-   Regel darf den Spieler nicht aussperren. */
+/* The advanced skills live in data.js: droids need the same list, and two
+   copies of it would inevitably drift apart. */
+/* "First Aid 5D" / "Repulsorlift Op. 5D" -> is the skill high enough?
+   With nothing recognisable there, the prerequisite counts as met: an
+   unreadable rule must not lock the player out. */
 function advReqMet(req) {
   const m = /^(.*?)\s+(\d+)D(?:\+(\d))?\s*$/.exec(String(req || '').trim());
   if (!m) return true;
@@ -447,7 +457,7 @@ function advReqMet(req) {
   for (const attr in DATA.skills) {
     if (DATA.skills[attr].indexOf(name) >= 0) return skillTotal(skillKey(attr, name)) >= noetig;
   }
-  return true;                        // Fertigkeit unbekannt -> nicht blockieren
+  return true;                        // unknown skill -> do not block
 }
 
 const LS_CURRENT = 'swd6_current';
@@ -491,7 +501,7 @@ function emptyChar() {
 }
 let C = emptyChar();
 
-/* ---------------- Helfer ---------------- */
+/* ---------------- helpers ---------------- */
 function esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -511,16 +521,17 @@ function setPath(obj, path, val) {
   o[parts[parts.length - 1]] = val;
 }
 
-/* ---------------- Spezies ---------------- */
+/* ---------------- species ---------------- */
 function speciesData() {
   const name = C.info.species;
   if (name === 'Custom') {
     const cs = C.customSpecies;
     return {
       name: cs.name || 'Custom', min: cs.mins.slice(), max: cs.maxs.slice(),
-      /* move stammt bei Cloud-Spezies aus fremden, ungeprüften Daten – strikt
-         auf eine Zahl zwingen, sonst könnte ein String beim Anzeigen HTML
-         einschleusen (die Zahl wird an mehreren Stellen ohne esc() gerendert). */
+      /* For cloud species, move comes from somebody else's unchecked data -
+         force it strictly to a number, or a string could smuggle HTML in
+         while being shown (the number is rendered without esc() in several
+         places). */
       move: (+cs.move || 10), free: 54 - cs.mins.reduce((a, b) => a + (+b || 0), 0), offset: 0,
       hMin: 0, hMax: 0, planet: '', page: 'Custom',
       abilities: cs.abilities.filter(x => x), story: cs.story.filter(x => x),
@@ -544,9 +555,9 @@ function speciesData() {
       || DATA.species.find(x => x.name === 'Human');
 }
 
-/* Zusätzliche Spezies aus den Regelwerken (pdfdata-species.js). Die Datei
-   enthält nur, was im Excel fehlt – doppelt geprüft wird hier trotzdem,
-   falls data.js neu erzeugt wurde und inzwischen mehr kennt. */
+/* Extra species from the rulebooks (pdfdata-species.js). The file holds
+   only what the spreadsheet lacks - but it is checked for duplicates here
+   all the same, in case data.js was regenerated and now knows more. */
 function extraSpecies() {
   if (typeof PDF_SPECIES === 'undefined') return [];
   if (!extraSpecies._cache) {
@@ -556,7 +567,7 @@ function extraSpecies() {
   return extraSpecies._cache;
 }
 function speciesKey(n) {
-  /* Wookiee/Wookie und Toydarian/Toydarians sollen als dasselbe gelten */
+  /* Wookiee/Wookie and Toydarian/Toydarians should count as the same */
   return String(n || '').toLowerCase().replace(/[^a-z]/g, '')
     .replace(/(.)\1+/g, '$1').replace(/s$/, '');
 }
@@ -585,9 +596,9 @@ function skillPoolTotal() {
     return Math.round(C.overrides.skillDice * 3);
   return 21;
 }
-/* Spezies-Fertigkeiten (★, DATA.skillImprove) gehen bei der Erschaffung im
-   Verhältnis 2 zu 1: ein Pip aus dem Startpool bringt zwei Pips auf der
-   Fertigkeit. Deshalb zählt hier nur die Hälfte der gutgeschriebenen Pips. */
+/* Species skills (the starred ones, DATA.skillImprove) go 2 for 1 during
+   creation: one pip from the starting pool buys two pips on the skill. So
+   only half of the credited pips count here. */
 function improvedRate(key) { return isImproved(key.split('|')[1]) ? 2 : 1; }
 function skillPoolLeft() {
   let spent = 0;
@@ -597,7 +608,7 @@ function skillPoolLeft() {
   return skillPoolTotal() - spent;
 }
 
-/* ---------------- Skills ---------------- */
+/* ---------------- skills ---------------- */
 function skillKey(attr, name) { return attr + '|' + name; }
 function skillEntry(key) {
   if (!C.skills[key]) C.skills[key] = { c: 0, cp: 0 };
@@ -610,15 +621,15 @@ function skillTotal(key) {
   const base = isAdvKey(key) ? 0 : attrTotal(attr);
   return base + skillPips(key);
 }
-/* Spezialisierung? (extraSkills-Eintrag mit gesetztem spec-Elternskill) –
-   Spezialisierungen kosten laut Grundregelwerk die halben CP der Fertigkeit. */
+/* A specialisation? (an extraSkills entry with its spec parent skill set) -
+   by the core rules a specialisation costs half the skill's CP. */
 function isSpecKey(key) {
   const parts = key.split('|'); const attr = parts[0], name = parts[1];
   return C.extraSkills.some(e => e.attr === attr && e.spec && e.name === name);
 }
 function cpDieCost(key, d) {
-  if (isAdvKey(key)) return d * 2;              // Advanced: doppelt
-  if (isSpecKey(key)) return Math.max(1, Math.ceil(d / 2));  // Spezialisierung: halb (aufgerundet)
+  if (isAdvKey(key)) return d * 2;              // advanced: double
+  if (isSpecKey(key)) return Math.max(1, Math.ceil(d / 2));  // specialisation: half (rounded up)
   return d;
 }
 function skillCpCost(key) {
@@ -676,7 +687,7 @@ function isImproved(name) {
     name.toLowerCase().startsWith(si.toLowerCase()) || si.toLowerCase().startsWith(name.toLowerCase()));
 }
 
-/* ---------------- Macht ---------------- */
+/* ---------------- the Force ---------------- */
 function powersAllowed() {
   let pips = 0;
   FORCE.forEach(f => pips += forceTotal(f.key));
@@ -685,7 +696,7 @@ function powersAllowed() {
 function powersLeft() { return powersAllowed() - C.powers.length; }
 function fpStart() { return C.info.forceSensitive ? 2 : 1; }
 
-/* ---------------- Credits ---------------- */
+/* ---------------- credits ---------------- */
 function catByName(list, name) { return list.find(x => x.name === name); }
 function creditTotals() {
   let equip = 0;
@@ -714,7 +725,7 @@ function creditTotals() {
   return { equip, armor, melee, ranged, expl, spent, left: (+C.credits.earned || 0) - spent };
 }
 
-/* ---------------- Lichtschwert ---------------- */
+/* ---------------- lightsaber ---------------- */
 function saberDamage(sb) {
   const p = catByName(DATA.saber.primary, sb.primary);
   let dmg = p ? p.dmg : 15;
@@ -752,24 +763,25 @@ function autosave() {
     buildRollProfile();
   }, 300);
 }
-/* Kompaktes Wurf-Profil für die Würfelseite: Attribute + trainierte Skills
-   als fertige Pip-Pools. Die Würfelseite liest nur diese Datei. */
-/* Würfel-Bonus eines Ausrüstungsstücks aus Name und Beschreibung lesen.
-   Früher galt jede Würfelangabe als Bonus – dadurch boten Magnacuffs
-   („Strength 6D+2“ zum Losreißen), Sklavenhalsbänder („2D-5D Schaden“) und
-   ein Umhang („has a Strength of 1D+2“) auf der Würfelseite Boni an, die es
-   gar nicht gibt. Jetzt zählt nur, was ausdrücklich als Zugewinn dasteht. */
+/* A compact roll profile for the dice page: attributes plus trained skills
+   as ready-made pip pools. The dice page reads only this. */
+/* Read an item's dice bonus out of its name and description. Every dice
+   value used to count as a bonus - which had magnacuffs ("Strength 6D+2" to
+   break free of), slave collars ("2D-5D damage") and a cloak ("has a
+   Strength of 1D+2") offering bonuses on the dice page that do not exist.
+   Now only what is explicitly written as a gain counts. */
 function noteBonusPips(txt, name) {
   const val = (d, p) => (+d) * 3 + (p ? +p : 0);
-  /* 1) Bonus steckt im Namen: „Portable Computer (Power 2D)“ – die Notiz sagt
-        dort nur „Add the power rating to any Computer Programming checks“. */
+  /* 1) the bonus sits in the name: "Portable Computer (Power 2D)" - the
+        note there only says "Add the power rating to any Computer
+        Programming checks". */
   let m = /\(\s*(?:power|rating|level|stufe)\s*\+?\s*(\d+)D(?:\+(\d+))?\s*\)/i.exec(String(name || ''));
   if (m) return val(m[1], m[2]);
   const t = String(txt || '');
-  /* 2) ausdrücklich als Plus geschrieben: „Adds +1D“, „gain +2D+1“ */
+  /* 2) written explicitly as a plus: "Adds +1D", "gain +2D+1" */
   m = /\+\s*(\d+)D(?:\+(\d+))?/.exec(t);
   if (m) return val(m[1], m[2]);
-  /* 3) als Erleichterung formuliert: „reduces the difficulty by 2D“ */
+  /* 3) phrased as a reduction: "reduces the difficulty by 2D" */
   m = /(?:reduc|lower|decreas)[a-z]*\s+(?:the\s+)?[a-z ]{0,24}difficulty[^.]{0,40}?by\s+(\d+)D(?:\+(\d+))?/i.exec(t);
   if (m) return val(m[1], m[2]);
   return 0;
@@ -782,8 +794,8 @@ function buildRollProfile() {
       const key = skillKey(a.key, r.name);
       if (skillPips(key) > 0 && !seen[key]) { seen[key] = 1; entries.push({ label: skillName(r.name), pips: skillTotal(key), kind: 'skill' }); }
     }));
-    /* Getragene Ausrüstung mit Würfel-Bonus (Computer, Code-Slicer …) – der
-       Spieler hakt auf der Würfelseite an, was er tatsächlich nutzt. */
+    /* Carried equipment with a dice bonus (computers, code slicers ...) -
+       on the dice page the player ticks what is actually in use. */
     const gear = [], seenG = {};
     Object.keys(C.equipment || {}).forEach(n => {
       if ((C.equipment[n] || 0) <= 0 || seenG[n]) return;
@@ -798,6 +810,12 @@ function buildRollProfile() {
       const pips = noteBonusPips(e.note || e.notes || '', e.name);
       if (pips > 0) gear.push({ label: e.name, pips: pips, hint: String(e.note || e.notes || '').slice(0, 80) });
     });
+    /* The same profile travels inside the document. The table-top needs it
+       for a document that lives in the cloud and was never opened in this
+       browser - localStorage only ever holds the sheet somebody worked on
+       here. It is derived data and is rebuilt on every save, so it can
+       never drift away from the sheet. */
+    C._roll = { entries: entries, gear: gear };
     localStorage.setItem('swd6_roll_char', JSON.stringify({ name: (C.info && C.info.name) || '', entries, gear }));
   } catch (e) {}
 }
@@ -835,7 +853,7 @@ function stepper(act, params, minus, plus) {
   </span>`;
 }
 
-/* ---------------- Charakterbild ---------------- */
+/* ---------------- character portrait ---------------- */
 function importPortrait(file) {
   if (!file || !file.type || !file.type.startsWith('image/')) return;
   const rd = new FileReader();
@@ -865,13 +883,37 @@ function importPortrait(file) {
   };
   rd.readAsDataURL(file);
 }
-/* Importiertes Bild um 90° drehen (dir < 0 = gegen den Uhrzeigersinn). */
+
+/* Fetch a picture from an address. Deliberately fetch() and not
+   `img.src = url`: a picture drawn onto a canvas from another origin taints
+   it, and toDataURL() then throws - the very step the import needs. So the
+   bytes are fetched, which needs the other side to allow it (CORS). Where
+   it does not, there is a clear message instead of a broken picture.
+
+   The address itself is NOT stored. The picture is embedded exactly like a
+   file import, so a sheet passed on to somebody else never calls a stranger's
+   server - and it keeps working when that address goes away. */
+function portraitFromUrl(url) {
+  url = String(url || '').trim();
+  if (!/^https?:\/\//i.test(url)) { alert(t('portrait_url_bad')); return; }
+  fetch(url, { mode: 'cors' })
+    .then(res => { if (!res.ok) throw new Error('HTTP ' + res.status); return res.blob(); })
+    .then(blob => {
+      if (!blob.type || !blob.type.indexOf) throw new Error('no type');
+      if (blob.type.indexOf('image/') !== 0) throw new Error('not an image');
+      /* A Blob carries .type just like a File, so the existing import path
+         takes it unchanged - scaling, quality and the size cap included. */
+      importPortrait(blob);
+    })
+    .catch(() => alert(t('portrait_url_error')));
+}
+/* Rotate an imported picture by 90 degrees (dir < 0 = anticlockwise). */
 function rotatePortrait(dir) {
   if (!C.info.portrait) return;
   const img = new Image();
   img.onload = () => {
     const cv = document.createElement('canvas');
-    cv.width = img.height; cv.height = img.width;      // 90°: Seiten tauschen
+    cv.width = img.height; cv.height = img.width;      // 90 degrees: swap the sides
     const ctx = cv.getContext('2d');
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.translate(cv.width / 2, cv.height / 2);
@@ -884,7 +926,7 @@ function rotatePortrait(dir) {
   img.src = C.info.portrait;
 }
 
-/* ---------------- Tab: Charakter ---------------- */
+/* ---------------- tab: character ---------------- */
 function viewInfo() {
   const sp = speciesData();
   ensureCloudSpecies();
@@ -922,7 +964,12 @@ function viewInfo() {
               <button class="mini" data-act="portraitRotR" title="${t('portrait_rotate')}">↻</button>
               <button class="mini danger" data-act="portraitRemove">× ${t('portrait_remove')}</button>` : ''}
           </p>
+          <p class="portrait-url">
+            <input type="url" id="portraitUrl" placeholder="${esc(t('portrait_url'))}">
+            <button class="mini" data-act="portraitUrl">${t('portrait_url_btn')}</button>
+          </p>
           <p class="hint">${t('portrait_hint')}</p>
+          <p class="hint">${t('portrait_url_hint')}</p>
         </div>
       </div>
     </div>`;
@@ -966,7 +1013,7 @@ function viewInfo() {
     </div>`;
   }
 
-  /* Online gespeicherte Spezies der Gruppe */
+  /* the group's species stored online */
   let cloudBox = '';
   if ((cloudSpecies || []).length && typeof ONLINE !== 'undefined' && ONLINE.token) {
     const rows = cloudSpecies.map(cs2 => `<tr>
@@ -1024,16 +1071,16 @@ function viewInfo() {
   </div>`;
 }
 
-/* ---------------- Erweiterte Kataloge aus den Regelwerks-PDFs ----------------
-   Die Listen sind sehr groß (bis 550 Einträge), deshalb wird nur nach einer
-   Suche gefiltert angezeigt. Übernommene Einträge landen als "eigene" Waffe
-   bzw. Ausrüstung in der Charakterliste – damit funktionieren Bogen und
-   Kostenrechnung unverändert weiter. */
+/* ---------------- extended catalogues from the rulebook PDFs -------------
+   The lists are very large (up to 550 entries), so only a filtered view is
+   shown after a search. An entry taken over lands in the character's list as
+   a "custom" weapon or piece of equipment - which leaves the sheet and the
+   cost arithmetic working exactly as before. */
 const pdfFilter = { melee: '', ranged: '', equip: '' };
 const pdfEra = { melee: '', ranged: '', equip: '' };
 
-/* Ära-Auswahl. Die Schlüssel liefert die erzeugte Katalogdatei mit, damit
-   Dropdown und Daten nicht auseinanderlaufen. */
+/* Era picker. The generated catalogue file supplies the keys, so dropdown
+   and data cannot drift apart. */
 function eraOptions(selected) {
   const list = (typeof PDF_ERAS !== 'undefined') ? PDF_ERAS : [];
   return [`<option value="">${t('era_all')}</option>`].concat(
@@ -1056,9 +1103,9 @@ function pdfCatalogBlock(kind) {
   const LIMIT = 60;
   let rows = '', info = '';
   {
-    /* Der Katalog zeigt von sich aus die ersten Einträge. Früher blieb er
-       leer, bis jemand zwei Zeichen tippte – dann wirkt die Karte, als
-       wäre gar nichts drin. Suche und Ära grenzen jetzt nur noch ein. */
+    /* The catalogue shows its first entries unprompted. It used to stay
+       empty until somebody typed two characters - which makes the card look
+       as though it held nothing at all. Search and era now only narrow. */
     const matchEra = x => !era || x.era === era;
     const matchText = x => f.length < 2 ||
       x.name.toLowerCase().includes(f) || (x.type || '').toLowerCase().includes(f) ||
@@ -1112,13 +1159,13 @@ function pdfAdd(kind, idx) {
   update();
 }
 
-/* ---------------- Online gespeicherte Spezies ---------------- */
-let cloudSpecies = null;   // null = noch nicht geladen
+/* ---------------- species stored online ---------------- */
+let cloudSpecies = null;   // null = not loaded yet
 let speciesMsg = '';
 function ensureCloudSpecies() {
   if (cloudSpecies !== null) return;
   if (typeof ONLINE === 'undefined' || !ONLINE.token || typeof api !== 'function') return;
-  cloudSpecies = [];       // verhindert paralleles Mehrfachladen
+  cloudSpecies = [];       // stops several loads running at once
   api('species_list').then(r => {
     cloudSpecies = r.species || [];
     if (activeTab === 'info') renderTab('info');
@@ -1159,7 +1206,7 @@ async function deleteSpeciesCloud(id, name) {
   renderTab('info');
 }
 
-/* ---------------- Tab: Attribute ---------------- */
+/* ---------------- tab: attributes ---------------- */
 function viewAttrs() {
   const sp = speciesData();
   const left = attrPoolLeft();
@@ -1239,7 +1286,7 @@ function viewAttrs() {
   </div>`;
 }
 
-/* ---------------- Tab: Skills ---------------- */
+/* ---------------- tab: skills ---------------- */
 const collapsedSecs = {};
 function viewSkills() {
   const left = skillPoolLeft();
@@ -1286,9 +1333,10 @@ function viewSkills() {
       const key = skillKey(sk.attr, sk.name);
       const e = C.skills[key] || { c: 0, cp: 0 };
       const total = skillTotal(key);
-      /* Die Voraussetzung aus dem req-Feld lesen statt sie je Fertigkeit fest
-         zu verdrahten - sonst bliebe jede weitere erweiterte Fertigkeit
-         ungeprüft (und genau das war der Fall, als Podrennen dazukam). */
+      /* Read the prerequisite from the req field instead of wiring it up
+         per skill - otherwise every further advanced skill would go
+         unchecked (and that is exactly what happened when pod racing was
+         added). */
       const reqOk = advReqMet(sk.req);
       const extraIdx = C.extraSkills.findIndex(x => x.adv && x.name === sk.name);
       return `<div class="skill-row">
@@ -1321,7 +1369,7 @@ function viewSkills() {
   </div>`;
 }
 
-/* ---------------- Tab: Macht ---------------- */
+/* ---------------- tab: the Force ---------------- */
 function viewForce() {
   if (!C.info.forceSensitive && !C.powers.length && !FORCE.some(f => forceTotal(f.key) > 0)) {
     return `<div class="card"><h2>${t('the_force')}</h2>
@@ -1367,7 +1415,7 @@ function viewForce() {
   ${catBlocks}`;
 }
 
-/* ---------------- Tab: Ausrüstung ---------------- */
+/* ---------------- tab: equipment ---------------- */
 function viewEquip() {
   const cats = [...new Set(DATA.equipment.map(e => e.cat))];
   const blocks = cats.map(cat => {
@@ -1405,7 +1453,7 @@ function viewEquip() {
   ${pdfCatalogBlock('equip')}`;
 }
 
-/* ---------------- Tab: Waffen ---------------- */
+/* ---------------- tab: weapons ---------------- */
 let weaponsSub = 'melee';
 let saberTemp = { name: '', primary: 'Mephite', secondary: '', tertiary: '', color: 'Blue', mods: ['', '', '', ''] };
 function viewWeapons() {
@@ -1545,9 +1593,9 @@ function viewWeapons() {
   </div>${body}`;
 }
 
-/* Rüstungswerte kommen im Katalog als Pips (2D = 6), in der eigenen Rüstung
-   dagegen als frei getippter Würfeltext ("+1D", "+1", "1D+2"). Beides auf
-   Pips bringen, damit sich alles addieren lässt. */
+/* Armor values arrive from the catalogue as pips (2D = 6) but from custom
+   armor as freely typed dice text ("+1D", "+1", "1D+2"). Bring both onto
+   pips so everything can be added up. */
 function armorPips(v) {
   if (typeof v === 'number') return v || 0;
   const s = String(v || '').trim();
@@ -1558,13 +1606,13 @@ function armorPips(v) {
   return sign * ((+(m[2] || 0)) * 3 + (+(m[3] || 0)));
 }
 
-/* Abdeckung ("Torso", "Head, Torso, Arms", "Full") in Körperbereiche
-   zerlegen. Zwei getragene Rüstungen dürfen sich nicht überschneiden – man
-   kann nicht Brustpanzer UND eine Vollrüstung gleichzeitig am Torso tragen. */
+/* Split coverage ("Torso", "Head, Torso, Arms", "Full") into body areas.
+   Two worn pieces of armor must not overlap - you cannot wear a breastplate
+   AND full armor on the torso at the same time. */
 const ARMOR_LOCS = ['head', 'torso', 'arms', 'hands', 'legs'];
 function parseArmorLoc(str) {
   const s = String(str || '').toLowerCase();
-  if (!s.trim()) return new Set();                 // unbekannt: keine Sperre
+  if (!s.trim()) return new Set();                 // unknown: no restriction
   if (/\b(full|all)\b|full body/.test(s)) return new Set(ARMOR_LOCS);
   const set = new Set();
   s.split(/[,/.;&]+/).forEach(p => {
@@ -1578,8 +1626,8 @@ function parseArmorLoc(str) {
   return set;
 }
 
-/* Alle Rüstungsstücke des Charakters in einheitlicher Form – Katalog wie
-   eigene, mit Abdeckung, Werten (in Pips) und ob sie gerade getragen wird. */
+/* Every piece of the character's armor in one shape - catalogue and custom
+   alike, with coverage, values (in pips) and whether it is being worn. */
 function armorEntries() {
   const out = [];
   C.armor.forEach((n, i) => {
@@ -1594,8 +1642,8 @@ function armorEntries() {
   return out;
 }
 
-/* Überschneidet die Abdeckung mit den bereits getragenen Rüstungen?
-   Gibt den betroffenen Körperbereich zurück, sonst null. */
+/* Does this coverage overlap with the armor already worn? Returns the body
+   area affected, otherwise null. */
 function armorClash(loc, exKind, exIdx) {
   const worn = new Set();
   armorEntries().forEach(e => {
@@ -1621,10 +1669,10 @@ function setArmorWorn(kind, idx, on) {
   else if (C.customArmor[idx]) C.customArmor[idx].active = on;
 }
 
-/* Beim Hinzufügen automatisch tragen, sofern nichts kollidiert – so zählt
-   eine einzelne Rüstung sofort, ohne dass man erst ein Häkchen setzen muss.
-   Dient auch dazu, ältere Charaktere ohne "getragen"-Angabe sinnvoll zu
-   belegen (erste passende Rüstung an, überlappende bleiben aus). */
+/* Wear it automatically when added, as long as nothing collides - that way
+   a single piece of armor counts at once, with no tick box to find first.
+   It also fills in sensibly for older characters that carry no "worn" flag
+   (first fitting piece on, overlapping ones stay off). */
 function autoWear(kind, idx) {
   const e = armorEntries().find(x => x.kind === kind && x.idx === idx);
   if (e && !armorClash(e.loc, kind, idx)) {
@@ -1633,12 +1681,12 @@ function autoWear(kind, idx) {
   }
 }
 function normalizeArmorWorn() {
-  // Alte Charaktere tragen keine "getragen"-Angabe: dann ist C.armorWorn
-  // kürzer als die Rüstungsliste bzw. eine eigene Rüstung hat kein active.
-  // Für solche Einträge wird greedy die erste passende Rüstung angelegt.
+  // Old characters carry no "worn" flag: then C.armorWorn is shorter than
+  // the armor list, or a custom piece has no active field. For entries like
+  // that the first fitting piece is put on greedily.
   if (!Array.isArray(C.armorWorn)) C.armorWorn = [];
   const needOwned = C.armorWorn.length < C.armor.length;
-  C.armorWorn.length = C.armor.length;              // auf Länge bringen
+  C.armorWorn.length = C.armor.length;              // bring it to length
   let needCustom = false;
   (C.customArmor || []).forEach(a => {
     if (a.active === undefined) { a.active = false; needCustom = true; }
@@ -1649,8 +1697,8 @@ function normalizeArmorWorn() {
   if (needCustom) (C.customArmor || []).forEach((_, i) => autoWear('custom', i));
 }
 
-/* Gesamter Schadenswiderstand: Stärke plus die Boni der GETRAGENEN Rüstung
-   (natürliche Panzerung der Spezies zählt immer, sie ist angeboren). */
+/* Total damage resistance: Strength plus the bonuses of the armor being
+   WORN (a species' natural armor always counts, it is innate). */
 function armorTotals() {
   normalizeArmorWorn();
   const sp = speciesData();
@@ -1663,7 +1711,7 @@ function armorTotals() {
            physTotal: str + physBonus, enerTotal: str + enerBonus };
 }
 
-/* ---------------- Tab: Rüstung ---------------- */
+/* ---------------- tab: armor ---------------- */
 function viewArmor() {
   const wornBox = (kind, i, on) =>
     `<input type="checkbox" data-act="wearArmor" data-kind="${kind}" data-idx="${i}" ${on ? 'checked' : ''} title="${t('armor_worn')}">`;
@@ -1693,9 +1741,9 @@ function viewArmor() {
     <td>${a.abilities.map(x => esc(x)).join('<br>')}</td>
     <td><button class="mini" data-act="addOwn" data-list="armor" data-i="${i}">+</button></td></tr>`).join('');
   const at = armorTotals();
-  const msg = armorMsg; armorMsg = '';   // Konfliktmeldung nur einmal zeigen
-  // Stärke ist die Grund-Panzerung (jeder wehrt Schaden mit STR ab); die
-  // natürliche Panzerung der Spezies steckt als Bonus im "Rüstungsbonus".
+  const msg = armorMsg; armorMsg = '';   // show the conflict message only once
+  // Strength is the base armor (everyone soaks damage with STR); a species'
+  // natural armor sits in the "armor bonus" as a bonus.
   return `
   <div class="pool-banner">
     <span>${t('str_resist')}: <b>${fmtD(at.str)}</b></span>
@@ -1715,7 +1763,7 @@ function viewArmor() {
     <table class="list"><tr><th>${t('armor')}</th><th>${t('physical')}</th><th>${t('energy')}</th><th>${t('coverage')}</th><th>${t('dex_pen')}</th><th class="num">${t('cost')}</th><th>${t('avail')}</th><th>${t('special')}</th><th></th></tr>${cat}</table></div></div>`;
 }
 
-/* ---------------- Tab: Credits ---------------- */
+/* ---------------- tab: credits ---------------- */
 function viewCredits() {
   const tt = creditTotals();
   const loanRow = (l, i) => `
@@ -1752,7 +1800,7 @@ function viewCredits() {
 }
 
 /* =====================================================================
-   CHARAKTERBOGEN / CHARACTER SHEET
+   CHARACTER SHEET
    ===================================================================== */
 function sheetField(lbl, val, span) {
   return `<div class="sp-field" style="grid-column: span ${span || 3}">
@@ -1957,7 +2005,7 @@ function renderSheet() {
 }
 
 /* =====================================================================
-   SPEICHERN / LADEN
+   SAVING / LOADING
    ===================================================================== */
 function getSaved() {
   try { return JSON.parse(localStorage.getItem(LS_CHARS)) || {}; } catch (e) { return {}; }
@@ -2105,7 +2153,7 @@ content.addEventListener('click', e => {
     }
     case 'skill': {
       const s = skillEntry(el.dataset.key);
-      /* ★-Fertigkeiten steigen in Zweierschritten – ein Pool-Pip, zwei Pips. */
+      /* Starred skills rise in steps of two - one pool pip, two pips. */
       const step = improvedRate(el.dataset.key);
       s.c = Math.max(0, Math.min(6, (s.c || 0) + dir * step));
       update(); break;
@@ -2160,7 +2208,7 @@ content.addEventListener('click', e => {
       const item = cat[+el.dataset.i];
       if (item) {
         C[list].push(item.name);
-        // Neue Rüstung gleich tragen, wenn nichts kollidiert.
+        // Wear new armor right away when nothing collides.
         if (list === 'armor') { (C.armorWorn = C.armorWorn || []).push(false); autoWear('armor', C.armor.length - 1); }
         update();
       }
@@ -2209,6 +2257,7 @@ content.addEventListener('click', e => {
       C.info.portrait = '';
       update('info'); break;
     }
+    case 'portraitUrl': portraitFromUrl((document.getElementById('portraitUrl') || {}).value); break;
     case 'portraitRotL': rotatePortrait(-1); break;
     case 'portraitRotR': rotatePortrait(1); break;
     case 'pdfAdd': pdfAdd(el.dataset.kind, +el.dataset.i); break;
@@ -2274,7 +2323,8 @@ content.addEventListener('change', e => {
     update(); return;
   }
   if (el.dataset.bind) {
-    /* Cloud-Spezies im Dropdown gewählt: Werte kopieren statt Pfad setzen */
+    /* A cloud species picked in the dropdown: copy the values instead of
+       setting the path */
     if (el.dataset.bind === 'info.species' && el.value.startsWith('cloud:')) {
       applyCloudSpecies(+el.value.slice(6));
       return;
@@ -2305,7 +2355,7 @@ content.addEventListener('input', e => {
   autosave();
 });
 
-/* Kopfzeile / Header */
+/* header */
 document.getElementById('btnSave').addEventListener('click', saveChar);
 document.getElementById('btnLoad').addEventListener('click', loadChar);
 document.getElementById('btnDelete').addEventListener('click', deleteChar);
@@ -2319,7 +2369,7 @@ document.getElementById('importFile').addEventListener('change', e => {
 document.getElementById('btnPrint').addEventListener('click', () => { renderSheet(); window.print(); });
 window.addEventListener('beforeprint', renderSheet);
 
-/* Options-Menü */
+/* options menu */
 const optionsMenu = document.getElementById('optionsMenu');
 document.getElementById('btnOptions').addEventListener('click', e => {
   e.stopPropagation();
@@ -2330,7 +2380,7 @@ document.addEventListener('click', () => optionsMenu.classList.add('hidden'));
 document.querySelectorAll('input[name="langOpt"]').forEach(r => {
   r.addEventListener('change', () => { setLang(r.value); });
 });
-/* ---------------- Start ---------------- */
+/* ---------------- startup ---------------- */
 (function init() {
   try {
     const cur = localStorage.getItem(LS_CURRENT);
@@ -2342,16 +2392,17 @@ document.querySelectorAll('input[name="langOpt"]').forEach(r => {
   renderLegal();
   applySpeciesBonusSkills();
   renderAll();
-  /* Passwort-Manager (Chrome, Edge UND Firefox) markieren die Eingabefelder
-     EINMALIG bei der Formularanalyse nach dem Laden als Login-Kandidaten –
-     auch bei autocomplete="off" – und bieten dann den gespeicherten Login
-     z. B. im Zitat-Feld an. Ein einmaliges Neu-Rendern nach dem ersten Paint
-     ersetzt die Feld-Elemente durch frische, die dieser Analyse entgehen
-     (genau das passiert auch beim manuellen Reiterwechsel). */
+  /* Password managers (Chrome, Edge AND Firefox) mark the input fields as
+     login candidates ONCE, during the form analysis that follows loading -
+     even with autocomplete="off" - and then offer the saved login in, say,
+     the quote field. Re-rendering once after the first paint replaces the
+     field elements with fresh ones that escape that analysis (exactly what
+     happens when you switch tabs by hand). */
   requestAnimationFrame(() => requestAnimationFrame(() => renderTab(activeTab)));
-  /* Dieses init() läuft beim Parsen von app.js – credits.js und online.js sind
-     da noch nicht geladen, ihre Schlüssel (opt_about, about_open, online_admin)
-     fehlen im Wörterbuch und landeten roh im ⚙-Menü. Nach dem Laden aller
-     Skripte deshalb noch einmal übersetzen. */
+  /* This init() runs while app.js is being parsed - credits.js and
+     online.js are not loaded yet, so their keys (opt_about, about_open,
+     online_admin) are missing from the dictionary and used to end up raw in
+     the gear menu. Hence translating once more after every script has
+     loaded. */
   document.addEventListener('DOMContentLoaded', applyStaticI18n);
 })();

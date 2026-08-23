@@ -1,9 +1,9 @@
 /* =====================================================================
-   Star Wars D6 – Droiden-Generator (Droid Generator v1-3 von C. Gibboney)
-   25D-Pool für Attribute + Fertigkeiten + Modifikationen, Degrees mit
-   attributsabhängigen Steigerungskosten, Modifikations-Katalog,
-   Ausrüstung/Waffen aus den Charakter-Katalogen, Druckbogen.
-   Benötigt genshared.js + gendata.js (DROID_DATA) + data.js (DATA).
+   Star Wars D6 - droid generator (C. Gibboney's Droid Generator v1-3)
+   A 25D pool for attributes + skills + modifications, degrees with
+   attribute-dependent advancement costs, a modification catalogue,
+   equipment and weapons from the character catalogues, printable sheet.
+   Needs genshared.js + gendata.js (DROID_DATA) + data.js (DATA).
    ===================================================================== */
 'use strict';
 
@@ -20,7 +20,7 @@ const ATTRS = [
   { key: 'tec', name: 'Technical' },
 ];
 
-/* ---------------- Übersetzungen ---------------- */
+/* ---------------- translations ---------------- */
 Object.assign(T.de, {
   title: 'Star Wars D6 – Droiden-Generator',
   subtitle: 'Droiden-Generator',
@@ -160,7 +160,7 @@ Object.assign(T.en, {
   ],
 });
 
-/* ---------------- Dokument ---------------- */
+/* ---------------- document ---------------- */
 function emptyDoc() {
   return {
     version: 1, kind: 'droid',
@@ -172,12 +172,12 @@ function emptyDoc() {
       portrait: '', notes: '',
       dbSkill1: 'None', dbLevel1: 'None', dbSkill2: 'None', dbLevel2: 'None',
     },
-    attrs: { dex: 0, kno: 0, mec: 0, per: 0, str: 0, tec: 0 },   // Pips über 1D (Erschaffung)
+    attrs: { dex: 0, kno: 0, mec: 0, per: 0, str: 0, tec: 0 },   // pips above 1D (creation)
     attrsCP: { dex: 0, kno: 0, mec: 0, per: 0, str: 0, tec: 0 },
-    skills: {},          // "attr|Name" -> {c, cp}
+    skills: {},          // "attr|name" -> {c, cp}
     extraSkills: [],     // {name, attr, spec}
-    mods: {},            // ab Werk verbaut: Name -> Anzahl (kostet Pips aus dem Startpool)
-    modsCP: {},          // später nachgerüstet: Name -> Anzahl (kostet CP + Einbauplatz)
+    mods: {},            // factory-fitted: name -> count (costs pips from the starting pool)
+    modsCP: {},          // retrofitted later: name -> count (costs CP + installation space)
     customMods: [],      // {name, desc, pips, note}
     points: { cpEarned: 0, cpSpentOther: 0 },
     overrides: { startDice: null, modCapacity: null },
@@ -196,17 +196,17 @@ function migrate(obj) {
   ['skills', 'mods', 'modsCP', 'equipment'].forEach(k => { if (!m[k] || typeof m[k] !== 'object') m[k] = {}; });
   ['extraSkills', 'customMods', 'customEquipment', 'melee', 'ranged', 'customMelee', 'customRanged']
     .forEach(k => { if (!Array.isArray(m[k])) m[k] = []; });
-  /* Bis v3.3.0 hieß der vierte Grad in den Daten „Fouth Degree“. Ohne diese
-     Umschreibung fänden ältere Droiden ihren Grad nicht mehr in der Liste und
-     das <select> fiele stillschweigend auf „First Degree“ zurück – mit anderen
-     CP-Kosten je Attribut. */
+  /* Up to v3.3.0 the data spelled the fourth degree "Fouth Degree".
+     Without this rewrite, older droids would no longer find their degree in
+     the list and the <select> would fall back silently to "First Degree" -
+     with different CP costs per attribute. */
   if (m.info.degree === 'Fouth Degree') m.info.degree = 'Fourth Degree';
-  delete m.info.bodyType;          // bis v3.5.0 ein reines Deko-Feld
+  delete m.info.bodyType;          // up to v3.5.0 a purely decorative field
   m.kind = 'droid';
   return m;
 }
 
-/* ---------------- Regeln ---------------- */
+/* ---------------- rules ---------------- */
 function degree() {
   return DROID_DATA.degrees.find(d => d.name === C.info.degree) || DROID_DATA.degrees[0];
 }
@@ -235,13 +235,14 @@ function poolSpent() {
 }
 function poolLeft() { return poolTotal() - poolSpent(); }
 
-/* ---------------- Nachrüsten (Modifikationen nach der Erschaffung) ----------
-   Ab Werk verbaute Modifikationen kosten Pips aus dem Startpool. Wer später
-   etwas einbauen lässt, zahlt stattdessen Charakterpunkte – und der Droide
-   braucht Platz dafür: die Nachrüst-Kapazität begrenzt, wie viele Pips an
-   Hardware nachträglich hineinpassen (Standard: ein Drittel des Startpools,
-   je Droide überschreibbar). Für die 116 Katalogeinträge ohne CP-Angabe gilt
-   der Umrechnungsfaktor aus den vorhandenen Werten: CP = Pips × 1,5. */
+/* ---------------- retrofitting (modifications after creation) ----------
+   Factory-fitted modifications cost pips from the starting pool. Having
+   something installed later costs character points instead - and the droid
+   needs room for it: the retrofit capacity limits how many pips of hardware
+   still fit inside (default: a third of the starting pool, overridable per
+   droid). For the 116 catalogue entries with no CP figure, the conversion
+   factor derived from the entries that do have one applies: CP = pips x
+   1.5. */
 function modCpCost(m) {
   if (!m) return 1;
   if (m.cp) return m.cp;
@@ -279,9 +280,9 @@ function skillTotal(key) {
   const s = C.skills[key] || { c: 0, cp: 0 };
   return attrTotal(attr) + (s.c || 0) + (s.cp || 0);
 }
-/* Spezialisierung? (extraSkills-Eintrag mit gesetztem spec-Elternskill) –
-   sie kosten laut Grundregelwerk die halben CP der Fertigkeit, genau wie beim
-   Charaktergenerator. */
+/* A specialisation? (an extraSkills entry with its spec parent skill set) -
+   by the core rules they cost half the CP of the skill, exactly as in the
+   character generator. */
 function isSpecKey(key) {
   const parts = key.split('|'); const attr = parts[0], name = parts[1];
   return C.extraSkills.some(e => e.attr === attr && e.spec && e.name === name);
@@ -299,7 +300,7 @@ function skillCpSpent(key) {
   for (let i = 0; i < s.cp; i++) cost += cpDieCost(key, Math.max(1, Math.floor((base + i) / 3)));
   return cost;
 }
-/* Attribut-Steigerung per CP: 20 CP je Pip × Degree-Multiplikator */
+/* Raising an attribute with CP: 20 CP per pip x degree multiplier */
 function attrCpCostNext(key) {
   const mult = degree().mult[ATTRS.findIndex(a => a.key === key)] / 100;
   return Math.round(DROID_DATA.cpPerAttrPip * mult);
@@ -311,7 +312,7 @@ function cpSpentAuto() {
   let t2 = 0;
   ATTRS.forEach(a => t2 += attrCpSpent(a.key));
   Object.keys(C.skills).forEach(k => t2 += skillCpSpent(k));
-  t2 += modsCpSpent();                    // nachgerüstete Modifikationen
+  t2 += modsCpSpent();                    // retrofitted modifications
   return t2;
 }
 function cpLeft() { return (+C.points.cpEarned || 0) - cpSpentAuto() - (+C.points.cpSpentOther || 0); }
@@ -320,7 +321,7 @@ function skillsFor(attr) {
   const std = DATA.skills[attr] || [];
   std.forEach(n => {
     rows.push({ name: n, attr, spec: null, std: true });
-    /* Spezialisierungen hängen unter ihrem Grundskill */
+    /* specialisations hang below their base skill */
     C.extraSkills.filter(e => e.attr === attr && e.spec === n)
       .forEach(e => rows.push({ name: e.name, attr, spec: n }));
   });
@@ -329,11 +330,11 @@ function skillsFor(attr) {
   return rows;
 }
 
-/* ---------------- Wurf-Profil für die Würfelseite ----------------
-   Droiden sind spielbare Figuren, also gehören sie genauso auf die Würfelseite
-   wie Charaktere. genshared.js ruft buildRollProfile() beim Autospeichern auf,
-   sobald es hier definiert ist. Die Bonus-Erkennung ist eine Kopie aus app.js –
-   dieses Skript läuft auf der Droidenseite nicht mit. */
+/* ---------------- roll profile for the dice page ----------------
+   Droids are playable figures, so they belong on the dice page just as much
+   as characters do. genshared.js calls buildRollProfile() when autosaving,
+   as soon as it is defined here. The bonus detection is a copy from app.js -
+   that script does not run on the droid page. */
 function noteBonusPips(txt, name) {
   const val = (d, p) => (+d) * 3 + (p ? +p : 0);
   let m = /\(\s*(?:power|rating|level|stufe)\s*\+?\s*(\d+)D(?:\+(\d+))?\s*\)/i.exec(String(name || ''));
@@ -356,7 +357,7 @@ function buildRollProfile() {
         entries.push({ label: (r.spec ? '↳ ' : '') + skillName(r.name), pips: skillTotal(key), kind: 'skill' });
       }
     }));
-    /* Getragene Ausrüstung mit Würfel-Bonus – dieselbe Logik wie beim Charakter */
+    /* carried equipment with a dice bonus - same logic as for a character */
     const gear = [], seenG = {};
     const byName = (list, n) => (list || []).find(x => x.name === n);
     Object.keys(C.equipment || {}).forEach(n => {
@@ -372,12 +373,18 @@ function buildRollProfile() {
       const pips = noteBonusPips(e.note || e.notes || '', e.name);
       if (pips > 0) gear.push({ label: e.name, pips: pips, hint: String(e.note || e.notes || '').slice(0, 80) });
     });
+    /* The same profile travels inside the document. The table-top needs it
+       for a document that lives in the cloud and was never opened in this
+       browser - localStorage only ever holds the sheet somebody worked on
+       here. It is derived data and is rebuilt on every save, so it can
+       never drift away from the sheet. */
+    C._roll = { entries: entries, gear: gear };
     localStorage.setItem('swd6_roll_droid',
       JSON.stringify({ name: (C.info && C.info.name) || '', entries, gear }));
   } catch (e) {}
 }
 
-/* ---------------- Ansichten ---------------- */
+/* ---------------- views ---------------- */
 function selOpts(list, sel, noneLabel) {
   let out = noneLabel != null ? `<option value="">${noneLabel}</option>` : '';
   return out + list.map(x => `<option ${x === sel ? 'selected' : ''} value="${esc(x)}">${esc(x)}</option>`).join('');
@@ -396,14 +403,14 @@ function poolBanner() {
   </div>`;
 }
 
-/* ---------------- Vorlagen und erweiterte Kataloge (PDF) ---------------- */
+/* ---------------- templates and extended catalogues (PDF) ---------------- */
 let tplFilter = '', tplMsg = '', tplDegree = '';
 
-/* Der Grad steht im Droid Compendium nicht im Statblock, sondern als
-   Kapitelüberschrift („1st Degree Droids“ …) – 267 der 350 Katalogeinträge
-   tragen ihn deshalb als `degree` direkt aus dem Buch. Die übrigen 83 (aus
-   anderen Quellen) wurden daraus abgeleitet und mit `degreeDerived` markiert.
-   Die Stichwortliste unten greift nur noch, wenn beides fehlt. */
+/* In the Droid Compendium the degree is not in the statblock but in the
+   chapter heading ("1st Degree Droids" ...) - so 267 of the 350 catalogue
+   entries carry it as `degree` straight from the book. The other 83 (from
+   other sources) were derived from those and marked with `degreeDerived`.
+   The keyword list below only applies when both are missing. */
 const DEGREE_KEY = {
   'First Degree': 'd1', 'Second Degree': 'd2', 'Third Degree': 'd3',
   'Fourth Degree': 'd4', 'Fifth Degree': 'd5',
@@ -429,8 +436,8 @@ function droidFunctionOf(d) {
 const pdfFilter = { melee: '', ranged: '', equip: '' };
 const pdfEra = { melee: '', ranged: '', equip: '' };
 
-/* Ära-Auswahl. Die Schlüssel liefert die erzeugte Katalogdatei mit, damit
-   Dropdown und Daten nicht auseinanderlaufen. */
+/* Era picker. The generated catalogue file supplies the keys, so dropdown
+   and data cannot drift apart. */
 function eraOptions(selected) {
   const list = (typeof PDF_ERAS !== 'undefined') ? PDF_ERAS : [];
   return [`<option value="">${t('era_all')}</option>`].concat(
@@ -447,8 +454,8 @@ function templateCard() {
     .filter(([x]) => !f || x.name.toLowerCase().includes(f) || (x.type || '').toLowerCase().includes(f))
     .filter(([x]) => !tplDegree || droidFunctionOf(x) === tplDegree)
     .sort((a, b) => {
-      /* nach Funktionsgruppe, darin alphabetisch – so liegen ähnliche Droiden
-         beieinander statt in der Reihenfolge der Quellbücher */
+      /* by function group, alphabetically within it - that way similar
+         droids sit together instead of in source-book order */
       const ga = droidFunctionOf(a[0]), gb = droidFunctionOf(b[0]);
       if (ga !== gb) return ga.localeCompare(gb);
       return a[0].name.localeCompare(b[0].name);
@@ -474,25 +481,25 @@ function templateCard() {
     ${tplMsg ? `<p class="ok" style="margin-top:8px">${esc(tplMsg)}</p>` : ''}
   </div>`;
 }
-/* Der Hersteller steckt am Anfang der type-Zeile ("Cybot Galactica GY-I
-   Information Analysis Unit"). Bei 40 der 350 Katalogeinträge hängt aber der
-   komplette Statblock hinten dran, weil die PDF-Extraktion Typ- und Werteblock
-   nicht trennen konnte — dann landete früher "… Unit DEXTERITY 2D KNOWLEDGE 2D"
-   im Herstellerfeld. Deshalb zuerst beim ersten Attributnamen abschneiden. */
+/* The manufacturer sits at the start of the type line ("Cybot Galactica
+   GY-I Information Analysis Unit"). In 40 of the 350 catalogue entries the
+   whole statblock is stuck on the end, because the PDF extraction could not
+   separate type from values - "... Unit DEXTERITY 2D KNOWLEDGE 2D" used to
+   land in the manufacturer field. So cut at the first attribute name. */
 function templateManufacturer(type) {
   let s = String(type).split(/\b(?:DEXTERITY|KNOWLEDGE|MECHANICAL|PERCEPTION|STRENGTH|TECHNICAL)\b/)[0];
   s = s.split(/model|droid/i)[0].trim().replace(/[,;:]+$/, '');
-  if (s.length > 60) s = s.slice(0, 60).replace(/\s+\S*$/, '');   // Notbremse
+  if (s.length > 60) s = s.slice(0, 60).replace(/\s+\S*$/, '');   // emergency brake
   return s.trim();
 }
-/* Welches Attribut passt zu einer Fertigkeit, die in keiner Liste steht?
-   Der Statblock ordnet sie einem Attribut unter, aber diese Zuordnung geht
-   beim Einlesen verloren. Das Wort selbst ist der beste Anhaltspunkt - was
-   nicht passt, laesst sich in der Oberfläche umhängen. */
+/* Which attribute suits a skill that appears in no list? The statblock
+   files it under an attribute, but that mapping is lost while reading. The
+   word itself is the best clue there is - anything that does not fit can be
+   moved in the interface. */
 function attrGeraten(name) {
-  /* Wortgrenzen sind hier keine Kosmetik: ohne sie steckt "con" in
-     "economics" und die Hauswirtschaft eines Servierdroiden landet unter
-     Wahrnehmung. */
+  /* The word boundaries here are not cosmetic: without them "con" sits
+     inside "economics" and a serving droid's home economics ends up under
+     Perception. */
   const n = ' ' + String(name || '').toLowerCase().replace(/[^a-z]+/g, ' ') + ' ';
   const hat = w => new RegExp('\\b(?:' + w + ')\\b').test(n);
   if (hat('repair|engineering|programming|security|demolitions?|aid|medicine|surgery|technology')) return 'tec';
@@ -512,31 +519,31 @@ function applyDroidTemplate() {
   const i = C.info;
   i.name = src.name;
   if (src.type) i.manufacturer = templateManufacturer(src.type) || i.manufacturer;
-  /* Grad übernehmen – er bestimmt die CP-Kosten je Attribut. Über den Index in
-     DROID_DATA.degrees statt über den Namen, damit eine abweichende Schreibweise
-     nicht still auf den ersten Eintrag zurückfällt. */
+  /* Take the degree over - it sets the CP cost per attribute. By index into
+     DROID_DATA.degrees rather than by name, so a differing spelling cannot
+     fall back silently onto the first entry. */
   const degIdx = { d1: 0, d2: 1, d3: 2, d4: 3, d5: 4 }[droidFunctionOf(src)];
   if (degIdx != null && DROID_DATA.degrees[degIdx]) i.degree = DROID_DATA.degrees[degIdx].name;
   const mv = /(\d+)/.exec(src.move || '');
   if (mv) i.move = +mv[1];
-  /* Attribute: Vorlagenwerte als Erschaffungs-Pips über dem 1D-Minimum */
+  /* attributes: the template's values as creation pips above the 1D minimum */
   ATTRS.forEach(a => {
     const pips = (src.attrs || {})[a.key] || 0;
     C.attrs[a.key] = Math.max(0, pips - DROID_DATA.attrMinPips);
     C.attrsCP[a.key] = 0;
   });
-  /* Fertigkeiten aus der Vorlage: "First aid 3D, (A) medicine: cyborging 4D+2" */
+  /* skills from the template: "First aid 3D, (A) medicine: cyborging 4D+2" */
   C.skills = {};
   C.extraSkills = [];
-  /* Die PDF-Spalten brechen Fertigkeitsnamen um ("Computer programming/" +
-     "repair 5D"). Deshalb erst alles zusammenziehen, dann an Kommas und
-     Würfelangaben trennen und tolerant gegen Schreibweisen vergleichen. */
-  /* Die Bücher schreiben Fertigkeiten aus, die Oberfläche kürzt sie ab:
-     "Computer programming/repair" gegen "Computer Prog. / Rep.". Beim reinen
-     Buchstabenvergleich fand sich das nie wieder, und die Fertigkeit fiel
-     ersatzlos weg - beim WA-7 Server Droid war das seine einzige technische.
-     Deshalb werden die Kürzel zuerst ausgeschrieben und Mehrzahl-Endungen
-     abgeschnitten ("demolitions" -> "demolition"). */
+  /* The PDF columns wrap skill names ("Computer programming/" + "repair
+     5D"). So pull everything together first, then split on commas and dice
+     values, and compare tolerantly across spellings. */
+  /* The books spell skills out, the interface abbreviates them: "Computer
+     programming/repair" against "Computer Prog. / Rep.". A plain letter
+     comparison never found that again and the skill was dropped without
+     replacement - on the WA-7 server droid that was its only technical one.
+     So the abbreviations are expanded first and plural endings trimmed
+     ("demolitions" -> "demolition"). */
   const norm = x => {
     const woerter = String(x || '').toLowerCase()
       .replace(/\brep\b\.?/g, 'repair')
@@ -549,30 +556,29 @@ function applyDroidTemplate() {
   };
   const skillIndex = {};
   ATTRS.forEach(a => (DATA.skills[a.key] || []).forEach(n => { skillIndex[norm(n)] = [a.key, n]; }));
-  /* Erweiterte Fertigkeiten gehören genauso dazu: Ein Medizindroide führt
-     "(A) Medicine", "(A) Bacta tank operation" und "(A) Injury/ailment
-     diagnosis", ein Werkstattdroide "(A) Droid engineering". */
+  /* Advanced skills belong here just as much: a medical droid carries
+     "(A) Medicine", "(A) Bacta tank operation" and "(A) Injury/ailment
+     diagnosis", a workshop droid "(A) Droid engineering". */
   (typeof ADV_SKILLS !== 'undefined' ? ADV_SKILLS : []).forEach(s => {
     skillIndex[norm(s.name)] = [s.attr, s.name, true];
     skillIndex[norm(s.name.replace(/^\(A\)\s*/, ''))] = [s.attr, s.name, true];
   });
-  /* Dieselbe Fertigkeit, drei Schreibweisen: Der 2-1B führt "diagnosis",
-     der FX-6 "diagnostics", ein dritter "diagnostic". */
+  /* One skill, three spellings: the 2-1B carries "diagnosis", the FX-6
+     "diagnostics", and a third "diagnostic". */
   ['Injury/ailment diagnostics', 'Injury/ailment diagnostic'].forEach(a => {
     const ziel = skillIndex[norm('Injury/Ailment Diagnosis')];
     if (ziel) skillIndex[norm(a)] = ziel;
   });
   const flat = (src.skills || []).join(' ').replace(/\s+/g, ' ');
-  /* Alle "Name … 4D+2"-Paare im Fließtext einsammeln (auch mehrere je Zeile) */
-  /* Der Doppelpunkt gehört mit in den Namen, sonst wird aus
-     "blaster: welding tools 7D" nur "welding tools" – kein bekannter Skill,
-     die Fertigkeit fiel früher ersatzlos weg. */
+  /* Collect every "name ... 4D+2" pair in the prose (several per line too) */
+  /* The colon belongs in the name, or "blaster: welding tools 7D" comes out
+     as just "welding tools" - no known skill, and the skill used to be
+     dropped without replacement. */
   const pairRe = /([A-Za-z][A-Za-z :\/'\-\(\)]*?)\s*(\d+D(?:\+\d)?)/g;
   let pm;
   while ((pm = pairRe.exec(flat)) !== null) {
-    /* Das "(A)" der erweiterten Fertigkeiten fällt weg - auch wenn die
-       öffnende Klammer beim Zerlegen schon verloren ging und nur "A)"
-       übrig ist. */
+    /* The "(A)" marking an advanced skill goes - even when the opening
+       bracket was already lost while splitting and only "A)" is left. */
     let nm = pm[1].replace(/\(A\)/ig, '').replace(/^\s*A\)\s*/i, '')
       .trim().replace(/^[,;\s]+/, '');
     const pips = dicePipsD(pm[2]);
@@ -582,7 +588,7 @@ function applyDroidTemplate() {
       const rest = nm.slice(cut + 1).trim();
       const ph = skillIndex[norm(parentRaw)];
       if (ph) {
-        /* Echte Spezialisierung – als eigene Fertigkeit unter dem Grundskill */
+        /* A real specialisation - its own skill under the base skill */
         const [attr, parentName] = ph;
         const specName = parentName + ': ' + rest.charAt(0).toUpperCase() + rest.slice(1);
         if (!C.extraSkills.some(e => e.attr === attr && e.name === specName))
@@ -591,23 +597,22 @@ function applyDroidTemplate() {
         if (overS > 0) C.skills[skillKey(attr, specName)] = { c: overS, cp: 0 };
         continue;
       }
-      nm = rest;              // z. B. "Skills: blaster" → "blaster"
+      nm = rest;              // e.g. "Skills: blaster" -> "blaster"
     }
     const hit = skillIndex[norm(nm)];
     if (hit) {
       const [attr, canonical, erweitert] = hit;
-      /* Eine erweiterte Fertigkeit beginnt bei 1D, nicht beim Attributwert -
-         ihr Wert steht deshalb für sich und wird nicht gegengerechnet. */
+      /* An advanced skill starts at 1D, not at the attribute value - so its
+         value stands on its own and is not offset against it. */
       const over = erweitert ? pips : pips - attrTotal(attr);
       if (over > 0) C.skills[skillKey(attr, canonical)] = { c: over, cp: 0 };
       continue;
     }
-    /* Unbekannte Fertigkeit. Die Bücher geben Droiden reichlich davon -
-       Küchenkunde, Hauswirtschaft, humanoide Biologie -, und bisher fielen
-       sie stillschweigend weg. Sie werden jetzt als eigene Fertigkeit
-       angelegt; das Attribut lässt sich in der Oberfläche ändern, denn der
-       Statblock verrät es nicht mehr, sobald der Extraktor die Zeilen
-       zusammengezogen hat. */
+    /* An unknown skill. The books give droids plenty of them - culinary
+       arts, home economics, humanoid biology - and until now they were
+       dropped silently. They are created as skills of their own; the
+       attribute can be changed in the interface, because the statblock no
+       longer reveals it once the extractor has pulled the lines together. */
     const sauber = nm.replace(/\s+/g, ' ').trim();
     if (sauber.length < 3 || sauber.length > 40 || /^\d/.test(sauber)) continue;
     const attr = attrGeraten(sauber);
@@ -618,10 +623,9 @@ function applyDroidTemplate() {
     if (over > 0) C.skills[skillKey(attr, eigen)] = { c: over, cp: 0 };
   }
   const notes = [];
-  /* Eingebaute Bewaffnung als Waffen übernehmen, nicht nur als Notiz.
-     Die Einträge tragen ein Kennzeichen: Wer eine zweite Vorlage anwendet,
-     bekommt deren Bewaffnung, nicht die Summe beider – von Hand ergänzte
-     Waffen bleiben dabei stehen. */
+  /* Take built-in armament over as weapons, not merely as a note. The
+     entries carry a marker: applying a second template gives you its
+     armament, not the sum of both - weapons added by hand stay put. */
   C.customMelee = C.customMelee.filter(x => !x.tpl);
   C.customRanged = C.customRanged.filter(x => !x.tpl);
   droidWeaponsFromEquipped(src.equipped).forEach(w => {
@@ -641,17 +645,16 @@ function dicePipsD(s) {
   return m ? (+m[1]) * 3 + (+(m[2] || 0)) : 0;
 }
 
-/* Eingebaute Bewaffnung aus der Ausstattungsliste einer Vorlage.
+/* Built-in armament from a template's equipment list.
 
-   Die Bücher führen sie nicht als eigenen Block, sondern als Zeile in der
-   Ausstattung: "4 blaster rifles (5D damage, range: 3-20/50/90)". Bisher
-   landete das nur als Notiz im Bogen – ein Sith War Droid kam also ohne seine
-   vier Gewehre an. Hier werden solche Zeilen herausgesucht und als Waffen
-   übernommen.
+   The books do not give it a block of its own but a line in the equipment:
+   "4 blaster rifles (5D damage, range: 3-20/50/90)". That used to arrive on
+   the sheet as a note only - so a Sith war droid turned up without its four
+   rifles. Here such lines are picked out and taken over as weapons.
 
-   Zu unterscheiden ist der Schaden von einem Bonus: "+1D to odor-based
-   search" ist ein Sensor, "(4D stun damage)" eine Waffe, "(STR+3D)" eine
-   Nahkampfklinge. Ein alleinstehendes "+1D" gilt deshalb nie als Schaden. */
+   Damage has to be told apart from a bonus: "+1D to odor-based search" is a
+   sensor, "(4D stun damage)" a weapon, "(STR+3D)" a melee blade. So a "+1D"
+   standing on its own never counts as damage. */
 const DR_WAFFENWORT = /\b(blaster|laser|cannon|rifle|pistol|carbine|repeater|disruptor|flame|thrower|missile|rocket|grenade|torpedo|bowcaster|dart|net|harpoon|vibro\w*|blade|claw|saw|shear|scalpel|injector|probe|prod|shock|stun|arc|drill|weapon|gun)\b/i;
 const DR_KEINE_WAFFE = /\b(armor|armour|plating|hull|shield|sensor|software|database|module|tether|interface|computer|antenna|comlink|recorder|storage|repulsor|magnet)\b/i;
 const DR_NAHKAMPF = /\b(vibro\w*|blade|claw|saw|shear|scalpel|prod|fist|arm|torch)\b/i;
@@ -662,17 +665,17 @@ function droidWeaponsFromEquipped(lines) {
     const s = String(raw || '').replace(/^[\s•·\-–*]+/, '').trim();
     if (!s || DR_KEINE_WAFFE.test(s)) return;
     const nah = /\bSTR\s*\+\s*(\d+D(?:\s*\+\s*\d)?)/i.exec(s);
-    /* Würfelwert, der kein "+1D"-Bonus ist */
+    /* a dice value that is not a "+1D" bonus */
     const roh = nah ? null : /(?:^|[\s(])(\d+D(?:\s*\+\s*\d)?)/.exec(s);
     const dmg = nah ? 'STR+' + nah[1].replace(/\s+/g, '') : (roh ? roh[1].replace(/\s+/g, '') : '');
     if (!dmg) return;
     if (!nah && !/\b(damage|stun)\b/i.test(s) && !DR_WAFFENWORT.test(s)) return;
     if (!DR_WAFFENWORT.test(s) && !/\bdamage\b/i.test(s)) return;
-    /* Steht vor der Klammer nichts, ist die Zeile im Buch umbrochen und der
-       Name blieb in der Zeile darüber zurück – daraus wird keine Waffe. */
+    /* With nothing before the bracket, the line wrapped in the book and the
+       name stayed behind on the line above - no weapon comes of that. */
     const name = s.split('(')[0].replace(/[,;.]\s*$/, '').trim();
-    /* Beginnt der Rest mit dem Würfelwert selbst oder ist er länger als eine
-       Bezeichnung sein kann, ist die Zeile im Buch zerrissen. */
+    /* If what is left starts with the dice value itself, or runs longer
+       than any name could, the line was torn apart in the book. */
     if (name.length < 3 || name.length > 60 || /^\d+D\b/.test(name)) return;
     const rng = /range:?\s*([^),]+)/i.exec(s);
     out.push({
@@ -698,9 +701,9 @@ function pdfCatalogBlock(kind) {
   const LIMIT = 50;
   let rows = '', info = '';
   {
-    /* Der Katalog zeigt von sich aus die ersten Einträge. Früher blieb er
-       leer, bis jemand zwei Zeichen tippte – dann wirkt die Karte, als
-       wäre gar nichts drin. Suche und Ära grenzen jetzt nur noch ein. */
+    /* The catalogue shows its first entries unprompted. It used to stay
+       empty until somebody typed two characters - which makes the card look
+       as though it held nothing at all. Search and era now only narrow. */
     const all = src.filter(x => (!era || x.era === era) &&
       (f.length < 2 || x.name.toLowerCase().includes(f) ||
        (x.type || '').toLowerCase().includes(f)));
@@ -722,9 +725,9 @@ function pdfCatalogBlock(kind) {
        <select data-pdfera="${kind}" style="width:200px">${eraOptions(pdfEra[kind])}</select></p>
     ${info}${rows ? `<div class="table-scroll"><table class="list">${rows}</table></div>` : ''}</div>`;
 }
-/* Waffe von Hand eintragen. Die Kataloge decken Handwaffen ab; was fest in
-   einem Droiden verbaut ist, steht dort nicht – ein integrierter Blasterarm
-   ließ sich deshalb bisher gar nicht erfassen. */
+/* Enter a weapon by hand. The catalogues cover hand weapons; what is built
+   into a droid is not in them - so an integrated blaster arm could not be
+   recorded at all until now. */
 function addCustomDroidWeapon() {
   const wert = id => (document.getElementById(id) || {}).value || '';
   const name = wert('cwName').trim();
@@ -935,9 +938,9 @@ function viewGear() {
       <td>${esc(r.close)}/${esc(r.short)}/${esc(r.medium)}/${esc(r.long)}</td>
       <td><button class="mini danger" data-act="delOwn" data-list="ranged" data-idx="${i2}">×</button></td></tr>`;
   }).join('');
-  /* Lichtschwerter sind hier absichtlich dabei: „lightsaber“ ist im D6-System
-     eine Geschicklichkeits-Fertigkeit, keine Macht-Fertigkeit – Grievous und
-     die HK-Serie führen kanonisch welche, ohne machtsensitiv zu sein. */
+  /* Lightsabers are deliberately included: in the D6 system "lightsaber" is
+     a Dexterity skill, not a Force skill - Grievous and the HK series carry
+     them in canon without being Force-sensitive. */
   const mCat = DATA.melee.map((m, i2) => `<option value="${i2}">${esc(m.name)} (STR+${fmtD(m.dmg)}, ${fmtCr(m.cost)} Cr.)</option>`).join('');
   const rCat = DATA.ranged.map((r, i2) => `<option value="${i2}">${esc(r.name)} (${fmtD(r.dmg)}, ${fmtCr(r.cost)} Cr.)</option>`).join('');
   return `
@@ -972,7 +975,7 @@ function viewGear() {
   ${eqBlocks}`;
 }
 
-/* Übernommene Einträge aus dem erweiterten Katalog */
+/* Entries taken over from the extended catalogue */
 function customGearBlock() {
   const rows = []
     .concat(C.customMelee.map((x, i2) => [x, 'customMelee', i2, t('dr_melee')]))
@@ -989,7 +992,7 @@ function customGearBlock() {
       ${body}</table></div></div>`;
 }
 
-/* ---------------- Druckbogen ---------------- */
+/* ---------------- printable sheet ---------------- */
 function sheetField(lbl, val, span) {
   return `<div class="sp-field" style="grid-column: span ${span || 3}">
     <span class="lbl">${esc(lbl)}</span><span class="val">${esc(val) || '&nbsp;'}</span></div>`;
@@ -1011,8 +1014,8 @@ function renderSheet() {
       modRows.push(`<tr><td>${esc(n)}${q > 1 ? ' ×' + q : ''}</td><td>${esc(m ? m.desc : '')}</td></tr>`);
     }
   }
-  /* Nachgerüstetes getrennt ausweisen – für den GM am Tisch der Unterschied
-     zwischen „ab Werk“ und „später eingebaut“. */
+  /* List retrofits separately - for the GM at the table, that is the
+     difference between "factory" and "installed later". */
   for (const [n, q] of Object.entries(C.modsCP)) {
     if (q > 0) {
       const m = DROID_DATA.mods.find(x => x.name === n);
@@ -1032,10 +1035,10 @@ function renderSheet() {
   const wLines = [];
   C.melee.forEach(n => { const m = DATA.melee.find(x => x.name === n); if (m) wLines.push(`${esc(m.name)} (STR+${fmtD(m.dmg)})`); });
   C.ranged.forEach(n => { const r = DATA.ranged.find(x => x.name === n); if (r) wLines.push(`${esc(r.name)} (${fmtD(r.dmg)}, ${esc(r.close)}/${esc(r.short)}/${esc(r.medium)}/${esc(r.long)})`); });
-  /* Waffen aus dem erweiterten Katalog, aus einer Vorlage übernommene
-     Bewaffnung und von Hand eingetragene Waffen. Sie standen bisher nur in der
-     Eingabemaske: auf dem Bogen fehlten sie, und damit fehlte einem Kampfdroiden
-     genau das, wofür er gebaut ist. */
+  /* Weapons from the extended catalogue, armament taken from a template,
+     and weapons entered by hand. Until now they appeared only in the input
+     form: they were missing from the sheet, and with them a battle droid
+     was missing the very thing it was built for. */
   const wDesc = x => [x.dmg, x.ranges].filter(Boolean).map(esc).join(', ');
   C.customMelee.forEach(x => wLines.push(`${esc(x.name)}${wDesc(x) ? ` (${wDesc(x)})` : ''}`));
   C.customRanged.forEach(x => wLines.push(`${esc(x.name)}${wDesc(x) ? ` (${wDesc(x)})` : ''}`));
@@ -1098,7 +1101,7 @@ function renderSheet() {
     </div>${html}`;
 }
 
-/* ---------------- Seiten-Verkabelung ---------------- */
+/* ---------------- page wiring ---------------- */
 function renderTab(tab) {
   const el = document.getElementById('tab-' + tab);
   if (!el) return;

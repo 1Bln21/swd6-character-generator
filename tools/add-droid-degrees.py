@@ -1,27 +1,27 @@
 #!/usr/bin/env python3
-"""Traegt den Grad (1st..5th Degree) in pdfdata-droids.js nach.
+"""Fill in the degree (1st..5th Degree) in pdfdata-droids.js.
 
-Warum ein eigenes Werkzeug?
-    Das "Droid Compendium" (rp_droids.pdf) nennt den Grad nicht im Statblock,
-    sondern als Kapitelueberschrift: "1st Degree Droids", "2nd Degree Droids"
-    usw. Der Statblock-Parser in extract-from-pdfs.py sieht davon nichts, weil
-    er blockweise arbeitet. Deshalb laeuft dieses Skript NACH der Extraktion und
-    bestimmt den Grad ueber die Seite, auf der ein Droide beschrieben wird.
+Why a tool of its own?
+    The "Droid Compendium" (rp_droids.pdf) does not name the degree in the
+    statblock but as a chapter heading: "1st Degree Droids", "2nd Degree
+    Droids" and so on. The statblock parser in extract-from-pdfs.py never
+    sees those, because it works block by block. So this script runs AFTER
+    the extraction and derives the degree from the page a droid appears on.
 
-    Droiden aus anderen Quellen (Galaxy Guide 16, KotOR, Legacy Era, ...) haben
-    keine solche Kapitelstruktur. Fuer sie wird der Grad aus den belegten
-    Eintraegen gelernt (Naive Bayes ueber Name, Typ, Fertigkeiten, Ausruestung)
-    und mit "degreeDerived": true markiert, damit die Oberflaeche sie als
-    Naeherung ausweisen kann (Kennzeichen in der Vorlagenliste).
+    Droids from other sources (Galaxy Guide 16, KotOR, Legacy Era, ...) have
+    no such chapter structure. For them the degree is learned from the
+    entries the book does document (naive Bayes over name, type, skills and
+    equipment) and marked with "degreeDerived": true, so the interface can
+    show them as an estimate (flagged in the template list).
 
-    Gemessen per 5-facher Kreuzvalidierung auf den belegten Eintraegen: rund
-    77 % Trefferquote - deutlich besser als die frueher benutzte handgeschriebene
-    Stichwortliste (53 %), aber eben keine Buchangabe.
+    Measured by 5-fold cross-validation on the documented entries: roughly
+    77 % accuracy - clearly better than the hand-written keyword list used
+    before (53 %), but still not what the book says.
 
-Aufruf (Probelauf zeigt nur an, --write schreibt):
-    python tools/add-droid-degrees.py "<Pfad zu rp_droids.pdf>" [--write]
+Usage (a dry run only reports, --write saves):
+    python tools/add-droid-degrees.py "<path to rp_droids.pdf>" [--write]
 
-Nach jedem Voll-Neulauf von extract-from-pdfs.py erneut ausfuehren.
+Run again after every full re-run of extract-from-pdfs.py.
 """
 import io, json, math, os, random, re, sys
 from collections import Counter, defaultdict
@@ -32,14 +32,14 @@ HEAD = 'const PDF_DROIDS = '
 DEGREES = ['First Degree', 'Second Degree', 'Third Degree', 'Fourth Degree', 'Fifth Degree']
 DEGREE_NAME = {'1st': DEGREES[0], '2nd': DEGREES[1], '3rd': DEGREES[2],
                '4th': DEGREES[3], '5th': DEGREES[4]}
-BOOK = 'Droid Compendium'          # so nennt der Extraktor rp_droids.pdf
+BOOK = 'Droid Compendium'          # what the extractor calls rp_droids.pdf
 
 norm = lambda x: re.sub(r'[^a-z0-9]', '', x.lower())
 
 
 def chapter_bounds(pages):
-    """Seitenbereiche je Grad. Das Inhaltsverzeichnis fuehrt alle fuenf
-    Ueberschriften auf einer Seite - solche Seiten werden uebersprungen."""
+    """Page range per degree. The table of contents lists all five headings
+    on one page - pages like that are skipped."""
     pat = re.compile(r'(1st|2nd|3rd|4th|5th)\s*Degree\s*Droids', re.I)
     starts = {}
     for i, t in enumerate(pages):
@@ -103,7 +103,7 @@ def main():
     i0 = s.index(HEAD) + len(HEAD); i1 = s.index('];', i0) + 1
     arr = json.loads(s[i0:i1])
 
-    # 1) Grad aus dem Buch
+    # 1) degree straight from the book
     found = 0
     for d in arr:
         if d.get('book') != BOOK:
@@ -120,7 +120,7 @@ def main():
                 break
     print('aus dem Buch belegt:', found)
 
-    # 2) Rest daraus lernen, vorher Guete messen
+    # 2) learn the rest from those, measuring the accuracy first
     labelled = [d for d in arr if d.get('degree') and not d.get('degreeDerived')]
     rest = [d for d in arr if not d.get('degree')]
     random.seed(42)

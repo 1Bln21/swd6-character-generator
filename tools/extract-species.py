@@ -1,55 +1,56 @@
 # -*- coding: utf-8 -*-
 """
 =============================================================================
- Zusaetzliche Spezies aus den Regelwerken nach pdfdata-species.js uebertragen
+ Carry extra species from the rulebooks over into pdfdata-species.js
 =============================================================================
 
- Liest den Fanmade-Sammelband "rp_aliens.pdf" sowie einzelne Textdateien im
- gleichen Aufbau (siehe unten) und erzeugt daraus PDF_SPECIES - Spezies, die
- im Excel-Generator von Chance Gibboney noch nicht enthalten sind.
+ Reads the fan-made compilation "rp_aliens.pdf" plus individual text files
+ laid out the same way (see below) and builds PDF_SPECIES from them - the
+ species that Chance Gibboney's Excel generator does not yet carry.
 
- Aufruf:
-     python tools/extract-species.py DATEI_ODER_ORDNER [...]
+ Usage:
+     python tools/extract-species.py FILE_OR_FOLDER [...]
 
- Benoetigt: pip install pypdf
+ Requires: pip install pypdf
 
 
  ---------------------------------------------------------------------------
- Warum "offset" umgerechnet wird
+ Why "offset" is converted
  ---------------------------------------------------------------------------
- Der Sammelband nennt die Attributwuerfel nach der 2. Edition (Basis 12D fuer
- Menschen). Der Excel-Generator - und damit diese App - rechnet nach
- "Revised & Expanded" mit der Basis 18D. Zwischen beiden liegen konstant 6D.
+ The compilation gives attribute dice by 2nd Edition (base 12D for humans).
+ The Excel generator - and with it this app - works by "Revised & Expanded"
+ with a base of 18D. The two are a constant 6D apart.
 
- Die App bildet den Attributpool als  54 Pips + offset  ab. Also gilt:
+ The app models the attribute pool as  54 pips + offset. So:
 
-     offset = Attributwuerfel_des_Buches_in_Pips + 18 - 54
-            = Attributwuerfel_in_Pips - 36
+     offset = book_attribute_dice_in_pips + 18 - 54
+            = attribute_dice_in_pips - 36
 
- Gegenprobe an Spezies, die in beiden Quellen stehen (Buch -> Excel-offset):
+ Cross-checked against species that appear in both sources (book -> Excel
+ offset):
      Aqualish  12D -> 0     Falleen 13D -> +3     Gamorrean 11D -> -3
      Hutt      14D -> +6    Noghri  16D -> +12    Twi'lek   11D -> -3
- Alle stimmen. Einzige Abweichung im Excel ist der Toydarianer, dem der Autor
- 2D mehr gegeben hat als die Formel ergibt - bestehende Spezies werden hier
- aber ohnehin nicht angefasst.
+ They all agree. The only divergence in the spreadsheet is the Toydarian,
+ whom the author gave 2D more than the formula yields - but existing species
+ are not touched here anyway.
 
 
  ---------------------------------------------------------------------------
- Erwarteter Aufbau eines Eintrags
+ Expected layout of an entry
  ---------------------------------------------------------------------------
-     <Name>                       (oder "Name: <Name>" in Textdateien)
+     <name>                       (or "Name: <name>" in text files)
      Home Planet: Ando            (optional)
      Attribute Dice: 12D
-     DEXTERITY 2D/4D              (oder "Dex: 2D/4D")
+     DEXTERITY 2D/4D              (or "Dex: 2D/4D")
      KNOWLEDGE 1D/3D
      MECHANICAL 1D+2/3D+2
      PERCEPTION 2D/4D
      STRENGTH 2D/4D+2
      TECHNICAL 1D+2/3D
      Special Abilities:           (optional)
-         <Titel>: <Text>
+         <title>: <text>
      Story Factors:               (optional)
-         <Titel>: <Text>
+         <title>: <text>
      Move: 10/12
      Size: 1.6-1.8 meters tall
      Source: ...                  (optional)
@@ -71,7 +72,7 @@ ARGS = sys.argv[1:] or ['.']
 LIG = {'ﬁ': 'fi', 'ﬂ': 'fl', 'ﬀ': 'ff', '’': "'", '‘': "'", '“': '"', '”': '"',
        '–': '-', '—': '-', ' ': ' ', ' ': ' '}
 
-# Reihenfolge wie in data.js: DEX, KNOW, MECH, PERC, STR, TECH
+# Same order as data.js: DEX, KNOW, MECH, PERC, STR, TECH
 ATTR_ORDER = ['DEXTERITY', 'KNOWLEDGE', 'MECHANICAL', 'PERCEPTION', 'STRENGTH', 'TECHNICAL']
 ATTR_ALIAS = {'DEX': 'DEXTERITY', 'KNOW': 'KNOWLEDGE', 'KNO': 'KNOWLEDGE',
               'MECH': 'MECHANICAL', 'MEC': 'MECHANICAL', 'PERC': 'PERCEPTION',
@@ -79,11 +80,12 @@ ATTR_ALIAS = {'DEX': 'DEXTERITY', 'KNOW': 'KNOWLEDGE', 'KNO': 'KNOWLEDGE',
               'TEC': 'TECHNICAL'}
 
 DICE = r'\d+D(?:\s*\+\s*\d)?'
-# Das Leerzeichen zwischen Attributname und Wuerfelcode faellt im Satz
-# gelegentlich weg ("MECHANICAL1D/4D" statt "MECHANICAL 1D/4D"). Fehlte auch
-# nur ein Attribut, wurde der ganze Block als unvollstaendig verworfen - so
-# sind die Togruta durchgerutscht. Deshalb \s* statt \s+; die Alternative ist
-# auf die sechs Attributnamen festgenagelt, ein Fehlgriff also ausgeschlossen.
+# In the typesetting the space between attribute name and dice code
+# occasionally disappears ("MECHANICAL1D/4D" instead of "MECHANICAL 1D/4D").
+# If even one attribute was missing, the whole block was discarded as
+# incomplete - which is how the Togruta slipped through. Hence \s* instead of
+# \s+; the alternation is pinned to the six attribute names, so a false
+# match is impossible.
 ATTR_RE = re.compile(r'^(%s)\s*:?\s*(%s)\s*/\s*(%s)\s*$'
                      % ('|'.join(ATTR_ORDER + list(ATTR_ALIAS)), DICE, DICE), re.I)
 DICE_LINE = re.compile(r'^Attribute Dice\s*:\s*(%s)' % DICE, re.I)
@@ -92,11 +94,11 @@ ENTRY_RE = re.compile(r'^([A-Z][^:]{1,60}):\s*(.*)$')
 KEY_LINE = re.compile(r"^[A-Za-z][A-Za-z /'-]{1,28}:\s")
 
 
-# Einzelne Eintraege stehen im Buch unter einem Namen, der ausserhalb seines
-# Kapitels nicht mehr verstaendlich ist: Kasten eines Volkes oder ein ueber
-# zwei Zeilen umbrochener Name. Automatisch laesst sich das nicht zuverlaessig
-# zusammenfuehren - der Versuch, die Zeile darueber anzuhaengen, verschmilzt
-# reihenweise benachbarte Arten ("Dulok" + "Duros"). Deshalb hier von Hand.
+# A few entries appear in the book under a name that makes no sense outside
+# its chapter: a caste of a people, or a name wrapped over two lines. There
+# is no reliable way to join those automatically - trying to append the line
+# above merges neighbouring species wholesale ("Dulok" + "Duros"). So it is
+# done by hand here.
 RENAME = {
     'Worker': 'Geonosian Worker',
     'Aristocrat': 'Geonosian Aristocrat',
@@ -130,16 +132,16 @@ def read_lines(path):
     out = []
     for ln in raw:
         ln = clean(ln)
-        if ln and not re.fullmatch(r'\d{1,3}', ln):     # Seitenzahlen weg
+        if ln and not re.fullmatch(r'\d{1,3}', ln):     # drop page numbers
             out.append(ln)
     return out
 
 
 def looks_like_species_name(n):
-    """Der Name steht als eigene Zeile ueber dem Block. Bei zweispaltigem
-       Satz landet dort gelegentlich das Ende eines Fliesstextes aus der
-       Nachbarspalte - solche Zeilen sind an Kleinschreibung, Satzzeichen
-       oder Laenge zu erkennen."""
+    """The name sits on a line of its own above the block. In two-column
+       typesetting the tail of some prose from the neighbouring column
+       occasionally lands there - such lines give themselves away by lower
+       case, punctuation or length."""
     if not n or len(n) > 34:
         return False
     if n[-1] in '.,;:':
@@ -153,8 +155,8 @@ def looks_like_species_name(n):
 
 def parse_size(text):
     """'1.6-1.9 meters tall' -> (1.6, 1.9);  '4 meters tall on average' -> (4, 4)
-       Nur der Teil vor 'meters' zaehlt, sonst zieht '2.5 meters diameter'
-       die Koerpergroesse mit hoch."""
+       Only the part before 'meters' counts, or '2.5 meters diameter' drags
+       the body height up with it."""
     head = re.split(r'meters?', text, 1)[0]
     nums = re.findall(r'\d+(?:\.\d+)?', head) or re.findall(r'\d+(?:\.\d+)?', text)
     if not nums:
@@ -165,14 +167,13 @@ def parse_size(text):
 
 
 def starts_new_entry(lines, idx):
-    """Ist lines[idx] die Namenszeile der naechsten Spezies? Erkennbar daran,
-       dass die Zeile selbst wie ein Name aussieht UND kurz darunter
-       "Home Planet:" oder "Attribute Dice:" folgt.
+    """Is lines[idx] the name line of the next species? The giveaway is that
+       the line itself looks like a name AND that "Home Planet:" or
+       "Attribute Dice:" follows shortly below.
 
-       Die Namenspruefung ist entscheidend: ohne sie gilt auch eine
-       Fortsetzungszeile wie "the Jedi Sourcebook (pages 75-76)" als
-       Namenszeile, nur weil zwei Zeilen weiter der naechste Eintrag
-       beginnt."""
+       The name test is the decisive part: without it a continuation line
+       like "the Jedi Sourcebook (pages 75-76)" also counts as a name line,
+       merely because the next entry begins two lines further on."""
     if not looks_like_species_name(lines[idx]):
         return False
     for look in (1, 2, 3):
@@ -181,13 +182,13 @@ def starts_new_entry(lines, idx):
         ln = lines[idx + look]
         if DICE_LINE.match(ln) or re.match(r'^Home Planet\s*:', ln, re.I):
             return True
-        if KEY_LINE.match(ln):        # irgendein anderer Schluessel -> nein
+        if KEY_LINE.match(ln):        # some other key -> no
             return False
     return False
 
 
 def join_wrapped(a, b):
-    """Fortsetzungszeile anhaengen; Trennstrich am Zeilenende zusammenziehen."""
+    """Append a continuation line; join a hyphen at the end of a line."""
     a = a.rstrip()
     if a.endswith('-') and not a.endswith(' -'):
         return a + b.lstrip()
@@ -195,7 +196,7 @@ def join_wrapped(a, b):
 
 
 def parse(lines, source_label):
-    """Alle Spezies-Bloecke einer Quelle."""
+    """Every species block in one source."""
     out = []
     i = 0
     while i < len(lines):
@@ -204,7 +205,7 @@ def parse(lines, source_label):
             i += 1
             continue
 
-        # --- Name: eine oder zwei Zeilen vorher (dazwischen "Home Planet:") ---
+        # --- name: one or two lines earlier ("Home Planet:" in between) ---
         name, planet = '', ''
         for back in (1, 2, 3, 4, 5):
             if i - back < 0:
@@ -218,7 +219,7 @@ def parse(lines, source_label):
             if nm:
                 name = nm.group(1).strip()
                 break
-            # Fliesstext ueberspringen und weiter nach oben suchen
+            # skip the prose and go on looking upwards
             if not ENTRY_RE.match(cand) and looks_like_species_name(cand):
                 name = cand.strip()
                 break
@@ -240,7 +241,7 @@ def parse(lines, source_label):
         while j < len(lines):
             ln = lines[j]
 
-            # Naechste Spezies beginnt -> Block zu Ende
+            # the next species begins -> the block ends here
             if DICE_LINE.match(ln):
                 break
 
@@ -281,18 +282,18 @@ def parse(lines, source_label):
             pm = re.match(r'^Source\s*:\s*(.+)$', ln, re.I)
             if pm:
                 src_page = pm.group(1).strip()
-                # Die Quellenangabe bricht oft um ("... Power of" /
-                # "the Jedi Sourcebook (pages 75-76)"). Fortsetzung nur dann
-                # anhaengen, wenn die Zeile erkennbar mittendrin endet und
-                # die naechste klein anfaengt - sonst wuerde der Name der
-                # naechsten Spezies mit hineinrutschen.
-                for _ in range(2):          # hoechstens zwei Fortsetzungszeilen
+                # The source note often wraps ("... Power of" / "the Jedi
+                # Sourcebook (pages 75-76)"). Only append a continuation
+                # when the line visibly ends mid-phrase and the next starts
+                # lower case - otherwise the next species' name would slip
+                # in with it.
+                for _ in range(2):          # at most two continuation lines
                     if j + 1 >= len(lines):
                         break
                     nxt = lines[j + 1]
                     if KEY_LINE.match(nxt) or starts_new_entry(lines, j + 1):
                         break
-                    # Bereits vollstaendig? Dann nichts anhaengen.
+                    # already complete? then append nothing.
                     if src_page.endswith((')', '.')) or src_page[-1:].isdigit():
                         break
                     j += 1
@@ -316,14 +317,14 @@ def parse(lines, source_label):
                     lst[-1] = join_wrapped(lst[-1], ln)
             j += 1
 
-        # Nur vollstaendige Bloecke uebernehmen
+        # take only complete blocks
         if found == 6 and move:
             out.append({
                 'name': name,
                 'min': mins,
                 'max': maxs,
                 'move': move,
-                # 54 + offset ist der Attributpool der App; siehe Kopfkommentar
+                # 54 + offset is the app's attribute pool; see the header comment
                 'offset': attr_dice - 36,
                 'free': 54 + (attr_dice - 36) - sum(mins),
                 'hMin': hmin,
@@ -342,7 +343,7 @@ def parse(lines, source_label):
     return out
 
 
-# ------------------------------------------------- bereits vorhandene Namen
+# ------------------------------------------------------ names already known
 def existing_names():
     p = os.path.join(APPDIR, 'data.js')
     s = open(p, encoding='utf-8').read()
@@ -351,16 +352,16 @@ def existing_names():
 
 
 def norm(n):
-    """Fuer den Dublettenabgleich: Gross/Klein, Apostrophe, die im Fandom
-       uneinheitliche Schreibweise (Wookiee/Wookie) und die Mehrzahl
-       angleichen - das Excel fuehrt einige Voelker im Plural
-       ("Baragwins", "Toydarians"), der Sammelband im Singular."""
+    """For the duplicate check: normalise case, apostrophes, the spellings
+       fandom is inconsistent about (Wookiee/Wookie) and the plural - the
+       spreadsheet lists some peoples in the plural ("Baragwins",
+       "Toydarians"), the compilation in the singular."""
     n = re.sub(r"[^a-z]", '', n.lower())
-    n = re.sub(r'(.)\1+', r'\1', n)          # doppelte Buchstaben zusammenziehen
+    n = re.sub(r'(.)\1+', r'\1', n)          # collapse doubled letters
     return n.rstrip('s')
 
 
-# ================================================================== Ablauf
+# ============================================================ main routine
 files = []
 for a in ARGS:
     if os.path.isdir(a):
@@ -392,9 +393,9 @@ found_all.sort(key=lambda x: x['name'].lower())
 
 OUT = os.path.join(APPDIR, 'pdfdata-species.js')
 with open(OUT, 'w', encoding='utf-8') as f:
-    f.write('// Automatisch erzeugt aus den Regelwerken (rp_aliens.pdf u. a.).\n'
-            '// Nur Spezies, die im Excel-Generator noch fehlen.\n'
-            '// Nicht von Hand bearbeiten - stattdessen tools/extract-species.py laufen lassen.\n')
+    f.write('// Generated from the rulebooks (rp_aliens.pdf and others).\n'
+            '// Only species the Excel generator does not already carry.\n'
+            '// Do not edit by hand - run tools/extract-species.py instead.\n')
     f.write('const PDF_SPECIES = ')
     json.dump(found_all, f, ensure_ascii=False, separators=(',', ':'))
     f.write(';\n')

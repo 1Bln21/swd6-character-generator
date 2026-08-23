@@ -1,25 +1,25 @@
 # -*- coding: utf-8 -*-
 """
 =============================================================================
- Bereits erzeugte pdfdata-*.js nachtraeglich in Ordnung bringen
+ Put an already generated pdfdata-*.js back in order
 =============================================================================
 
- Normalerweise entstehen die Kataloge in einem Rutsch aus den PDFs
- (tools/extract-from-pdfs.py). Wenn nur die Namensregeln nachgezogen werden,
- waere ein kompletter Neudurchlauf unnoetig - und er setzt voraus, dass alle
- Quellbuecher zur Hand sind. Dieses Skript wendet dieselben Regeln (aus
- weaponnames.py) auf die fertigen Dateien an:
+ Normally the catalogues are built out of the PDFs in one go
+ (tools/extract-from-pdfs.py). When only the naming rules have been brought
+ up to date, a full re-run would be unnecessary - and it assumes every
+ source book is to hand. This script applies the same rules (from
+ weaponnames.py) to the finished files:
 
-   * Waffennamen in den Schiffs- und Fahrzeug-Statbloecken saeubern
-   * Phantomwaffen entfernen (Zeilen aus dem Statblock der vorigen Waffe)
-   * PDF_SHIP_WEAPONS aus den bereinigten Listen neu aufbauen
-   * am Zeilenanfang abgeschnittene Namen anhand der Modell-/Craft-Zeile
-     reparieren ("ary Load Lifter" -> "Binary Load Lifter")
+   * clean the weapon names in the ship and vehicle statblocks
+   * remove phantom weapons (lines from the previous weapon's statblock)
+   * rebuild PDF_SHIP_WEAPONS from the cleaned lists
+   * repair names clipped at the start of a line, using the model or craft
+     line ("ary Load Lifter" -> "Binary Load Lifter")
 
- Aufruf (aus dem Projektordner):
+ Usage (from the project folder):
      python tools/repair-catalogs.py
 
- Ohne --write wird nur berichtet, was sich aendern wuerde.
+ Without --write it only reports what would change.
 =============================================================================
 """
 import io
@@ -32,8 +32,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from weaponnames import (clean_weapon_name, plausible_weapon_name,
                          weapon_base_name, fix_apostrophes, strip_lead_punct)
 
-# Hersteller, die better_name() aus der "Craft:"-Zeile abschneidet. Steht der
-# Name dort im Genitiv, blieb ein "'s Patrol Cruiser" uebrig.
+# Manufacturers that better_name() cuts off the "Craft:" line. Where the
+# name stands there as a possessive, an "'s Patrol Cruiser" was left over.
 LEAD_POSSESSIVE = re.compile(r"^['’]s\b\s*")
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -41,14 +41,14 @@ WRITE = '--write' in sys.argv
 
 
 def load_arrays(path):
-    """'const PDF_SHIPS = [...];' -> {'PDF_SHIPS': [...]} plus Rohtext.
+    """'const PDF_SHIPS = [...];' -> {'PDF_SHIPS': [...]} plus the raw text.
 
-       Der frueher benutzte Regex '^const \\w+ = \\[.*\\];$' fand nur EINZEILIGE
-       Arrays. PDF_SHIPS steht aber eingerueckt ueber zigtausend Zeilen - es
-       wurde also stillschweigend uebersprungen, obwohl es der groesste
-       Katalog ist. Deshalb hier ueber die Klammern hinweg suchen und die
-       genaue Fundstelle samt Formatierung merken, damit beim Zurueckschreiben
-       nicht die halbe Datei umformatiert wird.
+       The regex used before, '^const \\w+ = \\[.*\\];$', found only SINGLE-LINE
+       arrays. PDF_SHIPS, however, is indented across tens of thousands of
+       lines - so it was skipped silently, despite being the largest
+       catalogue. Hence searching across the brackets here and remembering
+       the exact position along with its formatting, so that writing back
+       does not reformat half the file.
     """
     src = io.open(path, encoding='utf-8', newline='').read()
     out, spans = {}, {}
@@ -77,20 +77,20 @@ def load_arrays(path):
         end = i + 1
         body = src[start:end]
         out[name] = json.loads(body.replace('\r\n', '\n'))
-        # Mehrzeilig -> mit indent=1 zurueckschreiben, sonst kompakt.
+        # multi-line -> write back with indent=1, otherwise compact.
         spans[name] = (start, end, '\n' in body, '\r\n' in body)
     return src, out, spans
 
 
-# Nur diese Arrays werden bearbeitet. PDF_ERAS und aehnliche Konstanten stehen
-# ebenfalls in den Dateien - die wuerden sonst grundlos umformatiert.
+# Only these arrays are touched. PDF_ERAS and similar constants sit in the
+# same files - they would otherwise be reformatted for no reason.
 MANAGED = ('PDF_SHIPS', 'PDF_VEHICLES', 'PDF_SHIP_WEAPONS', 'PDF_WEAPONS_MELEE',
            'PDF_WEAPONS_RANGED', 'PDF_EQUIPMENT', 'PDF_DROIDS')
 
 
 def save_arrays(path, src, arrays, spans):
-    """Nur die Array-Koerper ersetzen, jeden in SEINER eigenen Formatierung."""
-    for name in sorted(spans, key=lambda n: -spans[n][0]):     # von hinten
+    """Replace only the array bodies, each in ITS own formatting."""
+    for name in sorted(spans, key=lambda n: -spans[n][0]):     # from the back
         if name not in arrays or name not in MANAGED:
             continue
         start, end, multiline, crlf = spans[name]
@@ -104,10 +104,10 @@ def save_arrays(path, src, arrays, spans):
     io.open(path, 'w', encoding='utf-8', newline='').write(src)
 
 
-# Die Sammelbaende tragen dort, wo im Original ein Bild stand, den Platzhalter
-# "PICTURE REMOVED" im Textlayer. Der stand mal mitten im Feldwert - und einmal
-# als kompletter Schiffsname ("Removed"), weil er direkt ueber einem Statblock
-# lag und wie eine Ueberschrift aussah.
+# Where the original held a picture, the compilations carry the placeholder
+# "PICTURE REMOVED" in the text layer. It has turned up in the middle of a
+# field value - and once as an entire ship name ("Removed"), because it sat
+# directly above a statblock and looked like a heading.
 PICTURE = re.compile(r'\s*PICTURE\s+REMOVED\s*', re.I)
 
 def strip_picture(items):
@@ -120,8 +120,9 @@ def strip_picture(items):
             elif isinstance(v, dict):
                 walk(v, where, '%s.%s' % (label, k))
             elif isinstance(v, list):
-                # Der Platzhalter steckt auch in Waffennamen ("PICTURE REMOVED
-                # 12 Turbolaser Cannons") - eine reine Feldschleife uebersieht ihn.
+                # The placeholder sits inside weapon names too ("PICTURE
+                # REMOVED 12 Turbolaser Cannons") - a loop over the header
+                # fields alone misses it.
                 for n, item in enumerate(v):
                     if isinstance(item, dict):
                         walk(item, where, '%s.%s[%d]' % (label, k, n))
@@ -129,11 +130,11 @@ def strip_picture(items):
         walk(e, e, e.get('name') or '?')
 
 
-# Wuerfelfelder tragen manchmal den Namen des NAECHSTEN Schiffs hinter sich her
-# ("1D+1 Lifeboat", "x12 Nella 330"). Pauschal alles nach der Wuerfelangabe zu
-# kappen waere falsch: "2D (+2 in atmosphere)" und "0D (must follow track)" sind
-# echte Regelangaben. Deshalb nur abschneiden, wenn der Rest tatsaechlich ein
-# anderer Katalogeintrag ist - oder eine der bekannten Statblock-Ueberschriften.
+# Dice fields sometimes drag the NEXT ship's name along behind them ("1D+1
+# Lifeboat", "x12 Nella 330"). Simply cutting everything after the dice value
+# would be wrong: "2D (+2 in atmosphere)" and "0D (must follow track)" are
+# genuine rules text. So cut only when what follows really is another
+# catalogue entry - or one of the known statblock headings.
 DICE_FIELDS = ('hull', 'shields', 'maneuver', 'hyper', 'hyperBackup',
                'space', 'atmosphere', 'nav', 'crew', 'consumables', 'cargo')
 STRAY_HEADS = re.compile(r'\s+(Sensors?|Weapons?|Shields?|Hull|Maneuverability|'
@@ -146,13 +147,13 @@ def strip_glued_names(items, known):
             if not isinstance(v, str) or not v.strip():
                 continue
             orig = v
-            # Statblock-Ueberschriften nur aus REINEN Wuerfelfeldern schneiden.
-            # In 'crew' oder 'cargo' steht echter Fliesstext, der auf dieselben
-            # Woerter enden darf ("can support up to 6 total crew").
+            # Cut statblock headings out of PURE dice fields only. 'crew'
+            # and 'cargo' hold real prose, which may well end on the same
+            # words ("can support up to 6 total crew").
             if k in ('hull', 'shields', 'maneuver'):
                 v = STRAY_HEADS.sub('', v).strip()
-            # Ein angehaengter Eintragsname - laengster Treffer gewinnt, damit
-            # "Nella 330 Heavy Scout" nicht als "Nella 330" halb stehen bleibt.
+            # An appended entry name - the longest match wins, so that
+            # "Nella 330 Heavy Scout" is not left half there as "Nella 330".
             for other in sorted(known, key=len, reverse=True):
                 if len(other) < 5:
                     continue
@@ -165,8 +166,8 @@ def strip_glued_names(items, known):
 
 
 def rename_placeholder(items):
-    """Eintraege, deren Name nur der Bild-Platzhalter war, aus Craft/Typ
-       benennen. Ohne brauchbaren Ersatz fliegt der Eintrag raus."""
+    """Name entries whose name was nothing but the picture placeholder from
+       their craft or type line. With no usable replacement, out it goes."""
     keep = []
     for e in items:
         if (e.get('name') or '').strip().lower() in ('removed', 'picture removed', 'picture'):
@@ -184,8 +185,8 @@ def rename_placeholder(items):
 
 
 def repair_clipped(name, ref):
-    """Wie in extract-from-pdfs.py: der Name hat seinen Anfang verloren,
-       die Modell- oder Craft-Zeile fuehrt ihn noch vollstaendig."""
+    """As in extract-from-pdfs.py: the name has lost its start, while the
+       model or craft line still carries it in full."""
     if not name or not ref or not name[0].islower():
         return name
     if ref.lower().endswith(name.lower()) and len(ref) > len(name):
@@ -204,15 +205,15 @@ def repair_clipped(name, ref):
 
 
 def tidy_entry_name(n):
-    """Apostroph-Schaeden, ein fuehrendes Trennzeichen und den vom
-       Hersteller uebrig gebliebenen Genitiv aus einem Eintragsnamen nehmen."""
+    """Take apostrophe damage, a leading separator and the possessive left
+       behind by the manufacturer out of an entry name."""
     n = strip_lead_punct((n or '').strip())
     return fix_apostrophes(LEAD_POSSESSIVE.sub('', n)).strip()
 
 
 def build_weapon_catalog(craft_items):
-    """Gleiche Waffe, gleiche Skala, gleicher Schaden = ein Eintrag.
-       Wie oft ein Typ vorkommt, entscheidet die Reihenfolge."""
+    """Same weapon, same scale, same damage = one entry. How often a type
+       occurs decides the order."""
     seen = {}
     for e in craft_items:
         for w in e.get('weapons', []):
@@ -248,8 +249,8 @@ report = {'weapons_repaired': [], 'weapons_dropped': [], 'names_repaired': [],
 
 
 def fix_craft(items, ref_key):
-    """Waffenlisten saeubern und abgeschnittene Namen reparieren.
-       Gibt die Eintraege zurueck, deren Name danach brauchbar ist."""
+    """Clean the weapon lists and repair clipped names. Returns the entries
+       whose name is usable afterwards."""
     ok = []
     for e in items:
         kept = []
@@ -271,9 +272,9 @@ def fix_craft(items, ref_key):
         if fixed != e.get('name'):
             report['names_repaired'].append('%s  ->  %s' % (e['name'], fixed))
             e['name'] = fixed
-        # Ein Schiffsname faengt gross an. Bleibt er klein, ist die
-        # Ueberschrift gar keine, sondern der Rest einer Quellenangabe -
-        # und der Eintrag dahinter ist durchgehend abgeschnitten.
+        # A ship name starts with a capital. If it stays lower case, the
+        # heading is no heading but the tail of a source note - and the
+        # entry behind it is clipped throughout.
         if (e.get('name') or ' ')[0].islower():
             report['entries_dropped'].append(e.get('name'))
             continue
@@ -281,15 +282,16 @@ def fix_craft(items, ref_key):
     return ok
 
 
-# ------------------------------------------------------------- Schiffe
+# --------------------------------------------------------------- ships
 craft_path = os.path.join(ROOT, 'pdfdata-craft.js')
 craft_src, craft, craft_spans = load_arrays(craft_path)
 craft['PDF_SHIPS'] = rename_placeholder(craft['PDF_SHIPS'])
 craft['PDF_VEHICLES'] = rename_placeholder(craft['PDF_VEHICLES'])
 strip_picture(craft['PDF_SHIPS'])
 strip_picture(craft['PDF_VEHICLES'])
-# Namen erst sammeln, NACHDEM die Platzhalter weg sind - sonst gaelte "Removed"
-# als gueltiger Eintragsname und wuerde aus fremden Feldern geschnitten.
+# Collect the names only AFTER the placeholders are gone - otherwise
+# "Removed" would count as a valid entry name and be cut out of other
+# entries' fields.
 known_names = set(e.get('name') or '' for e in craft['PDF_SHIPS'] + craft['PDF_VEHICLES'])
 strip_glued_names(craft['PDF_SHIPS'], known_names)
 strip_glued_names(craft['PDF_VEHICLES'], known_names)
@@ -299,7 +301,7 @@ before = len(craft['PDF_SHIP_WEAPONS'])
 craft['PDF_SHIP_WEAPONS'] = build_weapon_catalog(
     craft['PDF_SHIPS'] + craft['PDF_VEHICLES'])
 
-# ------------------------------------------ Waffen, Ausruestung, Droiden
+# ---------------------------------------------- weapons, equipment, droids
 gear_path = os.path.join(ROOT, 'pdfdata-gear.js')
 gear_src, gear, gear_spans = load_arrays(gear_path)
 for key in ('PDF_WEAPONS_MELEE', 'PDF_WEAPONS_RANGED', 'PDF_EQUIPMENT'):
@@ -319,7 +321,7 @@ for e in droids['PDF_DROIDS']:
         report['names_repaired'].append('%s  ->  %s' % (e['name'], fixed))
         e['name'] = fixed
 
-# ------------------------------------------------------------- Bericht
+# -------------------------------------------------------------- report
 print('PICTURE REMOVED entfernt:%3d' % len(report['picture_stripped']))
 print('angeklebte Namen entfernt:%2d' % len(report['glued_stripped']))
 print('Waffennamen repariert: %5d' % len(report['weapons_repaired']))
@@ -331,7 +333,7 @@ for k in ('picture_stripped', 'glued_stripped', 'names_repaired',
           'weapons_repaired', 'weapons_dropped'):
     print('\n--- %s (erste 40) ---' % k)
     for line in report[k][:40]:
-        # Die Konsole unter Windows kann die Kaestchen der Buecher nicht
+        # The Windows console cannot print the books' box characters
         print('   ' + line.encode('ascii', 'replace').decode('ascii'))
 
 if WRITE:

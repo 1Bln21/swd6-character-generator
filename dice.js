@@ -1,9 +1,10 @@
 /* =====================================================================
-   Star Wars D6 – Würfelseite
+   Star Wars D6 - dice page
    ---------------------------------------------------------------------
-   Eigenständig (eigenes kleines i18n). Frei „xD+x" oder aus den Wurf-
-   Profilen des geladenen Charakters/Schiffs (localStorage swd6_roll_*).
-   Wild Die nach 2nd Edition R&E: Explodieren auf 6, Komplikation auf 1.
+   Stands on its own (with a small i18n of its own). Roll "xD+x" freely, or
+   from the roll profiles of the loaded character or ship (localStorage
+   swd6_roll_*). Wild Die by 2nd Edition R&E: explodes on a 6, complication
+   on a 1.
    ===================================================================== */
 'use strict';
 
@@ -12,7 +13,7 @@ let LANG = localStorage.getItem(LS_LANG) || 'en';
 const T = {
   de: {
     title: 'Star Wars D6 – Würfel', subtitle: 'Würfelwurf',
-    nav_char: 'Charaktere', nav_droid: 'Droiden', nav_ship: 'Schiffe / Fahrzeuge', nav_npc: 'NPCs', nav_dice: 'Würfeln',
+    nav_char: 'Charaktere', nav_droid: 'Droiden', nav_ship: 'Schiffe / Fahrzeuge', nav_npc: 'NPCs', nav_dice: 'Würfeln', nav_vtt: 'Spieltisch',
     options: 'Optionen', opt_language: 'Sprache / Language', opt_theme: 'Darstellung',
     theme_dark: 'Dunkel', theme_light: 'Hell', theme_oled: 'OLED-Schwarz', theme_bespin: 'Bespin (warm)',
     free_roll: 'Freier Wurf', dice: 'Würfel (D)', pips: 'Pips (+)', modifier: 'Modifikator',
@@ -34,7 +35,7 @@ const T = {
   },
   en: {
     title: 'Star Wars D6 – Dice', subtitle: 'Dice roller',
-    nav_char: 'Characters', nav_droid: 'Droids', nav_ship: 'Ships / Vehicles', nav_npc: 'NPCs', nav_dice: 'Dice',
+    nav_char: 'Characters', nav_droid: 'Droids', nav_ship: 'Ships / Vehicles', nav_npc: 'NPCs', nav_dice: 'Dice', nav_vtt: 'Table',
     options: 'Options', opt_language: 'Sprache / Language', opt_theme: 'Theme',
     theme_dark: 'Dark', theme_light: 'Light', theme_oled: 'OLED black', theme_bespin: 'Bespin (warm)',
     free_roll: 'Free roll', dice: 'Dice (D)', pips: 'Pips (+)', modifier: 'Modifier',
@@ -55,10 +56,10 @@ const T = {
     no_gear: 'No equipment with a dice bonus in the loaded character\'s inventory. Checked items are added to skill rolls.',
   },
 };
-/* Fehlender Schlüssel: nur harmlose Zeichen durchlassen. Die Würfelseite liest
-   Wurfprofile aus dem localStorage, die von den Generatoren geschrieben werden -
-   und die stammen ggf. aus einem importierten fremden Bogen. Gleiche Absicherung
-   wie in genshared.js und app.js. */
+/* Missing key: let only harmless characters through. The dice page reads
+   roll profiles out of localStorage, written there by the generators - and
+   those may come from an imported sheet of somebody else's. The same guard
+   as in genshared.js and app.js. */
 function t(k) {
   if (T[LANG] && T[LANG][k] !== undefined) return T[LANG][k];
   if (T.en[k] !== undefined) return T.en[k];
@@ -74,7 +75,7 @@ function fmtD(p) {
   return (neg ? '-' : '') + d + 'D' + (r ? '+' + r : '');
 }
 
-/* ---------------- Würfellogik ---------------- */
+/* ---------------- dice logic ---------------- */
 function d6() { return 1 + Math.floor(Math.random() * 6); }
 function rollPool(nDice, pips, wild) {
   nDice = Math.max(0, nDice | 0);
@@ -91,13 +92,13 @@ function rollPool(nDice, pips, wild) {
   let alt = base;
   if (complication) {
     const highest = regs.length ? Math.max.apply(null, regs) : 0;
-    alt = base - 1 - highest;   // Wild-1 und höchsten regulären Würfel entfernen
+    alt = base - 1 - highest;   // drop the wild 1 and the highest regular die
   }
   return { regs, wildVal, wildTotal, exploded, complication, pips: pips | 0, total: base, alt };
 }
 function pipsToDicePips(pips) { pips = Math.max(0, pips | 0); return { dice: Math.floor(pips / 3), pips: pips % 3 }; }
 
-/* ---------------- Zustand ---------------- */
+/* ---------------- state ---------------- */
 let history = [];
 function profile(key) { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { return null; } }
 function modifier() { const el = document.getElementById('modPips'); return el ? (+el.value || 0) : 0; }
@@ -159,7 +160,7 @@ function render() {
   document.getElementById('charPools').innerHTML = poolButtons(ch) || `<p class="hint">${t('no_char')}</p>`;
   document.getElementById('shipPools').innerHTML = poolButtons(sh) || `<p class="hint">${t('no_ship')}</p>`;
   document.getElementById('droidPools').innerHTML = poolButtons(dr) || `<p class="hint">${t('no_droid')}</p>`;
-  /* Ausrüstung beider Blätter anbieten – der Spieler hakt an, was gerade zählt. */
+  /* Offer the equipment from both sheets - the player ticks what counts now. */
   const gear = ((ch && ch.gear) || []).concat((dr && dr.gear) || [])
     .filter((g, i, a) => a.findIndex(x => x.label === g.label && x.pips === g.pips) === i);
   document.getElementById('gearPools').innerHTML = gear.length
@@ -169,7 +170,7 @@ function render() {
   renderResult();
 }
 
-/* ---------------- Verkabelung ---------------- */
+/* ---------------- wiring ---------------- */
 document.addEventListener('DOMContentLoaded', () => {
   render();
   document.getElementById('btnRoll').addEventListener('click', () => {

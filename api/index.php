@@ -1,75 +1,137 @@
 <?php
 /* =====================================================================
-   Star Wars D6 Charaktergenerator – Online-API
+   Star Wars D6 character generator - online API
    ---------------------------------------------------------------------
-   Benutzerkonten (Username + Passwort + TOTP-MFA), Charakter-Speicherung
-   und Freigaben. Läuft auf jedem Standard-Webspace mit PHP >= 7.4 und
-   wahlweise SQLite ODER MySQL/MariaDB. Keine weiteren Abhängigkeiten.
-
    User accounts (username + password + TOTP MFA), character storage and
    sharing. Runs on any standard web space with PHP >= 7.4 and either
-   SQLite or MySQL/MariaDB.
+   SQLite or MySQL/MariaDB. No other dependencies.
    ===================================================================== */
 
 $CONFIG = [
-  /* ---------------- Datenbank / database ----------------
-     Viele (besonders kostenlose) Hoster bieten kein SQLite an, dafür
-     aber MySQL. Trage die Zugangsdaten aus dem Hosting-Panel ein –
-     sobald host, name und user gefüllt sind, wird MySQL verwendet.
-     Bleiben sie leer, nutzt die API automatisch SQLite (api/data/).
-
+  /* ---------------- database ----------------
      Many (especially free) hosts do not offer SQLite but do offer
-     MySQL. Fill in the credentials from your hosting panel – as soon
+     MySQL. Fill in the credentials from your hosting panel - as soon
      as host, name and user are set, MySQL is used. If left empty the
      API falls back to SQLite (api/data/). */
   'db' => [
     'driver' => 'auto',   // 'auto' | 'mysql' | 'pgsql' | 'sqlite'
-                          // 'auto' nutzt MySQL, sobald host/name/user gefüllt sind;
-                          // für PostgreSQL ausdrücklich 'pgsql' eintragen.
-    'host'   => '',       // z. B. sql212.byethost6.com
-    'name'   => '',       // Datenbankname / database name
-    'user'   => '',       // Datenbank-Benutzer / database user
-    'pass'   => '',       // Passwort / password
-    'port'   => '',       // meist leer lassen / usually leave empty
+                          // 'auto' uses MySQL as soon as host/name/user are set;
+                          // for PostgreSQL put 'pgsql' here explicitly.
+    'host'   => '',       // e.g. sql212.byethost6.com
+    'name'   => '',       // database name
+    'user'   => '',       // database user
+    'pass'   => '',       // password
+    'port'   => '',       // usually leave empty
   ],
 
-  // Voreinstellung für die Registrierung; der Administrator kann sie
-  // später in der App umstellen (offen / mit Freigabe / geschlossen).
   // Default registration mode; the administrator can change it in the
   // app later ('open' | 'approval' | 'closed').
   'register_mode' => 'open',
-  // Veraltet, wirkt nur wenn noch keine Einstellung gespeichert wurde.
+  // Obsolete; takes effect only while no setting has been saved yet.
   'allow_register' => true,
-  // Optionaler Einladungscode: wenn gesetzt, ist er bei der Registrierung
-  // Pflicht (praktisch für private Spielrunden). '' = ohne Code.
+  // Optional invite code: once set it is required to register (handy for
+  // a private group). '' = no code needed.
   'register_code' => '',
-  // Name, der in der Authenticator-App angezeigt wird
+  // The name shown in the authenticator app
   'issuer' => 'SWD6 Generator',
-  // Admins dürfen Impressum/Datenschutz bearbeiten. Der zuerst registrierte
-  // Benutzer (ID 1) ist immer Admin; hier weitere Benutzernamen ergänzen.
   // Admins may edit the legal notice / privacy policy. The first registered
   // user (ID 1) is always an admin; add further usernames here.
   'admins' => [],
-  // Token-Lebensdauer in Tagen / token lifetime in days
+  // Token lifetime in days
   'token_days' => 60,
-  // CORS: nur setzen, wenn Frontend auf anderer Domain liegt, z. B.
-  // 'https://meine-seite.de' – sonst leer lassen.
+  // CORS: only set this when the front end lives on another domain, e.g.
+  // 'https://my-site.example' - otherwise leave it empty.
   'allow_origin' => '',
-  // Grenzen / limits
+  // limits
   'max_chars_per_user' => 100,
   'max_char_bytes' => 512 * 1024,
+  // Table-top (mini VTT). Maps are stored on disk under their hash and
+  // served with an immutable cache header, so a generous limit costs
+  // bandwidth exactly once per device. Token pictures are thumbnails -
+  // the client scales a portrait down before uploading it.
+  'max_map_bytes' => 6 * 1024 * 1024,
+  'max_token_bytes' => 256 * 1024,
+  'max_maps_per_round' => 30,
+  'max_tokens_per_map' => 120,
+  // Background music. A track is delivered once per device and then cached
+  // for good, so the size costs bandwidth only on the first play.
+  'max_audio_bytes' => 12 * 1024 * 1024,
+  'max_audio_per_round' => 25,
+
+  /* ---- voice and video at the table ----
+     The browsers talk to each other directly; this server only passes the
+     introductions along. What it cannot do is get two people connected
+     when both sit behind a router that refuses incoming connections - for
+     those a TURN server relays the media.
+
+     'secret' is the SAME string as static-auth-secret in turnserver.conf.
+     It NEVER reaches the browser: the API hands out a user name that
+     expires and a password derived from the secret (coturn's REST scheme,
+     use-auth-secret). A fixed password in the JavaScript would turn the
+     TURN server into an open relay for anyone who reads the page source.
+
+     Put the secret in api/config.local.php, not here. Empty = no voice
+     chat offered. */
+  'turn' => [
+    'urls'   => [],   // e.g. ['turns:turn.example.de:5349?transport=udp', ...]
+    'secret' => '',
+    'ttl'    => 12 * 3600,
+    // Public STUN, used only to find out one's own address. No media goes
+    // through it. Replace or empty it if no third party should be involved.
+    'stun'   => ['stun:stun.l.google.com:19302'],
+  ],
 ];
 
-/* Konfiguration auch für api/check.php lesbar machen (dort wird diese
-   Datei mit gesetzter Konstante eingebunden und bricht hier ab). */
+/* ---- settings that must survive an update ----
+   Everything above lives in this file, and this file is replaced whenever
+   a new version is uploaded - so the database password would have to be
+   typed in again every single time. Worse, with two installations sharing
+   one database server (a live site and a beta), uploading the file with
+   the wrong credentials still in it points the beta at the live database,
+   and since the schema is migrated on EVERY request the first visitor
+   would rebuild the live tables.
+
+   So: put the installation's own settings in api/config.local.php, which
+   returns an array and is never shipped or overwritten:
+
+       <?php return [
+         'db' => ['host' => 'localhost', 'name' => 'beta',
+                  'user' => 'swd6gen', 'pass' => '...'],
+       ];
+
+   Only the keys named there are replaced, and a block like 'db' or 'turn'
+   is merged key by key - naming just the database name, or just the TURN
+   secret, is enough and leaves the rest of that block alone. Replacing a
+   block wholesale would quietly drop the defaults inside it: a 'turn'
+   override giving only urls and secret would take the STUN list and the
+   lifetime with it, and the loss would only show up as calls that fail to
+   connect. A list (urls, admins) is replaced as a whole, which is what one
+   expects there. */
+$swd6Local = __DIR__ . '/config.local.php';
+if (is_file($swd6Local)) {
+  $swd6Override = include $swd6Local;
+  if (is_array($swd6Override)) {
+    foreach ($swd6Override as $swd6K => $swd6V) {
+      if (is_array($swd6V) && isset($CONFIG[$swd6K]) && is_array($CONFIG[$swd6K])
+          && array_keys($swd6V) !== range(0, count($swd6V) - 1)) {
+        $CONFIG[$swd6K] = array_merge($CONFIG[$swd6K], $swd6V);
+      } else {
+        $CONFIG[$swd6K] = $swd6V;
+      }
+    }
+  }
+}
+
+/* Make the configuration readable for api/check.php too (it includes
+   this file with the constant set, and execution stops here). */
 if (defined('SWD6_CONFIG_ONLY')) return $CONFIG;
 
 /* ------------------------------------------------------------------ */
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 
-/* Fehler immer als JSON ausliefern – sonst bekommt die App eine
-   HTML-Fehlerseite und kann nichts Sinnvolles anzeigen. */
+/* Always deliver errors as JSON - otherwise the app gets an HTML error
+   page and has nothing sensible to show. */
 function out_error($msg, $code = 500) {
   if (!headers_sent()) {
     http_response_code($code);
@@ -87,9 +149,9 @@ register_shutdown_function(function () {
   }
 });
 
-/* Mindestanforderung: PHP 7. Ältere Versionen kennen z. B. random_bytes()
-   nicht – dann bricht die Registrierung mitten drin ab. Bei den meisten
-   Hostern lässt sich die PHP-Version im Control-Panel umstellen. */
+/* Minimum requirement: PHP 7. Older versions do not know random_bytes(),
+   for one - registration then breaks off half way through. With most hosts
+   the PHP version can be switched in the control panel. */
 if (version_compare(PHP_VERSION, '7.0.0', '<')) {
   out_error('This API needs PHP 7.0 or newer – your server runs PHP ' . PHP_VERSION
     . '. Please switch the PHP version in your hosting control panel '
@@ -115,25 +177,25 @@ function json_out($data, $code = 200) {
 }
 function fail($msg, $code = 400) { json_out(['error' => $msg], $code); }
 
-/* ---------------- Datenbank: SQLite, MySQL/MariaDB ODER PostgreSQL ---------------- */
+/* ---------------- database: SQLite, MySQL/MariaDB OR PostgreSQL ---------------- */
 $dataDir = __DIR__ . '/data';
 $dbc = $CONFIG['db'];
 $drv = strtolower((string)$dbc['driver']);
 $usePg = in_array($drv, ['pgsql', 'postgres', 'postgresql'], true);
 $useMysql = !$usePg && ($drv === 'mysql'
   || ($drv === 'auto' && $dbc['host'] !== '' && $dbc['name'] !== '' && $dbc['user'] !== ''));
-$useServer = $usePg || $useMysql;                 // alles außer SQLite
+$useServer = $usePg || $useMysql;                 // everything but SQLite
 $DRIVER = $usePg ? 'pgsql' : ($useMysql ? 'mysql' : 'sqlite');
 
 if (!$useServer) {
   if (!is_dir($dataDir)) @mkdir($dataDir, 0770, true);
-  /* Schutzdateien auch dann anlegen, wenn der Ordner von Hand erstellt wurde */
+  /* Create the guard files even when the folder was made by hand */
   if (is_dir($dataDir) && !is_file($dataDir . '/.htaccess')) {
-    /* "Require all denied" ist Apache 2.4. Auf 2.2 wuerde die Zeile einen
-       500er ausloesen statt zu schuetzen, deshalb beide Schreibweisen, jeweils
-       nur wenn das passende Modul da ist. Hinter nginx greift .htaccess gar
-       nicht - dort muss der Ordner in der Server-Konfiguration gesperrt
-       werden, siehe README. */
+    /* "Require all denied" is Apache 2.4. On 2.2 that line would trigger a
+       500 instead of protecting anything, so both spellings are written,
+       each guarded by its module. Behind nginx .htaccess does nothing at
+       all - there the folder has to be blocked in the server config, see
+       the README. */
     @file_put_contents($dataDir . '/.htaccess',
       "<IfModule mod_authz_core.c>\n  Require all denied\n</IfModule>\n" .
       "<IfModule !mod_authz_core.c>\n  Order allow,deny\n  Deny from all\n</IfModule>\n");
@@ -173,8 +235,8 @@ try {
 } catch (Exception $e) {
   $msg = 'Database connection failed: ' . $e->getMessage();
   if (!$useServer) {
-    /* Häufigster Fall: der Webserver darf im Datenordner nicht schreiben.
-       SQLite braucht Schreibrechte auf dem ORDNER, nicht nur auf der Datei. */
+    /* The commonest case: the web server may not write in the data folder.
+       SQLite needs write permission on the FOLDER, not just on the file. */
     $msg .= ' | SQLite needs write access to the folder "' . $dataDir . '". On Linux run: '
           . 'sudo mkdir -p "' . $dataDir . '" && sudo chown -R www-data:www-data "' . $dataDir . '" '
           . '&& sudo chmod 775 "' . $dataDir . '" '
@@ -188,36 +250,36 @@ try {
   fail($msg, 500);
 }
 
-/* Dialekt-Unterschiede an einer Stelle gebündelt */
+/* Dialect differences, gathered in one place */
 $PK  = $usePg ? 'SERIAL PRIMARY KEY'
      : ($useMysql ? 'INT AUTO_INCREMENT PRIMARY KEY' : 'INTEGER PRIMARY KEY AUTOINCREMENT');
-$STR = 'VARCHAR(191)';                             // für alle drei; SQLite ignoriert die Länge
+$STR = 'VARCHAR(191)';                             // for all three; SQLite ignores the length
 $TXT = $useMysql ? 'LONGTEXT' : 'TEXT';
 if ($usePg) {
-  /* citext macht Benutzernamen case-insensitive (wie bei MySQL/SQLite). Fehlt
-     die Erweiterung (kein Superuser), bleibt VARCHAR – dann case-sensitiv. */
+  /* citext makes user names case-insensitive (as MySQL/SQLite are). Without
+     the extension (no superuser) it stays VARCHAR - and case-sensitive. */
   try { $db->exec('CREATE EXTENSION IF NOT EXISTS citext'); $UNI = 'CITEXT UNIQUE NOT NULL'; }
   catch (Exception $e) { $UNI = 'VARCHAR(64) UNIQUE NOT NULL'; }
 } else {
   $UNI = $useMysql ? 'VARCHAR(64) UNIQUE NOT NULL' : 'TEXT UNIQUE NOT NULL COLLATE NOCASE';
 }
 $SUF = $useMysql ? ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci' : '';
-/* Case-insensitive Sortierung */
+/* Case-insensitive ordering */
 function ci($col) {
   global $useMysql, $usePg;
-  if ($useMysql) return $col;                      // Collation ist schon ci
-  if ($usePg) return 'LOWER(' . $col . ')';        // Postgres: per LOWER sortieren
+  if ($useMysql) return $col;                      // the collation is already ci
+  if ($usePg) return 'LOWER(' . $col . ')';        // Postgres: order via LOWER
   return $col . ' COLLATE NOCASE';                 // SQLite
 }
 function insert_ignore() {
   global $useMysql, $usePg;
   if ($useMysql) return 'INSERT IGNORE INTO';
-  if ($usePg) return 'INSERT INTO';                // Postgres: dazu on_conflict() ans Ende
+  if ($usePg) return 'INSERT INTO';                // Postgres: plus on_conflict() at the end
   return 'INSERT OR IGNORE INTO';
 }
-/* An eine per insert_ignore() gebaute Anweisung anhängen (nur Postgres). */
+/* Append to a statement built by insert_ignore() (Postgres only). */
 function on_conflict() { global $usePg; return $usePg ? ' ON CONFLICT DO NOTHING' : ''; }
-/* Zuletzt vergebene Auto-ID – Postgres braucht den Sequenznamen. */
+/* Last auto-assigned id - Postgres needs the sequence name. */
 function last_id($table) {
   global $db, $usePg;
   return (int)($usePg ? $db->lastInsertId($table . '_id_seq') : $db->lastInsertId());
@@ -264,8 +326,8 @@ $db->exec("CREATE TABLE IF NOT EXISTS settings (
   k VARCHAR(64) PRIMARY KEY,
   v $TXT
 )$SUF");
-/* Spielrunden: ein GM lädt Spieler per Code ein, Spieler melden Chars an,
-   der GM gibt sie für die Runde frei (Live-Status, siehe char_get). */
+/* Game rounds: a GM invites players by code, players enter characters,
+   and the GM approves them for the round (live status, see char_get). */
 $db->exec("CREATE TABLE IF NOT EXISTS rounds (
   id $PK,
   name $STR NOT NULL,
@@ -288,8 +350,8 @@ $db->exec("CREATE TABLE IF NOT EXISTS round_chars (
   note $TXT,
   UNIQUE(round_id, char_id)
 )$SUF");
-/* Support-/Ticketsystem: angemeldete Nutzer melden Bugs oder schlagen
-   Schiffe/Spezies/Droiden vor, Admins antworten. Bilder als Base64. */
+/* Support/ticket system: signed-in users report bugs or suggest ships,
+   species and droids, and admins reply. Images as base64. */
 $db->exec("CREATE TABLE IF NOT EXISTS tickets (
   id $PK,
   user_id INT NOT NULL,
@@ -308,18 +370,18 @@ $db->exec("CREATE TABLE IF NOT EXISTS ticket_messages (
   image $TXT,
   created BIGINT
 )$SUF");
-/* Bestenliste der versteckten Zugabe. Bewusst ohne Kontobindung: drei
-   Buchstaben und eine Zahl, mehr wird nicht gespeichert – kein Bezug zu einem
-   Nutzer, keine IP, nichts, was jemanden identifiziert. */
+/* High score table for the hidden extra. Deliberately not tied to an
+   account: three letters and a number, nothing more is stored - no link to
+   a user, no IP, nothing that identifies anybody. */
 $db->exec("CREATE TABLE IF NOT EXISTS arcade_scores (
   id $PK,
   name VARCHAR(3) NOT NULL,
   score INT NOT NULL,
   created BIGINT
 )$SUF");
-/* Wer hat welches Ticket wann zuletzt gelesen? Pro Nutzer eine Zeile je Ticket –
-   so bleibt der Hinweis für jeden Admin einzeln stehen, statt dass ein Admin ihn
-   für alle wegklickt. Fehlt eine Zeile, gilt das Ticket als nie gelesen. */
+/* Who last read which ticket, and when? One row per user per ticket - so
+   the notice stays up for each admin separately instead of one admin
+   clicking it away for everyone. With no row, the ticket counts as unread. */
 $db->exec("CREATE TABLE IF NOT EXISTS ticket_seen (
   user_id INT NOT NULL,
   ticket_id INT NOT NULL,
@@ -327,7 +389,140 @@ $db->exec("CREATE TABLE IF NOT EXISTS ticket_seen (
   PRIMARY KEY (user_id, ticket_id)
 )$SUF");
 
-/* Spalten einer Tabelle ermitteln (für Migration und Selbstprüfung) */
+/* ===================== the table-top (mini VTT) =====================
+   A round can hold several battle maps; one of them is the active one the
+   players see. The image itself does NOT live in the database - only its
+   hash and dimensions. See vtt_store_image() for why.
+
+   Positions are stored as a FRACTION of the map (0..1), not in pixels.
+   A phone, a laptop and a beamer all show the same map at different sizes,
+   and the GM may zoom; with pixels every client would have to agree on a
+   scale first, and a token would sit somewhere else on every screen. */
+/* The fog is a coarse grid of cells over the map, one character per cell:
+
+     0  unexplored   - black. The party has never been there.
+     1  explored     - dimmed. They know the room but are not in it now,
+                       so they see the walls and NOT who is standing there.
+     2  in sight     - open, and the tokens in it are visible.
+
+   The three states are what makes the fog behave the way a table expects:
+   walking out of a room leaves the map behind but takes the enemies with
+   it. Two states cannot express that - either the room goes black again
+   (and the party forgets the layout) or the enemies stay on show. */
+$db->exec("CREATE TABLE IF NOT EXISTS round_maps (
+  id $PK,
+  round_id INT NOT NULL,
+  name $STR DEFAULT '',
+  sha VARCHAR(64) NOT NULL,
+  ext VARCHAR(8) NOT NULL,
+  w INT DEFAULT 0,
+  h INT DEFAULT 0,
+  bytes INT DEFAULT 0,
+  grid INT DEFAULT 0,
+  fog $TXT,
+  fog_cols INT DEFAULT 0,
+  fog_rows INT DEFAULT 0,
+  created BIGINT
+)$SUF");
+/* A token is, at heart, a round character with x/y. char_id = 0 marks a
+   free token the GM dropped on the map (a creature, a crate, a waypoint) -
+   those have no sheet behind them and carry their own label.
+
+   Two kinds of picture:
+
+     img_sha set  - the owner made a token out of their character, droid or
+                    ship portrait. The client scales the portrait down once
+                    and uploads it; it lands on disk under its hash, exactly
+                    like a map, and is served straight from there. Reading
+                    the portrait out of the document instead would mean
+                    pulling up to 512 KB of character sheet across the wire
+                    to paint a disc 40 pixels wide.
+     img_sha empty - a default token: the client draws a disc in `color`
+                    with the initials from `label`, and picks the outline
+                    from `kind`. Costs no storage and no request at all, so
+                    a GM can drop twenty stormtroopers on the map without
+                    uploading anything. */
+$db->exec("CREATE TABLE IF NOT EXISTS round_tokens (
+  id $PK,
+  round_id INT NOT NULL,
+  map_id INT NOT NULL,
+  char_id INT DEFAULT 0,
+  owner_id INT DEFAULT 0,
+  kind VARCHAR(16) DEFAULT 'npc',
+  label $STR DEFAULT '',
+  color VARCHAR(16) DEFAULT '',
+  img_sha VARCHAR(64) DEFAULT '',
+  img_ext VARCHAR(8) DEFAULT '',
+  x REAL DEFAULT 0.5,
+  y REAL DEFAULT 0.5,
+  size REAL DEFAULT 1,
+  created BIGINT
+)$SUF");
+/* Background music the GM puts on. Two kinds:
+
+     file - an uploaded track, stored like every other table-top asset
+            under its hash and delivered by the web server.
+     yt   - a YouTube video. Only the id is kept; nothing is fetched,
+            re-encoded or re-served by us. Every client plays it from
+            YouTube itself, which is both the legal and the cheap way
+            round (see the note at 'audio_add').
+
+   The playback position is NOT pushed continuously. The row holds where
+   the track stood (pos) and the server time that reading was taken (at);
+   a client that joins ten minutes later works out for itself where the
+   track must be by now. That keeps six players in step over a poll that
+   only carries a version number. */
+$db->exec("CREATE TABLE IF NOT EXISTS round_audio (
+  id $PK,
+  round_id INT NOT NULL,
+  kind VARCHAR(8) DEFAULT 'file',
+  name $STR DEFAULT '',
+  sha VARCHAR(64) DEFAULT '',
+  ext VARCHAR(8) DEFAULT '',
+  yt_id VARCHAR(24) DEFAULT '',
+  yt_list VARCHAR(64) DEFAULT '',
+  bytes INT DEFAULT 0,
+  created BIGINT
+)$SUF");
+
+/* Who is currently sitting in the voice call, and since when. A row that
+   has not been refreshed for a while counts as gone - browsers are closed
+   without saying goodbye, so a heartbeat is the only reliable signal. */
+$db->exec("CREATE TABLE IF NOT EXISTS round_calls (
+  round_id INT NOT NULL,
+  user_id INT NOT NULL,
+  cam INT DEFAULT 0,
+  mic INT DEFAULT 1,
+  seen BIGINT,
+  PRIMARY KEY (round_id, user_id)
+)$SUF");
+/* The introductions two browsers need before they can talk directly:
+   session descriptions and ICE candidates. Every row is addressed to one
+   peer, is read once and is thrown away - this is a post box, not an
+   archive. Nothing in here is media; the audio and video never touch this
+   server. */
+$db->exec("CREATE TABLE IF NOT EXISTS round_signals (
+  id $PK,
+  round_id INT NOT NULL,
+  from_id INT NOT NULL,
+  to_id INT NOT NULL,
+  body $TXT,
+  created BIGINT
+)$SUF");
+
+/* Shared roll log of the round. Everyone at the table sees the same rolls,
+   which is the whole point of rolling together. Trimmed on write. */
+$db->exec("CREATE TABLE IF NOT EXISTS round_log (
+  id $PK,
+  round_id INT NOT NULL,
+  user_id INT DEFAULT 0,
+  kind VARCHAR(16) DEFAULT 'roll',
+  text $TXT,
+  data $TXT,
+  created BIGINT
+)$SUF");
+
+/* Determine a table's columns (for migration and the self-check) */
 function table_columns($table) {
   global $db, $useMysql, $usePg;
   $cols = [];
@@ -341,11 +536,11 @@ function table_columns($table) {
     } else {
       foreach ($db->query("PRAGMA table_info($table)")->fetchAll(PDO::FETCH_ASSOC) as $c) $cols[] = $c['name'];
     }
-  } catch (Exception $e) { /* Tabelle fehlt */ }
+  } catch (Exception $e) { /* table missing */ }
   return $cols;
 }
 
-/* Nachrüsten älterer Installationen (Spalten kamen später dazu) */
+/* Retrofit older installations (columns were added later) */
 $userCols = table_columns('users');
 $addCols = [
   'approved'      => 'approved INT DEFAULT 1',
@@ -360,19 +555,64 @@ foreach ($addCols as $col => $colDef) {
   try { $db->exec("ALTER TABLE users ADD COLUMN $colDef"); }
   catch (Exception $e) { $alterError = $e->getMessage(); }
 }
-/* chars: Dokumenttyp kam mit den Droiden-/Schiffs-Generatoren dazu */
+/* chars: the document type arrived with the droid and ship generators */
 if (!in_array('kind', table_columns('chars'), true)) {
   try { $db->exec("ALTER TABLE chars ADD COLUMN kind VARCHAR(16) DEFAULT 'char'"); }
   catch (Exception $e) { $alterError = $e->getMessage(); }
 }
-/* round_chars: Begründung des GM bei einer Ablehnung (kam mit dem Reject-Knopf) */
+/* round_chars: the GM's reason for a rejection (arrived with the reject button) */
 $rcCols = table_columns('round_chars');
 if ($rcCols && !in_array('note', $rcCols, true)) {
   try { $db->exec("ALTER TABLE round_chars ADD COLUMN note $TXT"); }
   catch (Exception $e) { $alterError = $e->getMessage(); }
 }
+/* rounds: the table-top arrived with 4.0.0.
+   vtt_version counts up on EVERY change to map, tokens or log. The clients
+   ask for nothing but this number while idling - one indexed read of a few
+   bytes - and only fetch the state once it has moved. That keeps a group
+   that is merely sitting there from costing anything worth measuring. */
+/* round_log: the single dice arrived with the roll display on the map */
+$rlCols = table_columns('round_log');
+if ($rlCols && !in_array('data', $rlCols, true)) {
+  try { $db->exec("ALTER TABLE round_log ADD COLUMN data $TXT"); }
+  catch (Exception $e) { $alterError = $e->getMessage(); }
+}
+/* round_audio: playlists arrived after single videos */
+$raCols = table_columns('round_audio');
+if ($raCols && !in_array('yt_list', $raCols, true)) {
+  try { $db->exec("ALTER TABLE round_audio ADD COLUMN yt_list VARCHAR(64) DEFAULT ''"); }
+  catch (Exception $e) { $alterError = $e->getMessage(); }
+}
+/* round_maps: the fog arrived after the first table-tops existed */
+$rmCols = table_columns('round_maps');
+$rmAdd = ['fog' => "fog $TXT", 'fog_cols' => 'fog_cols INT DEFAULT 0',
+          'fog_rows' => 'fog_rows INT DEFAULT 0'];
+foreach ($rmAdd as $col => $colDef) {
+  if (!$rmCols || in_array($col, $rmCols, true)) continue;
+  try { $db->exec("ALTER TABLE round_maps ADD COLUMN $colDef"); }
+  catch (Exception $e) { $alterError = $e->getMessage(); }
+}
+$rndCols = table_columns('rounds');
+$rndAdd = [
+  'vtt_version' => 'vtt_version BIGINT DEFAULT 0',
+  'active_map'  => 'active_map INT DEFAULT 0',
+  'audio_id'    => 'audio_id INT DEFAULT 0',
+  'audio_play'  => 'audio_play INT DEFAULT 0',
+  'audio_pos'   => 'audio_pos REAL DEFAULT 0',
+  'audio_at'    => 'audio_at BIGINT DEFAULT 0',
+  'audio_loop'  => 'audio_loop INT DEFAULT 1',
+  /* Which entry of a playlist is running. A position in seconds is not
+     enough there - "12:04" means nothing without knowing which of the
+     forty tracks it refers to. */
+  'audio_index' => 'audio_index INT DEFAULT 0',
+];
+foreach ($rndAdd as $col => $colDef) {
+  if (!$rndCols || in_array($col, $rndCols, true)) continue;
+  try { $db->exec("ALTER TABLE rounds ADD COLUMN $colDef"); }
+  catch (Exception $e) { $alterError = $e->getMessage(); }
+}
 
-/* Erlaubte Dokumenttypen: Charaktere, Droiden, Schiffe, eigene Spezies */
+/* Permitted document types: characters, droids, ships, custom species */
 $KINDS = ['char', 'droid', 'ship', 'species', 'npc'];
 function req_kind() {
   global $KINDS;
@@ -380,7 +620,7 @@ function req_kind() {
   return in_array($k, $KINDS, true) ? $k : 'char';
 }
 
-/* Selbstprüfung: fehlt etwas, klar sagen statt später mittendrin abstürzen */
+/* Self-check: if something is missing, say so plainly instead of crashing later */
 $required = ['id', 'username', 'pass_hash', 'totp_secret', 'totp_pending', 'totp_enabled',
              'totp_last_step', 'backup_codes', 'fail_count', 'fail_time', 'approved',
              'is_admin', 'recovery_hash', 'reset_hash', 'reset_expires', 'created'];
@@ -391,7 +631,7 @@ if ($missing) {
      . ' | Open api/check.php in your browser for a detailed report.', 500);
 }
 
-/* ---------------- Einstellungen (in der Datenbank) ---------------- */
+/* ---------------- settings (kept in the database) ---------------- */
 function setting_get($key, $default = null) {
   global $db;
   $st = $db->prepare('SELECT v FROM settings WHERE k = ?');
@@ -409,7 +649,7 @@ function setting_set($key, $value) {
     : 'INSERT INTO settings (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v';
   $db->prepare($sql)->execute([$key, $json]);
 }
-/* Registrierungsmodus: 'open' | 'approval' | 'closed' */
+/* Registration mode: 'open' | 'approval' | 'closed' */
 function register_mode() {
   global $CONFIG;
   $m = setting_get('register_mode');
@@ -417,12 +657,12 @@ function register_mode() {
   return in_array($m, ['open', 'approval', 'closed'], true) ? $m : 'open';
 }
 
-/* ---------------- Eingabe ---------------- */
+/* ---------------- input ---------------- */
 $action = isset($_GET['action']) ? $_GET['action'] : '';
-/* Die dekodierte Anfrage heißt bewusst $INPUT und nicht $body: die Aktionen
-   unten laufen auf Skript-Ebene, ein lokales "$body = trim(inp('body'))" würde
-   sonst die gesamte Eingabe überschreiben – alle späteren inp()-Aufrufe liefen
-   dann ins Leere (genau dieser Fehler verschluckte v3.1.0 die Screenshots). */
+/* The decoded request is deliberately called $INPUT and not $body: the
+   actions below run at script level, so a local "$body = trim(inp('body'))"
+   would otherwise overwrite the entire input - every later inp() call would
+   come back empty (exactly this bug swallowed the screenshots in v3.1.0). */
 $INPUT = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $raw = file_get_contents('php://input');
@@ -438,7 +678,7 @@ function inp($key, $default = null) {
   return $default;
 }
 
-/* ---------------- Auth-Helfer ---------------- */
+/* ---------------- auth helpers ---------------- */
 function bearer_token() {
   $hdr = '';
   if (isset($_SERVER['HTTP_AUTHORIZATION'])) $hdr = $_SERVER['HTTP_AUTHORIZATION'];
@@ -452,7 +692,7 @@ function make_token($userId) {
   $tok = bin2hex(random_bytes(32));
   $st = $db->prepare('INSERT INTO tokens (token_hash, user_id, expires) VALUES (?,?,?)');
   $st->execute([hash('sha256', $tok), $userId, time() + $CONFIG['token_days'] * 86400]);
-  // Alte Tokens gelegentlich aufräumen
+  // clear out old tokens now and then
   if (mt_rand(0, 20) === 0) $db->exec('DELETE FROM tokens WHERE expires < ' . time());
   return $tok;
 }
@@ -468,7 +708,7 @@ function auth() {
 }
 function is_admin($user) {
   global $CONFIG;
-  if ((int)$user['id'] === 1) return true;                 // Ersteinrichtung
+  if ((int)$user['id'] === 1) return true;                 // initial setup
   if (isset($user['is_admin']) && (int)$user['is_admin'] === 1) return true;
   return in_array($user['username'], $CONFIG['admins'], true);
 }
@@ -477,17 +717,25 @@ function require_admin() {
   if (!is_admin($user)) fail('Administrator rights required', 403);
   return $user;
 }
-/* Ist dieser Nutzer GM der Runde? Der Gründer bekommt bei round_create die
-   Rolle 'gm' im round_members-Eintrag, weitere GMs per round_set_role – daher
-   deckt diese Rolle sowohl Gründer als auch Co-GMs ab. */
+/* Is this user a GM of the round? round_create gives the founder the 'gm'
+   role in the round_members row, further GMs get it via round_set_role - so
+   this role covers founders and co-GMs alike. */
 function round_is_gm($roundId, $userId) {
   global $db;
   $st = $db->prepare("SELECT 1 FROM round_members WHERE round_id = ? AND user_id = ? AND role = 'gm'");
   $st->execute([$roundId, $userId]);
   return (bool)$st->fetch();
 }
-/* Ticket-Screenshot prüfen: nur data:image/(png|jpeg|webp), bis ~1 MB binär
-   (Base64 ist ~1.37× größer → 1,5 MB Grenze). Leer erlaubt. */
+/* Anyone in the round, GM or player. The table-top is visible to members
+   only - it is the group's table, not a public page. */
+function round_is_member($roundId, $userId) {
+  global $db;
+  $st = $db->prepare('SELECT 1 FROM round_members WHERE round_id = ? AND user_id = ?');
+  $st->execute([$roundId, $userId]);
+  return (bool)$st->fetch();
+}
+/* Check a ticket screenshot: only data:image/(png|jpeg|webp), up to ~1 MB
+   binary (base64 is ~1.37x larger -> a 1.5 MB limit). Empty is allowed. */
 function valid_ticket_image($img) {
   $img = (string)$img;
   if ($img === '') return '';
@@ -495,11 +743,230 @@ function valid_ticket_image($img) {
   if (strlen($img) > 1500000) fail('Screenshot too large (max ~1 MB)');
   return $img;
 }
-/* ---- Ticket-Benachrichtigungen ----
-   „Neu für mich" heißt: eine Nachricht der Gegenseite ist jünger als der
-   Zeitpunkt, zu dem ich das Ticket zuletzt geöffnet habe. Für Admins zählen
-   Nachrichten von Nutzern (is_admin = 0, also neue Tickets und Rückfragen),
-   für Nutzer die Antworten der Admins (is_admin = 1). */
+
+/* ---- table-top images on disk -----------------------------------------
+   Battle maps and token pictures. Character portraits and ticket
+   screenshots live in the database as data URIs; these must not. A map is
+   an order of magnitude larger, and the .htaccess of this project sets
+   "no-cache, must-revalidate" for everything it serves, so a 1 MB map would
+   be fetched again on every refresh. One group would eat a double-digit
+   share of the server's 200 Mbit/s.
+
+   So the file goes on disk under its own SHA-256 and is served by the web
+   server directly, with an immutable cache header: the name changes when
+   the content changes, therefore the old name can be cached forever and
+   every device loads a given picture exactly once. Uploading the same map
+   twice costs no extra space either - the hash is the file name.
+
+   NOTE ON BACKUPS: these files are not in the database dump. This folder
+   needs to be backed up separately.
+
+   The folder is deliberately NOT api/data/ - that one is sealed off by a
+   "Require all denied" guard, which is right for the SQLite file and wrong
+   for something Apache is supposed to hand out. It is also created no
+   matter which database driver is in use, while api/data/ is only made for
+   SQLite. */
+function vtt_dir() {
+  return __DIR__ . '/vtt';
+}
+function vtt_dir_ready() {
+  $dir = vtt_dir();
+  if (!is_dir($dir)) @mkdir($dir, 0775, true);
+  if (!is_dir($dir)) fail('Cannot create the table-top folder "' . $dir . '". '
+    . 'On Linux: sudo mkdir -p "' . $dir . '" && sudo chown www-data:www-data "' . $dir . '" '
+    . '&& sudo chmod 775 "' . $dir . '" (replace www-data with your web server user).', 500);
+  /* An upload folder that the web server hands out is the classic way into
+     a machine, so scripting is switched off here in every spelling the
+     common Apache builds understand. Behind nginx .htaccess does nothing -
+     the README explains what to configure there instead. */
+  /* The guard carries a version marker: when the list of allowed types
+     grows, an installation that already has the old file has to get the
+     new one, or the newly permitted extensions stay unreachable. */
+  $guard = $dir . '/.htaccess';
+  $mark = '# swd6-vtt-guard v2';
+  $have = is_file($guard) ? (string)@file_get_contents($guard) : '';
+  if (strpos($have, $mark) === false) {
+    @file_put_contents($guard,
+      $mark . "\n"
+    . "<IfModule mod_headers.c>\n"
+    . "  Header set Cache-Control \"public, max-age=31536000, immutable\"\n"
+    . "</IfModule>\n"
+    . "php_flag engine off\n"
+    . "<IfModule mod_mime.c>\n"
+    . "  RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .phar\n"
+    . "  RemoveType .php .phtml .php3 .php4 .php5 .php7 .php8 .phar\n"
+    . "  AddType audio/mpeg .mp3\n"
+    . "  AddType audio/ogg .ogg\n"
+    . "  AddType audio/mp4 .m4a\n"
+    . "</IfModule>\n"
+    . "<FilesMatch \"(?i)\\.(png|jpe?g|webp|mp3|ogg|m4a)$\">\n"
+    . "  <IfModule mod_authz_core.c>\n    Require all granted\n  </IfModule>\n"
+    . "  <IfModule !mod_authz_core.c>\n    Order allow,deny\n    Allow from all\n  </IfModule>\n"
+    . "</FilesMatch>\n");
+  }
+  return $dir;
+}
+/* The magic bytes decide the type, never the caller and never a file name.
+   Returns [extension, width, height]. */
+function vtt_sniff($bin) {
+  $sig = substr($bin, 0, 12);
+  if (strncmp($sig, "\x89PNG\r\n\x1a\n", 8) === 0)                        $ext = 'png';
+  elseif (strncmp($sig, "\xFF\xD8\xFF", 3) === 0)                         $ext = 'jpg';
+  elseif (strncmp($sig, 'RIFF', 4) === 0 && substr($sig, 8, 4) === 'WEBP') $ext = 'webp';
+  else fail('Unsupported image format (PNG/JPEG/WebP only)');
+  $w = $h = 0;
+  if (function_exists('getimagesizefromstring')) {
+    $sz = @getimagesizefromstring($bin);
+    if ($sz) { $w = (int)$sz[0]; $h = (int)$sz[1]; }
+  }
+  return [$ext, $w, $h];
+}
+/* Same idea as vtt_sniff, for the sound files the GM puts up as background
+   music. Again the magic bytes decide, never a file name the caller sent. */
+function vtt_sniff_audio($bin) {
+  $sig = substr($bin, 0, 12);
+  if (strncmp($sig, 'ID3', 3) === 0) return 'mp3';
+  /* A bare MPEG frame header: 11 bits set, then a valid layer/version. */
+  if (strlen($sig) > 1 && ord($sig[0]) === 0xFF && (ord($sig[1]) & 0xE0) === 0xE0) return 'mp3';
+  if (strncmp($sig, 'OggS', 4) === 0) return 'ogg';
+  if (substr($sig, 4, 4) === 'ftyp') return 'm4a';
+  fail('Unsupported audio format (MP3, OGG or M4A)');
+}
+/* Store a sound file. Separate from the picture path only because the type
+   sniffing differs - the hashing, the folder and the immutable delivery are
+   the same, so a track uploaded twice costs one file. */
+function vtt_store_audio($dataUri, $maxBytes) {
+  if (!preg_match('#^data:[^;,]*;base64,(.*)$#is', (string)$dataUri, $m)) {
+    fail('Track must be sent as a data URI');
+  }
+  $bin = base64_decode($m[1], true);
+  if ($bin === false || $bin === '') fail('Track could not be decoded');
+  if (strlen($bin) > $maxBytes) {
+    fail('Track too large (' . round(strlen($bin) / 1048576, 1) . ' MB, limit '
+       . round($maxBytes / 1048576, 1) . ' MB)');
+  }
+  $ext = vtt_sniff_audio($bin);
+  $sha = hash('sha256', $bin);
+  $dir = vtt_dir_ready();
+  $path = $dir . '/' . $sha . '.' . $ext;
+  if (!is_file($path) && @file_put_contents($path, $bin) === false) {
+    fail('Could not write to "' . $dir . '" - check the folder permissions.', 500);
+  }
+  return [$sha, $ext, strlen($bin)];
+}
+
+/* Write a data URI to disk under its hash. Returns [sha, ext, bytes, w, h].
+   $what only shapes the error message ("Map too large" / "Token picture
+   too large"), $maxBytes differs sharply between the two: a map may be
+   several megabytes, a token is a thumbnail. */
+function vtt_store_image($dataUri, $maxBytes, $what = 'Image') {
+  if (!preg_match('#^data:image/[a-z+]+;base64,(.*)$#is', (string)$dataUri, $m)) {
+    fail($what . ' must be sent as a data URI (PNG/JPEG/WebP)');
+  }
+  $bin = base64_decode($m[1], true);
+  if ($bin === false || $bin === '') fail($what . ' could not be decoded');
+  if (strlen($bin) > $maxBytes) {
+    fail($what . ' too large (' . round(strlen($bin) / 1048576, 2) . ' MB, limit '
+       . round($maxBytes / 1048576, 2) . ' MB)');
+  }
+  list($ext, $w, $h) = vtt_sniff($bin);
+  $sha = hash('sha256', $bin);
+  $dir = vtt_dir_ready();
+  $path = $dir . '/' . $sha . '.' . $ext;
+  if (!is_file($path) && @file_put_contents($path, $bin) === false) {
+    fail('Could not write to "' . $dir . '" - check the folder permissions.', 500);
+  }
+  return [$sha, $ext, strlen($bin), $w, $h];
+}
+/* Every change to the table-top bumps the round's version. The clients poll
+   this number and nothing else while nothing is happening. */
+function vtt_touch($roundId) {
+  global $db;
+  $db->prepare('UPDATE rounds SET vtt_version = vtt_version + 1 WHERE id = ?')
+     ->execute([(int)$roundId]);
+}
+/* Positions are a fraction of the map. Anything outside 0..1 would put a
+   token off the edge where nobody can reach it again. */
+function vtt_frac($v) {
+  $v = (float)$v;
+  if (!is_finite($v)) return 0.5;
+  return max(0.0, min(1.0, $v));
+}
+/* ---- fog of war ----------------------------------------------------
+   How fine the grid is. Wide enough that a room edge lands roughly where
+   it should, coarse enough that the whole mask stays a couple of kilobytes
+   and the GM can black out a corridor in two strokes. */
+define('FOG_COLS', 40);
+
+/* How long a voice-call heartbeat counts for. Two missed beats and the
+   seat is considered empty - long enough to survive a hiccup, short enough
+   that a closed browser does not linger in the round for a minute.
+   Defined out here, not next to its case: statements between two case
+   labels are never reached, PHP jumps straight to the matching one. */
+define('CALL_TIMEOUT', 25);
+function fog_dims($map) {
+  $cols = (int)$map['fog_cols'];
+  $rows = (int)$map['fog_rows'];
+  if ($cols > 0 && $rows > 0) return [$cols, $rows];
+  $cols = FOG_COLS;
+  $w = max(1, (int)$map['w']);
+  $h = max(1, (int)$map['h']);
+  $rows = max(1, min(200, (int)round($cols * $h / $w)));
+  return [$cols, $rows];
+}
+/* A fresh map starts completely unexplored - that is the whole point: the
+   players are not supposed to see the layout before they walk into it. */
+function fog_read($map) {
+  list($cols, $rows) = fog_dims($map);
+  $s = (string)$map['fog'];
+  $need = $cols * $rows;
+  if (strlen($s) !== $need) $s = str_repeat('0', $need);
+  return [$s, $cols, $rows];
+}
+/* Which cell does a token stand in? Positions are fractions of the map, so
+   this is the same arithmetic on every screen size. */
+function fog_cell_at($x, $y, $cols, $rows) {
+  $c = (int)floor(max(0.0, min(0.999999, (float)$x)) * $cols);
+  $r = (int)floor(max(0.0, min(0.999999, (float)$y)) * $rows);
+  return $r * $cols + $c;
+}
+/* THE point of the whole exercise: a player is only told about tokens that
+   stand in a cell currently in sight. In a room they have explored but left
+   the terrain stays on their map and the figures do not - which is exactly
+   how every other virtual table behaves, and what a GM expects when they
+   move the party on. The GM always sees everything. */
+function fog_hides_token($fog, $cols, $rows, $x, $y) {
+  $i = fog_cell_at($x, $y, $cols, $rows);
+  return !isset($fog[$i]) || $fog[$i] !== '2';
+}
+
+/* Remove a picture from disk once the last row referring to it is gone.
+   The file name IS the hash, so two rounds that upload the same map share
+   one file - deleting it because ONE of them dropped the map would tear the
+   picture out from under the other. Hence the count first. */
+function vtt_delete_unused($sha, $ext) {
+  global $db;
+  if (!$sha) return;
+  $st = $db->prepare('SELECT COUNT(*) FROM round_maps WHERE sha = ?');
+  $st->execute([$sha]);
+  if ((int)$st->fetchColumn() > 0) return;
+  $st = $db->prepare('SELECT COUNT(*) FROM round_tokens WHERE img_sha = ?');
+  $st->execute([$sha]);
+  if ((int)$st->fetchColumn() > 0) return;
+  /* Sound files share the folder and the hashing, so they have to be asked
+     about too - otherwise deleting a track would pull the file out from
+     under another round that uploaded the same one. */
+  $st = $db->prepare('SELECT COUNT(*) FROM round_audio WHERE sha = ?');
+  $st->execute([$sha]);
+  if ((int)$st->fetchColumn() > 0) return;
+  $path = vtt_dir() . '/' . $sha . '.' . $ext;
+  if (is_file($path)) @unlink($path);
+}
+/* ---- ticket notifications ----
+   "New to me" means: a message from the other side is younger than the
+   moment I last opened the ticket. For admins that counts messages from
+   users (is_admin = 0, so new tickets and follow-up questions), for users
+   the admins' replies (is_admin = 1). */
 function ticket_mark_seen($userId, $ticketId) {
   global $db, $useMysql;
   $sql = $useMysql
@@ -508,9 +975,9 @@ function ticket_mark_seen($userId, $ticketId) {
       . 'ON CONFLICT(user_id, ticket_id) DO UPDATE SET seen = excluded.seen';
   $db->prepare($sql)->execute([(int)$userId, (int)$ticketId, time()]);
 }
-/* Obergrenzen gegen Spam und Speicher-Missbrauch: eine Nachricht darf einen
-   Screenshot von ~1 MB tragen – ohne Deckel könnte ein angemeldetes Konto die
-   Datenbank vollschreiben. Admins sind ausgenommen (sie beantworten viel). */
+/* Ceilings against spam and storage abuse: one message may carry a ~1 MB
+   screenshot - without a cap a signed-in account could fill the database.
+   Admins are exempt (they answer a great deal). */
 function ticket_check_limits($user, $newTicket) {
   global $db;
   if (is_admin($user)) return;
@@ -543,7 +1010,7 @@ function admin_count() {
   $st = $db->query('SELECT COUNT(*) FROM users WHERE is_admin = 1 OR id = 1');
   return (int)$st->fetchColumn();
 }
-/* Einmal-Codes (Wiederherstellung / Admin-Reset) */
+/* One-time codes (recovery / admin reset) */
 function gen_code($bytes = 8) {
   return implode('-', str_split(strtoupper(bin2hex(random_bytes($bytes))), 4));
 }
@@ -570,7 +1037,7 @@ function rate_ok($userId) {
   $db->prepare('UPDATE users SET fail_count = 0 WHERE id = ?')->execute([$userId]);
 }
 
-/* ---------------- TOTP (RFC 6238, SHA1, 6 Stellen, 30 s) ---------------- */
+/* ---------------- TOTP (RFC 6238, SHA1, 6 digits, 30 s) ---------------- */
 function b32_encode($bin) {
   $alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
   $out = ''; $bits = 0; $val = 0;
@@ -600,7 +1067,7 @@ function totp_at($secretB32, $step) {
   $code = (unpack('N', substr($hash, $offset, 4))[1] & 0x7fffffff) % 1000000;
   return str_pad((string)$code, 6, '0', STR_PAD_LEFT);
 }
-/* Prüft TOTP-Code (Fenster ±1) oder Backup-Code. Gibt true bei Erfolg. */
+/* Checks a TOTP code (window +-1) or a backup code. True on success. */
 function verify_second_factor($user, $code, $secretB32 = null) {
   global $db;
   $code = preg_replace('/\s+/', '', (string)$code);
@@ -615,7 +1082,7 @@ function verify_second_factor($user, $code, $secretB32 = null) {
       }
     }
   }
-  /* Backup-Code? (nur bei aktivierter MFA, nicht beim Einrichten) */
+  /* A backup code? (only with MFA switched on, not while setting it up) */
   if ($secretB32 === null && $code !== '') {
     $codes = json_decode((string)$user['backup_codes'], true);
     if (is_array($codes)) {
@@ -645,9 +1112,9 @@ case 'ping': {
 }
 
 case 'authcheck': {
-  /* Zeigt, ob der Server Anmelde-Header überhaupt an PHP weiterreicht.
-     Wird von api/check.php aufgerufen. Gibt keine Geheimnisse preis –
-     nur, ob und über welchen Weg ein Token ankommt. */
+  /* Shows whether the server passes authorisation headers to PHP at all.
+     Called by api/check.php. Gives away no secrets - only whether a token
+     arrives, and by which route. */
   json_out([
     'authorization'  => isset($_SERVER['HTTP_AUTHORIZATION']) && $_SERVER['HTTP_AUTHORIZATION'] !== '',
     'redirect'       => isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION']) && $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] !== '',
@@ -672,7 +1139,7 @@ case 'register': {
   $st = $db->prepare('SELECT id FROM users WHERE username = ?');
   $st->execute([$username]);
   if ($st->fetch()) fail('Username already taken', 409);
-  /* Der allererste Benutzer ist Administrator und immer freigeschaltet. */
+  /* The very first user is an administrator and always approved. */
   $st = $db->query('SELECT COUNT(*) FROM users');
   $isFirst = (int)$st->fetchColumn() === 0;
   $approved = ($isFirst || $mode !== 'approval') ? 1 : 0;
@@ -716,7 +1183,7 @@ case 'login': {
             'mfaEnabled' => (int)$user['totp_enabled'] === 1, 'isAdmin' => is_admin($user)]);
 }
 
-/* ---- Passwort ändern / vergessen (ohne E-Mail) ---- */
+/* ---- change / forgot password (without e-mail) ---- */
 case 'password_change': {
   $user = auth();
   rate_check($user);
@@ -730,7 +1197,7 @@ case 'password_change': {
   rate_ok($user['id']);
   $db->prepare('UPDATE users SET pass_hash = ? WHERE id = ?')
      ->execute([password_hash($new, PASSWORD_DEFAULT), $user['id']]);
-  /* Andere Geräte abmelden, die aktuelle Sitzung behalten */
+  /* Sign the other devices out, keep the current session */
   $db->prepare('DELETE FROM tokens WHERE user_id = ? AND token_hash <> ?')
      ->execute([$user['id'], hash('sha256', bearer_token())]);
   json_out(['ok' => true]);
@@ -757,8 +1224,8 @@ case 'password_reset': {
   $viaAdmin    = !empty($user['reset_hash']) && hash_equals($user['reset_hash'], $h)
                  && (int)$user['reset_expires'] > time();
   if (!$viaRecovery && !$viaAdmin) { rate_fail($user['id']); fail('Wrong user name or code', 401); }
-  /* Der zweite Faktor bleibt Pflicht – ein Code allein darf MFA nicht aushebeln.
-     Ist das Gerät weg, kann ein Administrator die MFA zurücksetzen. */
+  /* The second factor stays mandatory - a code alone must not defeat MFA.
+     If the device is gone, an administrator can reset MFA. */
   if ((int)$user['totp_enabled'] === 1) {
     $totp = (string)inp('totp', '');
     if ($totp === '') json_out(['mfaRequired' => true]);
@@ -769,7 +1236,7 @@ case 'password_reset': {
   rate_ok($user['id']);
   $db->prepare("UPDATE users SET pass_hash = ?, reset_hash = '', reset_expires = 0 WHERE id = ?")
      ->execute([password_hash($new, PASSWORD_DEFAULT), $user['id']]);
-  $db->prepare('DELETE FROM tokens WHERE user_id = ?')->execute([$user['id']]);   // überall abmelden
+  $db->prepare('DELETE FROM tokens WHERE user_id = ?')->execute([$user['id']]);   // sign out everywhere
   json_out(['ok' => true, 'recoveryCode' => new_recovery_code($user['id'])]);
 }
 
@@ -789,8 +1256,8 @@ case 'me': {
             'backupCodesLeft' => is_array($codes) ? count($codes) : 0]);
 }
 
-/* DSGVO-Auskunft: alle über den angemeldeten Nutzer gespeicherten Daten.
-   Keine Geheimnisse (Passwort-/TOTP-/Code-Hashes bleiben draußen). */
+/* GDPR data export: everything stored about the signed-in user. No secrets
+   (password, TOTP and code hashes stay out). */
 case 'my_data': {
   $user = auth();
   $codes = json_decode((string)$user['backup_codes'], true);
@@ -804,7 +1271,7 @@ case 'my_data': {
     'hasRecoveryCode' => !empty($user['recovery_hash']),
     'adminResetPending' => !empty($user['reset_hash']) && (int)$user['reset_expires'] > time(),
   ];
-  /* Eigene Dokumente inkl. Inhalt (es sind die eigenen Daten des Nutzers) */
+  /* Own documents including content (it is the user's own data) */
   $st = $db->prepare("SELECT id, name, COALESCE(kind,'char') AS kind, updated, data
                       FROM chars WHERE user_id = ? ORDER BY COALESCE(kind,'char'), " . ci('name'));
   $st->execute([$user['id']]);
@@ -813,25 +1280,25 @@ case 'my_data': {
     $documents[] = ['id' => (int)$r['id'], 'name' => $r['name'], 'kind' => $r['kind'],
                     'updated' => (int)$r['updated'], 'data' => json_decode($r['data'], true)];
   }
-  /* Freigaben, die der Nutzer erteilt hat */
+  /* shares the user has granted */
   $st = $db->prepare("SELECT c.name, u.username AS shared_with
                       FROM shares s JOIN chars c ON c.id = s.char_id JOIN users u ON u.id = s.to_user_id
                       WHERE s.owner_id = ? ORDER BY " . ci('c.name'));
   $st->execute([$user['id']]);
   $sharesGiven = $st->fetchAll(PDO::FETCH_ASSOC);
-  /* Freigaben, die dem Nutzer erteilt wurden */
+  /* shares granted to the user */
   $st = $db->prepare("SELECT c.name, u.username AS owner
                       FROM shares s JOIN chars c ON c.id = s.char_id JOIN users u ON u.id = s.owner_id
                       WHERE s.to_user_id = ? ORDER BY " . ci('c.name'));
   $st->execute([$user['id']]);
   $sharesReceived = $st->fetchAll(PDO::FETCH_ASSOC);
-  /* Runden-Mitgliedschaften */
+  /* round memberships */
   $st = $db->prepare("SELECT r.name, m.role, gu.username AS gm
                       FROM round_members m JOIN rounds r ON r.id = m.round_id
                       JOIN users gu ON gu.id = r.gm_id WHERE m.user_id = ? ORDER BY " . ci('r.name'));
   $st->execute([$user['id']]);
   $rounds = $st->fetchAll(PDO::FETCH_ASSOC);
-  /* Support-Tickets des Nutzers inkl. Nachrichten */
+  /* the user's support tickets including their messages */
   $st = $db->prepare('SELECT id, subject, category, status, created FROM tickets WHERE user_id = ? ORDER BY created');
   $st->execute([$user['id']]);
   $tickets = [];
@@ -926,7 +1393,7 @@ case 'char_get': {
     $st->execute([$id, $user['id']]);
     $ok = (bool)$st->fetch();
     if (!$ok) {
-      /* GM (Gründer oder Co-GM) einer Runde darf angemeldete Chars ansehen. */
+      /* A round's GM (founder or co-GM) may view the entered characters. */
       $st = $db->prepare("SELECT 1 FROM round_chars rc
                           JOIN round_members m ON m.round_id = rc.round_id
                           WHERE rc.char_id = ? AND m.user_id = ? AND m.role = 'gm'");
@@ -935,7 +1402,7 @@ case 'char_get': {
     }
     if (!$ok) fail('No access to this character', 403);
   }
-  /* Live-Freigaben für den Bogen: in welchen Runden ist dieser Char freigegeben? */
+  /* Live approvals for the sheet: in which rounds is this character approved? */
   $st = $db->prepare('SELECT r.name, u.username AS gm, rc.approved_at
                       FROM round_chars rc JOIN rounds r ON r.id = rc.round_id
                       JOIN users u ON u.id = r.gm_id
@@ -978,7 +1445,7 @@ case 'char_save': {
   json_out(['id' => last_id('chars')]);
 }
 
-/* ---- Eigene Spezies: für alle angemeldeten Gruppenmitglieder sichtbar ---- */
+/* ---- custom species: visible to every signed-in group member ---- */
 case 'species_list': {
   $user = auth();
   $st = $db->prepare("SELECT c.id, c.name, c.updated, c.data, u.username AS owner, c.user_id
@@ -1051,7 +1518,7 @@ case 'share_add': case 'share_remove': case 'shares': {
   json_out(['shares' => $st->fetchAll(PDO::FETCH_COLUMN)]);
 }
 
-/* ---- Benutzerverwaltung (nur Admin) ---- */
+/* ---- user administration (admin only) ---- */
 case 'admin_users': {
   require_admin();
   $st = $db->query('SELECT u.id, u.username, u.created, u.approved, u.is_admin, u.totp_enabled,
@@ -1086,8 +1553,8 @@ case 'admin_user_action': {
 
   switch ($what) {
     case 'reset_password': {
-      /* Einmal-Code erzeugen, 24 Stunden gültig. Der Administrator gibt ihn
-         dem Benutzer persönlich weiter (Chat, Telefon …) – kein E-Mail-Versand. */
+      /* Generate a one-time code, valid 24 hours. The administrator passes
+         it to the user personally (chat, phone ...) - nothing is e-mailed. */
       $code = gen_code();
       $db->prepare('UPDATE users SET reset_hash = ?, reset_expires = ? WHERE id = ?')
          ->execute([code_hash($code), time() + 86400, $id]);
@@ -1101,7 +1568,7 @@ case 'admin_user_action': {
       if ($self) fail('You cannot block your own account');
       if (is_admin($target) && admin_count() <= 1) fail('The last administrator cannot be blocked');
       $db->prepare('UPDATE users SET approved = 0 WHERE id = ?')->execute([$id]);
-      $db->prepare('DELETE FROM tokens WHERE user_id = ?')->execute([$id]);   // sofort abmelden
+      $db->prepare('DELETE FROM tokens WHERE user_id = ?')->execute([$id]);   // sign out at once
       break;
     case 'promote':
       $db->prepare('UPDATE users SET is_admin = 1, approved = 1 WHERE id = ?')->execute([$id]);
@@ -1116,15 +1583,15 @@ case 'admin_user_action': {
       if ($self) fail('You cannot delete your own account here');
       if (is_admin($target) && admin_count() <= 1) fail('The last administrator cannot be deleted');
       $db->prepare('DELETE FROM shares WHERE to_user_id = ? OR owner_id = ?')->execute([$id, $id]);
-      /* Anmeldungen der Chars dieses Users aus allen Runden entfernen */
+      /* remove this user's character entries from every round */
       $db->prepare('DELETE FROM round_chars WHERE char_id IN (SELECT id FROM chars WHERE user_id = ?)')->execute([$id]);
       $db->prepare('DELETE FROM chars  WHERE user_id = ?')->execute([$id]);
-      /* Runden, in denen der User Mitglied/GM war */
+      /* rounds the user was a member or GM of */
       $db->prepare('DELETE FROM round_members WHERE user_id = ?')->execute([$id]);
       $db->prepare('DELETE FROM round_chars WHERE round_id IN (SELECT id FROM rounds WHERE gm_id = ?)')->execute([$id]);
       $db->prepare('DELETE FROM round_members WHERE round_id IN (SELECT id FROM rounds WHERE gm_id = ?)')->execute([$id]);
       $db->prepare('DELETE FROM rounds WHERE gm_id = ?')->execute([$id]);
-      /* Support-Tickets des Nutzers (und alle Nachrichten darin) */
+      /* the user's support tickets (and every message in them) */
       $db->prepare('DELETE FROM ticket_messages WHERE ticket_id IN (SELECT id FROM tickets WHERE user_id = ?)')->execute([$id]);
       $db->prepare('DELETE FROM ticket_messages WHERE author_id = ?')->execute([$id]);
       $db->prepare('DELETE FROM ticket_seen WHERE ticket_id IN (SELECT id FROM tickets WHERE user_id = ?)')->execute([$id]);
@@ -1153,10 +1620,10 @@ case 'admin_settings': {
   json_out(['registerMode' => register_mode()]);
 }
 
-/* ---- Impressum / Datenschutz (site-weit, nur Admin darf schreiben) ---- */
+/* ---- legal notice / privacy policy (site-wide, admin may write) ---- */
 case 'legal_get': {
   $data = setting_get('legal');
-  if (!is_array($data)) {   // Übernahme aus der früheren Dateiablage
+  if (!is_array($data)) {   // carried over from the earlier file storage
     $f = $dataDir . '/legal.json';
     $data = is_file($f) ? json_decode(file_get_contents($f), true) : null;
   }
@@ -1189,20 +1656,20 @@ case 'legal_save': {
   json_out(['ok' => true, 'legal' => $out]);
 }
 
-/* ===================== Spielrunden (GM + Freigabe) ===================== */
+/* ===================== game rounds (GM + approval) ===================== */
 case 'round_create': {
   $user = auth();
   $name = trim((string)inp('name', ''));
   if ($name === '') fail('Round name is required');
   if (strlen($name) > 100) fail('Round name too long (max 100 characters)');
-  /* Obergrenze gegen Spam: ein Nutzer kann nicht beliebig viele Runden anlegen. */
+  /* Ceiling against spam: a user cannot create rounds without limit. */
   $st = $db->prepare('SELECT COUNT(*) FROM rounds WHERE gm_id = ?');
   $st->execute([$user['id']]);
   if ((int)$st->fetchColumn() >= 50) fail('You have reached the maximum number of rounds (50)');
-  /* eindeutigen Einladungscode erzeugen */
+  /* generate a unique invite code */
   $code = '';
   for ($i = 0; $i < 20; $i++) {
-    $try = strtoupper(bin2hex(random_bytes(4)));   // 8 Hex-Zeichen
+    $try = strtoupper(bin2hex(random_bytes(4)));   // 8 hex characters
     $st = $db->prepare('SELECT 1 FROM rounds WHERE invite_code = ?');
     $st->execute([$try]);
     if (!$st->fetch()) { $code = $try; break; }
@@ -1223,7 +1690,7 @@ case 'round_join': {
   $st = $db->prepare('SELECT * FROM rounds WHERE invite_code = ?');
   $st->execute([strtoupper($code)]);
   $round = $st->fetch(PDO::FETCH_ASSOC);
-  if (!$round) { usleep(300000); fail('No round found for this code', 404); }  // bremst Code-Brute-Force
+  if (!$round) { usleep(300000); fail('No round found for this code', 404); }  // slows code brute-forcing
   $db->prepare(insert_ignore() . ' round_members (round_id, user_id, role) VALUES (?,?,?)' . on_conflict())
      ->execute([$round['id'], $user['id'], 'player']);
   json_out(['ok' => true, 'id' => (int)$round['id'], 'name' => $round['name']]);
@@ -1309,7 +1776,7 @@ case 'round_remove_member': {
   json_out(['ok' => true]);
 }
 
-/* Einen weiteren GM ernennen oder zurückstufen (für wechselnde Spielleiter). */
+/* Appoint another GM or demote one (for a changing game master). */
 case 'round_set_role': {
   $user = auth();
   $id = (int)inp('id', 0);
@@ -1324,7 +1791,7 @@ case 'round_set_role': {
   $st->execute([$target]);
   $tu = $st->fetch(PDO::FETCH_ASSOC);
   if (!$tu) fail('User not found', 404);
-  /* Der Gründer bleibt immer GM. */
+  /* The founder always stays a GM. */
   if ((int)$tu['id'] === (int)$round['gm_id']) fail('The founding GM keeps their role');
   $st = $db->prepare('SELECT 1 FROM round_members WHERE round_id = ? AND user_id = ?');
   $st->execute([$id, $tu['id']]);
@@ -1334,9 +1801,9 @@ case 'round_set_role': {
   json_out(['ok' => true, 'role' => $role]);
 }
 
-/* Runde übergeben: nur der aktuelle Gründer (oder ein Admin) kann die
-   Eigentümerschaft an ein anderes Mitglied abgeben – etwa wenn er aufhört.
-   Der neue Gründer wird GM; der bisherige bleibt als Co-GM in der Runde. */
+/* Hand a round over: only the current founder (or an admin) can pass
+   ownership to another member - when they stop playing, say. The new
+   founder becomes GM; the previous one stays in the round as a co-GM. */
 case 'round_transfer': {
   $user = auth();
   $id = (int)inp('id', 0);
@@ -1357,9 +1824,9 @@ case 'round_transfer': {
   if (!$st->fetch()) fail('User is not a member of this round', 404);
   $db->prepare('UPDATE rounds SET gm_id = ? WHERE id = ?')->execute([$tu['id'], $id]);
   $db->prepare("UPDATE round_members SET role = 'gm' WHERE round_id = ? AND user_id = ?")
-     ->execute([$id, $tu['id']]);                                   // neuer Gründer ist GM
+     ->execute([$id, $tu['id']]);                                   // the new founder is a GM
   $db->prepare("UPDATE round_members SET role = 'gm' WHERE round_id = ? AND user_id = ?")
-     ->execute([$id, (int)$round['gm_id']]);                        // alter Gründer bleibt Co-GM
+     ->execute([$id, (int)$round['gm_id']]);                        // the old founder stays a co-GM
   json_out(['ok' => true]);
 }
 
@@ -1396,15 +1863,15 @@ case 'round_approve': {
   $st = $db->prepare('SELECT 1 FROM round_chars WHERE round_id = ? AND char_id = ?');
   $st->execute([$id, $charId]);
   if (!$st->fetch()) fail('Character is not assigned to this round', 404);
-  /* Drei Zustände: 1 = freigegeben, 0 = wartet, -1 = abgelehnt. Abgelehnt ist
-     bewusst etwas anderes als „wartet“ – der Spieler soll sehen, dass der GM
-     schon hingeschaut und Nein gesagt hat, statt weiter zu warten. */
+  /* Three states: 1 = approved, 0 = waiting, -1 = rejected. Rejected is
+     deliberately not the same as "waiting" - the player should see that the
+     GM has looked and said no, rather than keep waiting. */
   $a = inp('approved', true);
   if ($a === -1 || $a === '-1' || $a === 'reject') $state = -1;
   elseif ($a === true || $a === 1 || $a === '1' || $a === 'true') $state = 1;
   else $state = 0;
-  /* Kurze Begründung, damit der Spieler weiß, was er ändern soll. Nur bei einer
-     Ablehnung sinnvoll – bei Freigabe oder Zurücksetzen wird sie geleert. */
+  /* A short reason, so the player knows what to change. Only meaningful on
+     a rejection - it is cleared on approval or reset. */
   $note = trim((string)inp('note', ''));
   if (strlen($note) > 500) $note = substr($note, 0, 500);
   if ($state !== -1) $note = '';
@@ -1412,8 +1879,8 @@ case 'round_approve': {
     $db->prepare('UPDATE round_chars SET approved = 0, approved_by = 0, approved_at = 0, note = ? WHERE round_id = ? AND char_id = ?')
        ->execute(['', $id, $charId]);
   } else {
-    /* Auch die Ablehnung mit Zeitstempel festhalten – sonst weiß niemand, wann
-       und von wem sie kam. */
+    /* Record the rejection with a timestamp too - otherwise nobody knows
+       when it came, or from whom. */
     $db->prepare('UPDATE round_chars SET approved = ?, approved_by = ?, approved_at = ?, note = ? WHERE round_id = ? AND char_id = ?')
        ->execute([$state, $user['id'], time(), $note, $id, $charId]);
   }
@@ -1438,21 +1905,21 @@ case 'round_chars': {
   foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
     $out[] = ['id' => (int)$r['id'], 'name' => $r['name'], 'kind' => $r['kind'] ? $r['kind'] : 'char',
               'owner' => $r['owner'], 'updated' => (int)$r['updated'],
-              /* approved bleibt als Wahrheitswert erhalten (alte Clients), state
-                 trägt den echten Zustand: 1 frei, 0 wartet, -1 abgelehnt. */
+              /* approved is kept as a boolean (for old clients); state
+                 carries the real value: 1 approved, 0 waiting, -1 rejected. */
               'approved' => (int)$r['approved'] === 1, 'state' => (int)$r['approved'],
               'approvedAt' => (int)$r['approved_at'], 'note' => (string)$r['note'],
-              /* Wurde der Bogen nach der Freigabe noch bearbeitet? Der Spieler
-                 speichert in dasselbe Dokument, der GM sieht also immer den
-                 aktuellen Stand - dieser Hinweis sagt ihm, dass sich etwas
-                 geaendert hat, ohne die Freigabe zu erzwingen. */
+              /* Was the sheet edited after it was approved? The player saves
+                 into the same document, so the GM always sees the current
+                 state - this note tells them something has changed, without
+                 forcing a re-approval. */
               'changedSince' => ((int)$r['approved'] === 1
                                  && (int)$r['updated'] > (int)$r['approved_at'])];
   }
   json_out(['chars' => $out]);
 }
 
-/* Für den Spieler: welche EIGENEN Chars sind in dieser Runde angemeldet/frei? */
+/* For the player: which of MY characters are entered/approved in this round? */
 case 'round_my_chars': {
   $user = auth();
   $id = (int)inp('id', 0);
@@ -1471,7 +1938,594 @@ case 'round_my_chars': {
   json_out(['chars' => $out]);
 }
 
-/* ===================== Support-/Ticketsystem ===================== */
+/* ===================== the table-top (mini VTT) =====================
+   The GM puts maps up and decides which one is showing; everyone in the
+   round moves their own tokens and rolls into a shared log.
+
+   Deliberately NOT in here: fog of war, line of sight, distance measuring.
+   Those are what VTT projects founder on, and at a table where the GM says
+   what you can see anyway, they buy nothing. */
+
+/* The cheap one. Every client asks this and nothing else while idling, so
+   it stays a single indexed read and returns a handful of bytes. */
+case 'vtt_poll': {
+  $user = auth();
+  $id = (int)inp('round', 0);
+  if (!round_is_member($id, $user['id'])) fail('Not a member of this round', 403);
+  $st = $db->prepare('SELECT vtt_version FROM rounds WHERE id = ?');
+  $st->execute([$id]);
+  $row = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$row) fail('Round not found', 404);
+  json_out(['v' => (int)$row['vtt_version']]);
+}
+
+/* The whole table-top. Only fetched once vtt_poll reports a new version. */
+case 'vtt_state': {
+  $user = auth();
+  $id = (int)inp('round', 0);
+  if (!round_is_member($id, $user['id'])) fail('Not a member of this round', 403);
+  $st = $db->prepare('SELECT * FROM rounds WHERE id = ?');
+  $st->execute([$id]);
+  $round = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$round) fail('Round not found', 404);
+  $activeMap = (int)$round['active_map'];
+
+  $isGm = round_is_gm($id, $user['id']);
+  $maps = [];
+  $activeFog = null; $fogCols = 0; $fogRows = 0;
+  $st = $db->prepare('SELECT * FROM round_maps WHERE round_id = ? ORDER BY id');
+  $st->execute([$id]);
+  foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $m) {
+    $row = ['id' => (int)$m['id'], 'name' => (string)$m['name'],
+            'url' => 'vtt/' . $m['sha'] . '.' . $m['ext'],
+            'w' => (int)$m['w'], 'h' => (int)$m['h'], 'grid' => (int)$m['grid']];
+    if ((int)$m['id'] === $activeMap) {
+      list($activeFog, $fogCols, $fogRows) = fog_read($m);
+      $row['fog'] = $activeFog;
+      $row['fogCols'] = $fogCols;
+      $row['fogRows'] = $fogRows;
+    }
+    $maps[] = $row;
+  }
+  /* Only the tokens of the map actually showing - a round may hold thirty
+     maps, and nobody needs the tokens of the other twenty-nine. */
+  $tokens = [];
+  if ($activeMap) {
+    $st = $db->prepare('SELECT t.*, u.username AS owner FROM round_tokens t
+                        LEFT JOIN users u ON u.id = t.owner_id
+                        WHERE t.round_id = ? AND t.map_id = ? ORDER BY t.id');
+    $st->execute([$id, $activeMap]);
+    foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $t) {
+      /* Hidden tokens are dropped HERE, before the answer is built. Sending
+         them and letting the browser not draw them would put the position
+         of every enemy into a reply any player can read.
+
+         Never one's OWN token, though. Where your own figure stands is no
+         secret from you, and hiding it is a trap: it is not drawn, so it
+         cannot be dragged back out of the dark either. Somebody who walks
+         into an unexplored corner would lose their piece for good. */
+      $mine = (int)$t['owner_id'] === (int)$user['id'];
+      if (!$isGm && !$mine && $activeFog !== null
+          && fog_hides_token($activeFog, $fogCols, $fogRows, $t['x'], $t['y'])) {
+        continue;
+      }
+      $tokens[] = ['id' => (int)$t['id'], 'charId' => (int)$t['char_id'],
+                   'kind' => (string)$t['kind'], 'label' => (string)$t['label'],
+                   'color' => (string)$t['color'],
+                   /* empty url = the client draws a default token itself */
+                   'url' => $t['img_sha'] ? 'vtt/' . $t['img_sha'] . '.' . $t['img_ext'] : '',
+                   'x' => (float)$t['x'], 'y' => (float)$t['y'], 'size' => (float)$t['size'],
+                   'owner' => (string)$t['owner'], 'ownerId' => (int)$t['owner_id']];
+    }
+  }
+  $log = [];
+  $st = $db->prepare('SELECT l.*, u.username FROM round_log l
+                      LEFT JOIN users u ON u.id = l.user_id
+                      WHERE l.round_id = ? ORDER BY l.id DESC LIMIT 50');
+  $st->execute([$id]);
+  foreach (array_reverse($st->fetchAll(PDO::FETCH_ASSOC)) as $l) {
+    $log[] = ['id' => (int)$l['id'], 'who' => (string)$l['username'],
+              'kind' => (string)$l['kind'], 'text' => (string)$l['text'],
+              'data' => (string)$l['data'], 'at' => (int)$l['created']];
+  }
+  /* Music: the list plus where the track stands. "at" is the server's
+     clock, and the answer carries "now" from the same clock - so a client
+     whose own clock is minutes off still computes the right position, it
+     only ever works with the difference between the two. */
+  $audio = [];
+  $st = $db->prepare('SELECT * FROM round_audio WHERE round_id = ? ORDER BY id');
+  $st->execute([$id]);
+  foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $a) {
+    $audio[] = ['id' => (int)$a['id'], 'kind' => (string)$a['kind'],
+                'name' => (string)$a['name'],
+                'url' => $a['sha'] ? 'vtt/' . $a['sha'] . '.' . $a['ext'] : '',
+                'yt' => (string)$a['yt_id'],
+                'ytList' => (string)$a['yt_list']];
+  }
+
+  json_out(['v' => (int)$round['vtt_version'], 'activeMap' => $activeMap,
+            'isGm' => $isGm,
+            'maps' => $maps, 'tokens' => $tokens, 'log' => $log,
+            'audio' => $audio,
+            'audioState' => [
+              'id' => (int)$round['audio_id'],
+              'play' => (int)$round['audio_play'] === 1,
+              'pos' => (float)$round['audio_pos'],
+              'at' => (int)$round['audio_at'],
+              'loop' => (int)$round['audio_loop'] === 1,
+              'index' => (int)$round['audio_index'],
+              'now' => time(),
+            ]]);
+}
+
+/* ---- maps: the GM's business ---- */
+case 'map_add': {
+  $user = auth();
+  $id = (int)inp('round', 0);
+  if (!round_is_gm($id, $user['id'])) fail('Only a GM can add maps', 403);
+  $st = $db->prepare('SELECT COUNT(*) FROM round_maps WHERE round_id = ?');
+  $st->execute([$id]);
+  if ((int)$st->fetchColumn() >= $CONFIG['max_maps_per_round']) {
+    fail('This round already has ' . $CONFIG['max_maps_per_round'] . ' maps');
+  }
+  list($sha, $ext, $bytes, $w, $h) = vtt_store_image(inp('img', ''), $CONFIG['max_map_bytes'], 'Map');
+  $name = mb_substr(trim((string)inp('name', '')), 0, 120);
+  if ($name === '') $name = 'Map';
+  $grid = max(0, min(512, (int)inp('grid', 0)));
+  $st = $db->prepare('INSERT INTO round_maps (round_id, name, sha, ext, w, h, bytes, grid, created)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  $st->execute([$id, $name, $sha, $ext, $w, $h, $bytes, $grid, time()]);
+  $mapId = (int)last_id('round_maps');
+  /* The first map a round gets is shown at once - otherwise the GM uploads
+     one and stares at an empty table wondering what went wrong. */
+  if (!(int)$db->query('SELECT active_map FROM rounds WHERE id = ' . $id)->fetchColumn()) {
+    $db->prepare('UPDATE rounds SET active_map = ? WHERE id = ?')->execute([$mapId, $id]);
+  }
+  vtt_touch($id);
+  json_out(['ok' => true, 'id' => $mapId, 'url' => 'vtt/' . $sha . '.' . $ext,
+            'w' => $w, 'h' => $h]);
+}
+
+case 'map_activate': {
+  $user = auth();
+  $id = (int)inp('round', 0);
+  if (!round_is_gm($id, $user['id'])) fail('Only a GM can switch the map', 403);
+  $mapId = (int)inp('map', 0);
+  if ($mapId) {
+    $st = $db->prepare('SELECT 1 FROM round_maps WHERE id = ? AND round_id = ?');
+    $st->execute([$mapId, $id]);
+    if (!$st->fetch()) fail('Map not found in this round', 404);
+  }
+  $db->prepare('UPDATE rounds SET active_map = ? WHERE id = ?')->execute([$mapId, $id]);
+  vtt_touch($id);
+  json_out(['ok' => true]);
+}
+
+/* The grid belongs to the map, not to the round: one map is drawn at
+   40 px per square, the next at 64. */
+case 'map_grid': {
+  $user = auth();
+  $id = (int)inp('round', 0);
+  if (!round_is_gm($id, $user['id'])) fail('Only a GM can change the grid', 403);
+  $mapId = (int)inp('map', 0);
+  $grid = max(0, min(512, (int)inp('grid', 0)));
+  $st = $db->prepare('SELECT 1 FROM round_maps WHERE id = ? AND round_id = ?');
+  $st->execute([$mapId, $id]);
+  if (!$st->fetch()) fail('Map not found in this round', 404);
+  $db->prepare('UPDATE round_maps SET grid = ? WHERE id = ?')->execute([$grid, $mapId]);
+  vtt_touch($id);
+  json_out(['ok' => true, 'grid' => $grid]);
+}
+
+/* Painting the fog. The GM sends the cells they just brushed over plus the
+   state to put them in, or "all" to redo the whole map at once. Sending
+   single cells rather than the entire mask keeps a brush stroke small, and
+   two GMs painting at the same time do not overwrite each other's work. */
+case 'map_fog': {
+  $user = auth();
+  $id = (int)inp('round', 0);
+  if (!round_is_gm($id, $user['id'])) fail('Only a GM can change the fog', 403);
+  $mapId = (int)inp('map', 0);
+  $st = $db->prepare('SELECT * FROM round_maps WHERE id = ? AND round_id = ?');
+  $st->execute([$mapId, $id]);
+  $map = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$map) fail('Map not found in this round', 404);
+  list($fog, $cols, $rows) = fog_read($map);
+
+  $state = (string)inp('state', '2');
+  if (!in_array($state, ['0', '1', '2'], true)) fail('Unknown fog state');
+
+  $all = inp('all', null);
+  if ($all !== null) {
+    $fog = str_repeat($state, $cols * $rows);
+  } else {
+    $cells = inp('cells', []);
+    if (!is_array($cells)) fail('cells must be a list');
+    /* A brush stroke over a big map can cover a lot of cells; the cap only
+       stops a malformed request from looping forever. */
+    if (count($cells) > 20000) fail('Too many cells in one call');
+    foreach ($cells as $c) {
+      $i = (int)$c;
+      if ($i >= 0 && $i < $cols * $rows) $fog[$i] = $state;
+    }
+  }
+  $db->prepare('UPDATE round_maps SET fog = ?, fog_cols = ?, fog_rows = ? WHERE id = ?')
+     ->execute([$fog, $cols, $rows, $mapId]);
+  vtt_touch($id);
+  json_out(['ok' => true, 'cols' => $cols, 'rows' => $rows]);
+}
+
+case 'map_delete': {
+  $user = auth();
+  $id = (int)inp('round', 0);
+  if (!round_is_gm($id, $user['id'])) fail('Only a GM can delete maps', 403);
+  $mapId = (int)inp('map', 0);
+  $st = $db->prepare('SELECT sha, ext FROM round_maps WHERE id = ? AND round_id = ?');
+  $st->execute([$mapId, $id]);
+  $map = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$map) fail('Map not found in this round', 404);
+  $db->prepare('DELETE FROM round_tokens WHERE round_id = ? AND map_id = ?')->execute([$id, $mapId]);
+  $db->prepare('DELETE FROM round_maps WHERE id = ? AND round_id = ?')->execute([$mapId, $id]);
+  $db->prepare('UPDATE rounds SET active_map = 0 WHERE id = ? AND active_map = ?')->execute([$id, $mapId]);
+  vtt_delete_unused($map['sha'], $map['ext']);
+  vtt_touch($id);
+  json_out(['ok' => true]);
+}
+
+/* ---- tokens ---- */
+case 'token_add': {
+  $user = auth();
+  $id = (int)inp('round', 0);
+  if (!round_is_member($id, $user['id'])) fail('Not a member of this round', 403);
+  $isGm = round_is_gm($id, $user['id']);
+  $mapId = (int)inp('map', 0);
+  $st = $db->prepare('SELECT 1 FROM round_maps WHERE id = ? AND round_id = ?');
+  $st->execute([$mapId, $id]);
+  if (!$st->fetch()) fail('Map not found in this round', 404);
+  $st = $db->prepare('SELECT COUNT(*) FROM round_tokens WHERE round_id = ? AND map_id = ?');
+  $st->execute([$id, $mapId]);
+  if ((int)$st->fetchColumn() >= $CONFIG['max_tokens_per_map']) {
+    fail('This map already carries ' . $CONFIG['max_tokens_per_map'] . ' tokens');
+  }
+
+  /* A token may stand for one of the round's documents. A player may only
+     do that with their own, and only once the GM has approved it for the
+     round - otherwise a sheet nobody has seen turns up on the table. */
+  $charId = (int)inp('charId', 0);
+  $kind = 'npc';
+  if ($charId) {
+    $st = $db->prepare('SELECT c.id, c.kind, c.user_id, rc.approved
+                        FROM chars c LEFT JOIN round_chars rc
+                          ON rc.char_id = c.id AND rc.round_id = ?
+                        WHERE c.id = ?');
+    $st->execute([$id, $charId]);
+    $doc = $st->fetch(PDO::FETCH_ASSOC);
+    if (!$doc) fail('Document not found', 404);
+    if (!$isGm) {
+      if ((int)$doc['user_id'] !== (int)$user['id']) fail('That is not your document', 403);
+      if ((int)$doc['approved'] !== 1) fail('The GM has not approved this document for the round yet', 403);
+    }
+    $kind = $doc['kind'] ? $doc['kind'] : 'char';
+  }
+  $kindIn = (string)inp('kind', '');
+  if ($kindIn !== '' && in_array($kindIn, ['char', 'droid', 'ship', 'npc'], true)) $kind = $kindIn;
+
+  /* A picture is optional: without one the client draws a coloured disc
+     with the initials, which costs neither storage nor a request. */
+  $sha = $ext = '';
+  $img = (string)inp('img', '');
+  if ($img !== '') {
+    list($sha, $ext) = vtt_store_image($img, $CONFIG['max_token_bytes'], 'Token picture');
+  }
+  $st = $db->prepare('INSERT INTO round_tokens
+      (round_id, map_id, char_id, owner_id, kind, label, color, img_sha, img_ext, x, y, size, created)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  $st->execute([$id, $mapId, $charId, $user['id'], $kind,
+                mb_substr(trim((string)inp('label', '')), 0, 60),
+                preg_replace('/[^#0-9a-zA-Z]/', '', (string)inp('color', '')),
+                $sha, $ext, vtt_frac(inp('x', 0.5)), vtt_frac(inp('y', 0.5)),
+                max(0.25, min(8, (float)inp('size', 1))), time()]);
+  vtt_touch($id);
+  json_out(['ok' => true, 'id' => (int)last_id('round_tokens'),
+            'url' => $sha ? 'vtt/' . $sha . '.' . $ext : '']);
+}
+
+/* Moving is the one call that happens constantly - a token being dragged
+   sends it over and over. It therefore does as little as possible. */
+case 'token_move': {
+  $user = auth();
+  $id = (int)inp('round', 0);
+  if (!round_is_member($id, $user['id'])) fail('Not a member of this round', 403);
+  $tokenId = (int)inp('token', 0);
+  $st = $db->prepare('SELECT owner_id FROM round_tokens WHERE id = ? AND round_id = ?');
+  $st->execute([$tokenId, $id]);
+  $tok = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$tok) fail('Token not found', 404);
+  if ((int)$tok['owner_id'] !== (int)$user['id'] && !round_is_gm($id, $user['id'])) {
+    fail('You can only move your own tokens', 403);
+  }
+  $db->prepare('UPDATE round_tokens SET x = ?, y = ? WHERE id = ?')
+     ->execute([vtt_frac(inp('x', 0.5)), vtt_frac(inp('y', 0.5)), $tokenId]);
+  vtt_touch($id);
+  json_out(['ok' => true]);
+}
+
+case 'token_delete': {
+  $user = auth();
+  $id = (int)inp('round', 0);
+  if (!round_is_member($id, $user['id'])) fail('Not a member of this round', 403);
+  $tokenId = (int)inp('token', 0);
+  $st = $db->prepare('SELECT owner_id, img_sha, img_ext FROM round_tokens WHERE id = ? AND round_id = ?');
+  $st->execute([$tokenId, $id]);
+  $tok = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$tok) fail('Token not found', 404);
+  if ((int)$tok['owner_id'] !== (int)$user['id'] && !round_is_gm($id, $user['id'])) {
+    fail('You can only remove your own tokens', 403);
+  }
+  $db->prepare('DELETE FROM round_tokens WHERE id = ?')->execute([$tokenId]);
+  if ($tok['img_sha']) vtt_delete_unused($tok['img_sha'], $tok['img_ext']);
+  vtt_touch($id);
+  json_out(['ok' => true]);
+}
+
+/* ---- background music ----
+   On the YouTube half: only the video id is stored. We do not fetch the
+   video, do not pull the audio out of it and do not re-serve it - every
+   client plays it from YouTube in an embedded player. Relaying it through
+   this server would break YouTube's terms and put someone else's music on
+   our wire; this way YouTube delivers it, exactly as if each player had
+   opened the video themselves. */
+case 'audio_add': {
+  $user = auth();
+  $id = (int)inp('round', 0);
+  if (!round_is_gm($id, $user['id'])) fail('Only a GM can add music', 403);
+  $st = $db->prepare('SELECT COUNT(*) FROM round_audio WHERE round_id = ?');
+  $st->execute([$id]);
+  if ((int)$st->fetchColumn() >= $CONFIG['max_audio_per_round']) {
+    fail('This round already has ' . $CONFIG['max_audio_per_round'] . ' tracks');
+  }
+  $name = mb_substr(trim((string)inp('name', '')), 0, 120);
+  $yt = trim((string)inp('yt', ''));
+  if ($yt !== '') {
+    /* Accept whatever the GM pasted - a watch link, a short link, an
+       embed link, a bare id, or a playlist - and keep only the ids.
+
+       A link can carry both: "watch?v=abc&list=PL123" is one video INSIDE
+       a playlist. Then the playlist wins, because that is what the GM
+       meant when they pasted it; the video id only says where to start.
+       Playlist ids are not a fixed length (PL..., UU..., RD..., OLAK5uy...
+       and others), hence the looser pattern. */
+    $vid = '';
+    $list = '';
+    if (preg_match('#[?&]list=([A-Za-z0-9_-]{12,64})#', $yt, $m)) $list = $m[1];
+    elseif (preg_match('#^(PL|UU|LL|FL|RD|OLAK5uy)[A-Za-z0-9_-]{10,}$#', $yt)) $list = $yt;
+    if (preg_match('#(?:v=|youtu\.be/|/embed/|/shorts/)([A-Za-z0-9_-]{11})#', $yt, $m)) $vid = $m[1];
+    elseif (preg_match('#^[A-Za-z0-9_-]{11}$#', $yt)) $vid = $yt;
+    if ($vid === '' && $list === '') fail('That does not look like a YouTube link');
+    if ($name === '') $name = $list !== '' ? 'YouTube-Playlist' : 'YouTube';
+    $st = $db->prepare('INSERT INTO round_audio (round_id, kind, name, yt_id, yt_list, created)
+                        VALUES (?, ?, ?, ?, ?, ?)');
+    $st->execute([$id, 'yt', $name, $vid, $list, time()]);
+  } else {
+    list($sha, $ext, $bytes) = vtt_store_audio(inp('file', ''), $CONFIG['max_audio_bytes']);
+    if ($name === '') $name = 'Track';
+    $st = $db->prepare('INSERT INTO round_audio (round_id, kind, name, sha, ext, bytes, created)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)');
+    $st->execute([$id, 'file', $name, $sha, $ext, $bytes, time()]);
+  }
+  vtt_touch($id);
+  json_out(['ok' => true, 'id' => (int)last_id('round_audio')]);
+}
+
+/* Play, pause or jump. The GM is the only clock: they send the position
+   they are at, the server stamps the moment, and every client works out
+   the rest for itself. */
+case 'audio_control': {
+  $user = auth();
+  $id = (int)inp('round', 0);
+  if (!round_is_gm($id, $user['id'])) fail('Only a GM controls the music', 403);
+  $trackId = (int)inp('track', 0);
+  if ($trackId) {
+    $st = $db->prepare('SELECT 1 FROM round_audio WHERE id = ? AND round_id = ?');
+    $st->execute([$trackId, $id]);
+    if (!$st->fetch()) fail('Track not found in this round', 404);
+  }
+  $play = inp('play', null);
+  $pos = (float)inp('pos', 0);
+  if (!is_finite($pos) || $pos < 0) $pos = 0;
+  $loop = inp('loop', null);
+  $index = inp('index', null);
+  $sql = 'UPDATE rounds SET audio_id = ?, audio_pos = ?, audio_at = ?';
+  $args = [$trackId, $pos, time()];
+  if ($play !== null) { $sql .= ', audio_play = ?'; $args[] = ($play ? 1 : 0); }
+  if ($loop !== null) { $sql .= ', audio_loop = ?'; $args[] = ($loop ? 1 : 0); }
+  if ($index !== null) { $sql .= ', audio_index = ?'; $args[] = max(0, min(500, (int)$index)); }
+  $sql .= ' WHERE id = ?';
+  $args[] = $id;
+  $db->prepare($sql)->execute($args);
+  vtt_touch($id);
+  json_out(['ok' => true]);
+}
+
+case 'audio_delete': {
+  $user = auth();
+  $id = (int)inp('round', 0);
+  if (!round_is_gm($id, $user['id'])) fail('Only a GM can remove music', 403);
+  $trackId = (int)inp('track', 0);
+  $st = $db->prepare('SELECT sha, ext FROM round_audio WHERE id = ? AND round_id = ?');
+  $st->execute([$trackId, $id]);
+  $tr = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$tr) fail('Track not found in this round', 404);
+  $db->prepare('DELETE FROM round_audio WHERE id = ? AND round_id = ?')->execute([$trackId, $id]);
+  $db->prepare('UPDATE rounds SET audio_id = 0, audio_play = 0 WHERE id = ? AND audio_id = ?')
+     ->execute([$id, $trackId]);
+  if ($tr['sha']) vtt_delete_unused($tr['sha'], $tr['ext']);
+  vtt_touch($id);
+  json_out(['ok' => true]);
+}
+
+/* ---- voice and video ----
+   Hand out TURN credentials that expire. This is coturn's REST scheme
+   (use-auth-secret in turnserver.conf): the user name is an expiry stamp,
+   the password is an HMAC of that name with the shared secret. coturn
+   recomputes the same HMAC and lets the client in without ever having
+   heard of that user - no account list to keep in step, and a credential
+   caught in a browser's network log is worthless a few hours later.
+
+   Only members of the round get one, so the relay cannot be used by
+   anyone who merely found the page. */
+case 'turn_credentials': {
+  $user = auth();
+  $id = (int)inp('round', 0);
+  if (!round_is_member($id, $user['id'])) fail('Not a member of this round', 403);
+  $cfg = isset($CONFIG['turn']) ? $CONFIG['turn'] : [];
+  $ice = [];
+  foreach ((array)(isset($cfg['stun']) ? $cfg['stun'] : []) as $u) {
+    if ($u) $ice[] = ['urls' => $u];
+  }
+  $urls = array_values(array_filter((array)(isset($cfg['urls']) ? $cfg['urls'] : [])));
+  $secret = (string)(isset($cfg['secret']) ? $cfg['secret'] : '');
+  if ($urls && $secret !== '') {
+    $ttl = (int)(isset($cfg['ttl']) ? $cfg['ttl'] : 43200);
+    if ($ttl < 300) $ttl = 300;
+    /* coturn expects "<expiry>:<anything>". The user id is only there to
+       tell entries apart in the log. */
+    $username = (time() + $ttl) . ':swd6-' . (int)$user['id'];
+    $password = base64_encode(hash_hmac('sha1', $username, $secret, true));
+    $ice[] = ['urls' => $urls, 'username' => $username, 'credential' => $password];
+  }
+  json_out(['iceServers' => $ice, 'ttl' => (int)(isset($cfg['ttl']) ? $cfg['ttl'] : 0),
+            'turnConfigured' => ($urls && $secret !== '')]);
+}
+
+/* Announce oneself and find out who else is there. Called every few
+   seconds while the call is open; the answer is what drives the mesh. */
+case 'rtc_join': {
+  $user = auth();
+  $id = (int)inp('round', 0);
+  if (!round_is_member($id, $user['id'])) fail('Not a member of this round', 403);
+  $cam = inp('cam', null);
+  $mic = inp('mic', null);
+  $now = time();
+  $st = $db->prepare('SELECT 1 FROM round_calls WHERE round_id = ? AND user_id = ?');
+  $st->execute([$id, $user['id']]);
+  if ($st->fetch()) {
+    $sql = 'UPDATE round_calls SET seen = ?';
+    $args = [$now];
+    if ($cam !== null) { $sql .= ', cam = ?'; $args[] = $cam ? 1 : 0; }
+    if ($mic !== null) { $sql .= ', mic = ?'; $args[] = $mic ? 1 : 0; }
+    $sql .= ' WHERE round_id = ? AND user_id = ?';
+    $args[] = $id; $args[] = $user['id'];
+    $db->prepare($sql)->execute($args);
+  } else {
+    $db->prepare(insert_ignore() . ' round_calls (round_id, user_id, cam, mic, seen)
+                  VALUES (?,?,?,?,?)' . on_conflict())
+       ->execute([$id, $user['id'], $cam ? 1 : 0, $mic === null ? 1 : ($mic ? 1 : 0), $now]);
+  }
+  /* Sweep out the seats nobody is sitting in any more. Doing it here means
+     no cron job is needed - the people still in the call clean up after
+     the ones who left. */
+  $db->prepare('DELETE FROM round_calls WHERE seen < ?')->execute([$now - CALL_TIMEOUT]);
+  $db->prepare('DELETE FROM round_signals WHERE created < ?')->execute([$now - 120]);
+
+  $st = $db->prepare('SELECT c.user_id, c.cam, c.mic, u.username FROM round_calls c
+                      JOIN users u ON u.id = c.user_id
+                      WHERE c.round_id = ? AND c.seen >= ? ORDER BY c.user_id');
+  $st->execute([$id, $now - CALL_TIMEOUT]);
+  $peers = [];
+  foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $p) {
+    $peers[] = ['id' => (int)$p['user_id'], 'name' => (string)$p['username'],
+                'cam' => (int)$p['cam'] === 1, 'mic' => (int)$p['mic'] === 1,
+                'me' => (int)$p['user_id'] === (int)$user['id']];
+  }
+  json_out(['peers' => $peers, 'me' => (int)$user['id'], 'timeout' => CALL_TIMEOUT]);
+}
+
+case 'rtc_leave': {
+  $user = auth();
+  $id = (int)inp('round', 0);
+  $db->prepare('DELETE FROM round_calls WHERE round_id = ? AND user_id = ?')
+     ->execute([$id, $user['id']]);
+  $db->prepare('DELETE FROM round_signals WHERE round_id = ? AND (from_id = ? OR to_id = ?)')
+     ->execute([$id, $user['id'], $user['id']]);
+  json_out(['ok' => true]);
+}
+
+/* Put one message in another member's post box. The body is passed
+   through untouched - it is an SDP or an ICE candidate, and only the two
+   browsers need to understand it. */
+case 'rtc_send': {
+  $user = auth();
+  $id = (int)inp('round', 0);
+  if (!round_is_member($id, $user['id'])) fail('Not a member of this round', 403);
+  $to = (int)inp('to', 0);
+  if (!$to || $to === (int)$user['id']) fail('No recipient');
+  if (!round_is_member($id, $to)) fail('That user is not in this round', 403);
+  $body = (string)inp('body', '');
+  /* An SDP with a lot of candidates gets long, but not this long. The cap
+     is only there so a single call cannot fill the table. */
+  if ($body === '' || strlen($body) > 64000) fail('Message empty or too large');
+  $db->prepare('INSERT INTO round_signals (round_id, from_id, to_id, body, created)
+                VALUES (?,?,?,?,?)')
+     ->execute([$id, $user['id'], $to, $body, time()]);
+  json_out(['ok' => true]);
+}
+
+/* Empty my post box. Messages are handed over once and deleted - both
+   sides have to keep them anyway, and leaving them lying around would
+   have every poll replay the whole handshake. */
+case 'rtc_recv': {
+  $user = auth();
+  $id = (int)inp('round', 0);
+  if (!round_is_member($id, $user['id'])) fail('Not a member of this round', 403);
+  $st = $db->prepare('SELECT id, from_id, body FROM round_signals
+                      WHERE round_id = ? AND to_id = ? ORDER BY id LIMIT 60');
+  $st->execute([$id, $user['id']]);
+  $rows = $st->fetchAll(PDO::FETCH_ASSOC);
+  $out = [];
+  $ids = [];
+  foreach ($rows as $r) {
+    $out[] = ['from' => (int)$r['from_id'], 'body' => (string)$r['body']];
+    $ids[] = (int)$r['id'];
+  }
+  if ($ids) {
+    $db->exec('DELETE FROM round_signals WHERE id IN (' . implode(',', $ids) . ')');
+  }
+  json_out(['messages' => $out]);
+}
+
+/* ---- the shared roll log ---- */
+case 'vtt_log': {
+  $user = auth();
+  $id = (int)inp('round', 0);
+  if (!round_is_member($id, $user['id'])) fail('Not a member of this round', 403);
+  $text = mb_substr(trim((string)inp('text', '')), 0, 300);
+  if ($text === '') fail('Nothing to log');
+  $kind = (string)inp('kind', 'roll');
+  if (!in_array($kind, ['roll', 'note'], true)) $kind = 'note';
+  /* The single dice, so every client can show the roll on the map instead
+     of only a line of text. Passed through as the client sent it and
+     capped in size - it is read back by the same code that wrote it, and
+     it never reaches the page unescaped. */
+  $data = (string)inp('data', '');
+  if (strlen($data) > 2000) $data = '';
+  $db->prepare('INSERT INTO round_log (round_id, user_id, kind, text, data, created)
+                VALUES (?, ?, ?, ?, ?, ?)')
+     ->execute([$id, $user['id'], $kind, $text, $data, time()]);
+  /* Keep the log from growing without end: a long campaign would otherwise
+     carry thousands of rows nobody ever scrolls back to. Strictly LESS
+     THAN the oldest row worth keeping - with "<=" this deletes the very
+     row it is supposed to keep, and every single roll vanished the moment
+     it was written. */
+  $db->prepare('DELETE FROM round_log WHERE round_id = ? AND id < (
+                  SELECT MIN(id) FROM (SELECT id FROM round_log WHERE round_id = ?
+                                       ORDER BY id DESC LIMIT 200) keep)')
+     ->execute([$id, $id]);
+  vtt_touch($id);
+  json_out(['ok' => true]);
+}
+
+/* ===================== support / ticket system ===================== */
 case 'ticket_create': {
   $user = auth();
   ticket_check_limits($user, true);
@@ -1496,7 +2550,7 @@ case 'ticket_create': {
 case 'ticket_list': {
   $user = auth();
   $admin = is_admin($user);
-  /* unread = Nachrichten der Gegenseite, die jünger sind als mein letzter Besuch */
+  /* unread = messages from the other side younger than my last visit */
   $sql = "SELECT t.id, t.subject, t.category, t.status, t.updated,
             (SELECT COUNT(*) FROM ticket_messages m WHERE m.ticket_id = t.id) AS msgs,
             (SELECT COUNT(*) FROM ticket_messages m2 WHERE m2.ticket_id = t.id AND m2.is_admin = ?
@@ -1538,7 +2592,7 @@ case 'ticket_get': {
     $msgs[] = ['author' => $m['author'], 'isAdmin' => (int)$m['is_admin'] === 1,
                'body' => $m['body'], 'image' => $m['image'] ? $m['image'] : null, 'created' => (int)$m['created']];
   }
-  /* Öffnen gilt als gelesen – der Hinweis verschwindet nur für mich. */
+  /* Opening counts as reading - the notice disappears for me alone. */
   ticket_mark_seen($user['id'], $id);
   json_out(['id' => (int)$tk['id'], 'subject' => $tk['subject'], 'category' => $tk['category'],
             'status' => $tk['status'], 'messages' => $msgs]);
@@ -1554,7 +2608,7 @@ case 'ticket_reply': {
   $admin = is_admin($user);
   if ((int)$tk['user_id'] !== (int)$user['id'] && !$admin) fail('No access to this ticket', 403);
   ticket_check_limits($user, false);
-  /* Endlos lange Fäden begrenzen (jede Nachricht kann ein Bild tragen). */
+  /* Cap endlessly long threads (every message can carry an image). */
   $st = $db->prepare('SELECT COUNT(*) FROM ticket_messages WHERE ticket_id = ?');
   $st->execute([$id]);
   if ((int)$st->fetchColumn() >= 100) fail('This ticket has reached the maximum number of messages (100)');
@@ -1565,7 +2619,7 @@ case 'ticket_reply': {
   $now = time();
   $db->prepare('INSERT INTO ticket_messages (ticket_id, author_id, is_admin, body, image, created) VALUES (?,?,?,?,?,?)')
      ->execute([$id, $user['id'], $admin ? 1 : 0, $msgBody, $img, $now]);
-  /* Admin-Antwort → „beantwortet"; Nutzer-Antwort → wieder „offen". */
+  /* An admin reply -> "answered"; a user reply -> "open" again. */
   $db->prepare('UPDATE tickets SET status = ?, updated = ? WHERE id = ?')
      ->execute([$admin ? 'answered' : 'open', $now, $id]);
   json_out(['ok' => true]);
@@ -1584,7 +2638,7 @@ case 'ticket_close': {
   json_out(['ok' => true, 'status' => $status]);
 }
 
-/* ---- Bestenliste der versteckten Zugabe (ohne Anmeldung) ---- */
+/* ---- high score table for the hidden extra (no sign-in) ---- */
 case 'arcade_top': {
   $st = $db->query('SELECT name, score FROM arcade_scores ORDER BY score DESC, id ASC LIMIT 10');
   $out = [];
@@ -1593,9 +2647,9 @@ case 'arcade_top': {
   json_out(['scores' => $out]);
 }
 case 'arcade_add': {
-  /* Offen für alle, deshalb eng geführt: nur drei Großbuchstaben, eine Zahl
-     in plausibler Höhe, und höchstens ein Eintrag alle paar Sekunden. Die
-     Tabelle wird auf 100 Zeilen gestutzt, damit sie nicht wächst. */
+  /* Open to everyone, so kept on a short leash: three capital letters, a
+     score of plausible size, and at most one entry every few seconds. The
+     table is trimmed to 100 rows so it cannot grow. */
   $name = strtoupper(trim((string)inp('name', '')));
   if (!preg_match('/^[A-Z]{3}$/', $name)) fail('Three letters A-Z required');
   $score = (int)inp('score', 0);
@@ -1619,7 +2673,7 @@ case 'arcade_add': {
   json_out(['ok' => true, 'scores' => $out]);
 }
 
-/* Nur die Anzahl – wird von jeder Seite für den Hinweis am ☁-Knopf abgefragt. */
+/* Just the count - every page asks for it to badge the cloud button. */
 case 'ticket_status': {
   $user = auth();
   $admin = is_admin($user);

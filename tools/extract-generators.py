@@ -1,20 +1,20 @@
 # -*- coding: utf-8 -*-
 """
 =============================================================================
- Spieldaten für Droiden- und Schiffs-Generator nach gendata.js übertragen
+ Carry the droid and ship generator data over into gendata.js
 =============================================================================
 
- Erzeugt gendata.js aus den Excel-Generatoren von Chance Gibboney:
+ Builds gendata.js from Chance Gibboney's Excel generators:
    - "Droid Generator v1-3.xlsm"
    - "Ship Generator v1-1.xlsx"
 
- Aufruf:
-     python tools/extract-generators.py "Pfad/Droid Generator.xlsm" "Pfad/Ship Generator.xlsx"
+ Usage:
+     python tools/extract-generators.py "path/Droid Generator.xlsm" "path/Ship Generator.xlsx"
 
- Benötigt: pip install openpyxl
+ Requires: pip install openpyxl
 
- Die Zeilen-/Spaltenbereiche entsprechen den o. g. Versionen. Nach dem
- Lauf die ausgegebene Zusammenfassung mit der vorherigen vergleichen.
+ The row and column ranges match the versions named above. After a run,
+ compare the printed summary against the previous one.
 =============================================================================
 """
 import json
@@ -67,7 +67,7 @@ degrees = []
 for r in range(140, 145):                      # First..Fifth Degree
     degrees.append({
         'name': s(mc, f'B{r}'),
-        # Kosten-Multiplikatoren (in %) je Attribut: DEX KNO MEC PER STR TEC
+        # cost multipliers (in %) per attribute: DEX KNO MEC PER STR TEC
         'mult': [num(mc, f'{c}{r}') for c in ['C', 'D', 'E', 'F', 'G', 'H']],
     })
 
@@ -76,8 +76,8 @@ body_types = col_list(mc, 'B', 102, 109)
 locomotion = col_list(mc, 'B', 112, 121)
 droid_scales = col_list(mc, 'B', 124, 128)
 matrix = col_list(mc, 'B', 131, 137)
-db_skills = col_list(mc, 'AC', 101, 133)       # inkl. "None"
-db_levels = []                                  # Datenbank-Bonus: Stufe -> Pips
+db_skills = col_list(mc, 'AC', 101, 133)       # "None" included
+db_levels = []                                  # database bonus: level -> pips
 for r in range(134, 140):
     db_levels.append({'label': s(mc, f'U{r}'), 'pips': num(mc, f'V{r}')})
 
@@ -88,15 +88,15 @@ for r in range(4, 182):
     name = s(mod_sheet, f'B{r}')
     if not name:
         continue
-    if mod_sheet[f'E{r}'].value is None:        # Kategoriezeile (kein Pip-Preis)
+    if mod_sheet[f'E{r}'].value is None:        # a category row (no pip price)
         cat = name
         continue
     droid_mods.append({
         'cat': cat,
         'name': name,
         'desc': s(mod_sheet, f'C{r}'),
-        'pips': num(mod_sheet, f'E{r}'),        # Kosten bei der Erschaffung (Pips)
-        'cp': num(mod_sheet, f'M{r}'),          # Kosten bei späterem Einbau (CP)
+        'pips': num(mod_sheet, f'E{r}'),        # cost at creation (pips)
+        'cp': num(mod_sheet, f'M{r}'),          # cost when fitted later (CP)
     })
 
 DROID = {
@@ -109,11 +109,11 @@ DROID = {
     'dbSkills': db_skills,
     'dbLevels': db_levels,
     'mods': droid_mods,
-    # Erschaffungs-Grundwerte laut Tabelle:
-    'startDice': 25,      # 25D = 75 Punkte für Attribute + Skills + Modifikationen
+    # baseline creation values as given in the table:
+    'startDice': 25,      # 25D = 75 points for attributes + skills + modifications
     'attrMinPips': 3,     # Attribute starten bei 1D
     'attrMaxPips': 39,    # Maximum 13D
-    'cpPerAttrPip': 20,   # CP-Kosten je Attributs-Pip (mal Degree-Multiplikator/100)
+    'cpPerAttrPip': 20,   # CP cost per attribute pip (times degree multiplier/100)
 }
 
 # ========================================================== SHIP GENERATOR
@@ -135,7 +135,7 @@ fire_arcs = col_list(wsel, 'C', 111, 115)
 gun_skills = col_list(wsel, 'J', 111, 114)
 weapon_scales = col_list(wsel, 'C', 119, 124)
 
-# Allgemeine Umbauten (fester Preis) – aus dem sichtbaren Modifications-Blatt
+# General modifications (fixed price) - from the visible Modifications sheet
 general_mods = []
 for r in range(3, 17):
     name = s(ws_mod, f'B{r}')
@@ -150,7 +150,7 @@ for r in range(3, 17):
     })
 
 def pct_mods(label_col, diff_col, cost_col, mishap_col, r1, r2):
-    """Prozentuale Umbauten: Stufe / Einbau-Schwierigkeit / Kosten (% vom Schiffswert) / Panne."""
+    """Percentage modifications: level / install difficulty / cost (% of hull value) / mishap."""
     out = []
     for r in range(r1, r2 + 1):
         lab = s(md, f'{label_col}{r}')
@@ -165,7 +165,7 @@ maneuver_mods = pct_mods('X', 'Y', 'Z', 'AA', 3, 7)        # +0D+1 .. +1D+2
 hull_mods = pct_mods('AL', 'AM', 'AN', 'AO', 3, 7)
 shield_mods = pct_mods('AS', 'AT', 'AU', 'AV', 3, 7)
 weapon_dmg_mods = pct_mods('AZ', 'BA', 'BB', 'BC', 3, 7)
-hyper_improve = pct_mods('AE', 'AF', 'AG', 'AH', 19, 22)   # Multiplikator-Verbesserung
+hyper_improve = pct_mods('AE', 'AF', 'AG', 'AH', 19, 22)   # improving the multiplier
 
 repl_drives = []
 for r in range(3, 8):
@@ -228,11 +228,11 @@ SHIP = {
     'maxWeapons': 6,
 }
 
-# ------------------------------------------------------------------ Ausgabe
+# ------------------------------------------------------------------- output
 with open(OUT, 'w', encoding='utf-8') as f:
-    f.write('// Automatisch erzeugt aus "%s" und "%s"\n' % (os.path.basename(DROID_SRC), os.path.basename(SHIP_SRC)))
-    f.write('// Quelle: Droiden-/Schiffs-Generatoren von Chance Gibboney (Star Wars D6, WEG)\n')
-    f.write('// Nicht von Hand bearbeiten - stattdessen tools/extract-generators.py laufen lassen.\n')
+    f.write('// Generated from "%s" and "%s"\n' % (os.path.basename(DROID_SRC), os.path.basename(SHIP_SRC)))
+    f.write('// Source: Chance Gibboney\'s droid and ship generators (Star Wars D6, WEG)\n')
+    f.write('// Do not edit by hand - run tools/extract-generators.py instead.\n')
     f.write('const DROID_DATA = ')
     json.dump(DROID, f, ensure_ascii=False, indent=1)
     f.write(';\nconst SHIP_DATA = ')
