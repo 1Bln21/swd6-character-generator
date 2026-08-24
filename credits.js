@@ -14,7 +14,7 @@
    ===================================================================== */
 'use strict';
 
-const APP_VERSION = '4.0.0-beta.8';
+const APP_VERSION = '4.0.0-beta.9';
 
 /* ---------------- translations ---------------- */
 Object.assign(T.de, {
