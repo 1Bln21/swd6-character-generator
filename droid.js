@@ -209,7 +209,20 @@ function migrate(obj) {
   m.overrides = Object.assign(emptyDoc().overrides, obj.overrides || {});
   m.credits = Object.assign(emptyDoc().credits, obj.credits || {});
   ['attrs', 'attrsCP'].forEach(k => m[k] = Object.assign(emptyDoc()[k], obj[k] || {}));
-  ['skills', 'mods', 'modsCP', 'equipment'].forEach(k => { if (!m[k] || typeof m[k] !== 'object') m[k] = {}; });
+  /* These four are maps of name -> value. "typeof [] === 'object'", so an
+     array slipped past the old guard and stayed one - and that went
+     unnoticed for a long time, because Object.entries reads named
+     properties off an array quite happily, so the equipment did show up on
+     the sheet. JSON.stringify does NOT: it writes an array as "[]" and
+     drops every named property with it. A droid whose file once carried
+     "equipment": [] therefore lost its entire equipment list on every save,
+     export and upload, without a word. Rebuild as a plain object and carry
+     whatever is in there across. */
+  ['skills', 'mods', 'modsCP', 'equipment'].forEach(k => {
+    const v = m[k];
+    if (!v || typeof v !== 'object') { m[k] = {}; return; }
+    if (Array.isArray(v)) m[k] = Object.fromEntries(Object.entries(v));
+  });
   ['extraSkills', 'customMods', 'customEquipment', 'melee', 'ranged', 'customMelee', 'customRanged']
     .forEach(k => { if (!Array.isArray(m[k])) m[k] = []; });
   /* Up to v3.3.0 the data spelled the fourth degree "Fouth Degree".
@@ -1188,6 +1201,17 @@ function renderSheet() {
       <div class="sp-box"><h4>${t('dr_desc')}</h4><div class="sp-lines" style="min-height:12mm">${esc(i.description)}</div></div>
       <div class="sp-box"><h4>${t('dr_personality')}</h4><div class="sp-lines" style="min-height:12mm">${esc(i.personality)}</div></div>
     </div>` : ''}
+    ${/* History, motivation and notes were filled in on the model tab but
+          never reached the sheet - a droid arrived at the table without its
+          past, its goals or the note the template had left behind. Each box
+          appears only when it holds something, so a bare droid does not
+          collect empty frames. */''}
+    ${(i.history || i.objectives) ? `<div class="sp-cols2">
+      <div class="sp-box"><h4>${t('dr_history')}</h4><div class="sp-lines" style="min-height:12mm">${esc(i.history)}</div></div>
+      <div class="sp-box"><h4>${t('dr_objectives')}</h4><div class="sp-lines" style="min-height:12mm">${esc(i.objectives)}</div></div>
+    </div>` : ''}
+    ${i.notes ? `<div class="sp-box"><h4>${t('notes')}</h4>
+      <div class="sp-lines">${esc(i.notes)}</div></div>` : ''}
     <div class="sp-footer"><span>${t('sheet_footer')}</span><span>${t('tab_sheet')}</span></div>
   </div>`;
   document.getElementById('sheet-print').innerHTML = html;

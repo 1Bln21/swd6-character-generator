@@ -2083,6 +2083,16 @@ function migrate(obj) {
   merged.points = Object.assign(emptyChar().points, obj.points || {});
   merged.credits = Object.assign(emptyChar().credits, obj.credits || {});
   merged.overrides = Object.assign(emptyChar().overrides, obj.overrides || {});
+  /* The same trap as on the droid page, where it cost a droid its whole
+     equipment list: an array passes "typeof === 'object'" and is therefore
+     kept, entries written into it by name are readable through
+     Object.entries - and JSON.stringify silently drops every one of them on
+     the next save. */
+  ['equipment', 'explosives', 'skills'].forEach(k => {
+    const v = merged[k];
+    if (!v || typeof v !== 'object') { merged[k] = {}; return; }
+    if (Array.isArray(v)) merged[k] = Object.fromEntries(Object.entries(v));
+  });
   if (!merged.credits.loans || merged.credits.loans.length < 2)
     merged.credits.loans = emptyChar().credits.loans;
   return merged;
