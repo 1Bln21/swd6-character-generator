@@ -3646,15 +3646,6 @@ const DATA = {
    "dark": "Yes"
   },
   {
-   "name": "Force Bomb",
-   "cat": "Alter",
-   "prereq": "Combustion",
-   "page": "GG16 p. 202",
-   "diff": "Very Difficult or opposed dodge roll",
-   "kept": "No",
-   "dark": "Yes"
-  },
-  {
    "name": "Force Burst",
    "cat": "Alter",
    "prereq": "Concentration, Force blast, Force Push, Projected Fighting, repulse, Telekinesis",
@@ -3754,15 +3745,6 @@ const DATA = {
    "dark": "No"
   },
   {
-   "name": "Stasis",
-   "cat": "Control & Alter",
-   "prereq": "Concentration, Control Another's Pain, Control Pain, Dim Another's Senses, enhance another’s attribute, Enhance Attribute, Force stun, Telekinesis, Transfer Force",
-   "page": "GG16 p. 212",
-   "diff": "Moderate / Target’s control, Perception, or willpower, modified by proximity",
-   "kept": "No",
-   "dark": "No"
-  },
-  {
    "name": "Force Breach",
    "cat": "Sense & Alter",
    "prereq": "Affect Mind, Dim Another's Senses, Sense Force",
@@ -3786,15 +3768,6 @@ const DATA = {
    "prereq": "Sense Force",
    "page": "GG16 p. 215",
    "diff": "Moderate if the user was initially a servant of the Light Side; Difficult if the user was initially a minion of the Dark Side / Moderate / Target’s control or Strength roll, line of sight only",
-   "kept": "No",
-   "dark": "Yes"
-  },
-  {
-   "name": "Crush Opposition",
-   "cat": "Control, Sense & Alter",
-   "prereq": "Affect Mind, Battle Meditation, Control Another's Pain, Control Pain, enhance another’s attribute, Enhance Attribute",
-   "page": "GG16 p. 215",
-   "diff": "Moderate, modified by proximity / Moderate, mod ified by proximity / Target’s control or willpower, modified by proximity",
    "kept": "No",
    "dark": "Yes"
   },
@@ -3880,18 +3853,9 @@ const DATA = {
    "dark": "Yes"
   },
   {
-   "name": "Consume Essence",
-   "cat": "Control, Sense & Alter",
-   "prereq": "Accelerate Another's Healing, Affect Mind, Control Another's Pain, Control Mind, Control Pain, Dim Another's Senses, Drain Life Energy, Drain Life Essence, enhance another’s attribute, Enhance Attribute, Farseeing, Feed on Dark Side, Hibernation Trance, Injure / Kill, Life Detection, Life Sense, Magnify Senses, Place Another in Hibernation Trance, Projective Telepathy, Receptive Telepathy, Sense Force, Sith Sorcery, Telekinesis, Transfer Force",
-   "page": "GG16 p. 225",
-   "diff": "Heroic / Heroic / Heroic",
-   "kept": "No",
-   "dark": "No"
-  },
-  {
    "name": "Death Field",
    "cat": "Control, Sense & Alter",
-   "prereq": "Accelerate Another's Healing, Accelerate Healing, Affect Mind, Concentration, Control Another's Pain, Control Mind, Control Pain, Dim Another's Senses, drain life, Drain Life Energy, Drain Life Essence, Farseeing, Hibernation Trance, Injure / Kill, Life Detection, Life Sense, Magnify Senses, Projective Telepathy, Receptive Telepathy, Sense Force, Telekinesis, Transfer Force",
+   "prereq": "Accelerate Another's Healing, Accelerate Healing, Affect Mind, Concentration, Control Another's Pain, Control Mind, Control Pain, Dim Another's Senses, Drain Life Energy, Drain Life Essence, Farseeing, Hibernation Trance, Injure / Kill, Life Detection, Life Sense, Magnify Senses, Projective Telepathy, Receptive Telepathy, Sense Force, Telekinesis, Transfer Force",
    "page": "GG16 p. 227",
    "diff": "Target’s Perception or control roll / Difficult / Target’s Strength roll",
    "kept": "No",
@@ -3914,6 +3878,51 @@ const DATA = {
    "diff": "Easy. Modified by relationship / Easy. Modified by proximity / Very Easy. Modified by relationship",
    "kept": "No",
    "dark": "No"
+  },
+  {
+   "name": "Empower Force",
+   "cat": "Alter",
+   "prereq": "No Prerequisite",
+   "page": "Hero's Guide p. 139",
+   "diff": "Very Difficult",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Extend Force",
+   "cat": "Alter",
+   "prereq": "No Prerequisite",
+   "page": "Hero's Guide p. 140",
+   "diff": "Difficult",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Force Shot",
+   "cat": "Sense",
+   "prereq": "Life Detection, Life Sense, Sense Force",
+   "page": "SW Gamer 9 p. 92",
+   "diff": "Moderate",
+   "kept": "Yes",
+   "dark": "Yes"
+  },
+  {
+   "name": "Force Blast",
+   "cat": "Alter",
+   "prereq": "Telekinesis",
+   "page": "Force Unleashed CG p. 86",
+   "diff": "Easy 3D / Moderate 4D / Difficult 5D / Very Difficult 6D / Heroic 7D damage",
+   "kept": "No",
+   "dark": "Yes"
+  },
+  {
+   "name": "Repulse",
+   "cat": "Alter",
+   "prereq": "Telekinesis",
+   "page": "Force Unleashed CG p. 86",
+   "diff": "Opposed Strength or control roll",
+   "kept": "No",
+   "dark": "Yes"
   }
  ],
  "equipment": [
