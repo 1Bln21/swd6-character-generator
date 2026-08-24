@@ -179,6 +179,11 @@ function apiUrl() {
 /* Pictures are handed out by the web server straight from api/vtt/, next
    to the API script - not through index.php. */
 function assetUrl(rel) {
+  /* The server builds these paths itself out of the content hash, so they
+     always look like "vtt/<sha>.<ext>". Checking anyway costs nothing and
+     means a made-up reply cannot turn a token picture into a link to
+     somewhere else - "//evil.example/x.png" is a valid relative URL. */
+  if (!/^vtt\/[0-9a-f]{64}\.(png|jpe?g|webp|mp3|ogg|m4a)$/i.test(String(rel || ''))) return '';
   const base = apiUrl();
   const dir = base ? base.replace(/[^\/]*$/, '') : 'api/';
   return dir + rel;

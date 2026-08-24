@@ -26,7 +26,16 @@
   Header set X-Frame-Options "SAMEORIGIN"
   Header set X-Content-Type-Options "nosniff"
   Header set Referrer-Policy "no-referrer"
-  Header set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+  # Mikrofon und Kamera braucht der Spieltisch selbst (Sprach- und
+  # Videochat), fremde Einbettungen sollen sie nicht bekommen - deshalb
+  # "self" statt der leeren Liste. Eine leere Liste sperrt auch die eigene
+  # Seite aus, dann bleibt die Kachel im Gespraech schwarz.
+  #
+  # Microphone and camera are needed by the table top itself (voice and
+  # video chat); embedded third parties must not get them - hence "self"
+  # rather than the empty list. An empty list locks out our own page too,
+  # which leaves the call tile black.
+  Header set Permissions-Policy "geolocation=(), microphone=(self), camera=(self), display-capture=(self)"
 </IfModule>
 
 # Die Kataloge aus den Regelwerken sind gross (pdfdata-craft.js allein rund

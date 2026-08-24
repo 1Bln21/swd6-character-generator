@@ -783,15 +783,35 @@ function vtt_dir_ready() {
      grows, an installation that already has the old file has to get the
      new one, or the newly permitted extensions stay unreachable. */
   $guard = $dir . '/.htaccess';
-  $mark = '# swd6-vtt-guard v2';
+  $mark = '# swd6-vtt-guard v3';
   $have = is_file($guard) ? (string)@file_get_contents($guard) : '';
   if (strpos($have, $mark) === false) {
     @file_put_contents($guard,
       $mark . "\n"
+    /* Nothing is served here unless it is one of the types below. Before
+       this the whitelist only GRANTED; whatever else ended up in the
+       folder was still handed out under the server's default. */
+    . "<IfModule mod_authz_core.c>\n  Require all denied\n</IfModule>\n"
+    . "<IfModule !mod_authz_core.c>\n  Order deny,allow\n  Deny from all\n</IfModule>\n"
     . "<IfModule mod_headers.c>\n"
     . "  Header set Cache-Control \"public, max-age=31536000, immutable\"\n"
+    /* The type comes from the magic bytes, so the browser must not go
+       looking for a different one. */
+    . "  Header set X-Content-Type-Options \"nosniff\"\n"
     . "</IfModule>\n"
-    . "php_flag engine off\n"
+    /* php_flag belongs to mod_php. On a PHP-FPM server - which is what
+       most current Apache installations run - the bare directive is an
+       unknown command and Apache answers the WHOLE folder with 500: every
+       map and every token picture would break. Hence the guards, and
+       hence SetHandler/RemoveHandler below, which do the actual work
+       under FPM. */
+    . "<IfModule mod_php.c>\n  php_flag engine off\n</IfModule>\n"
+    . "<IfModule mod_php7.c>\n  php_flag engine off\n</IfModule>\n"
+    . "<IfModule mod_php8.c>\n  php_flag engine off\n</IfModule>\n"
+    . "<FilesMatch \"(?i)\\.(php|phtml|php[3-8]|phar|cgi|pl|py|sh|html?|svg)$\">\n"
+    . "  SetHandler none\n"
+    . "  <IfModule mod_authz_core.c>\n    Require all denied\n  </IfModule>\n"
+    . "</FilesMatch>\n"
     . "<IfModule mod_mime.c>\n"
     . "  RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .phar\n"
     . "  RemoveType .php .phtml .php3 .php4 .php5 .php7 .php8 .phar\n"
