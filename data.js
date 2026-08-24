@@ -5689,6 +5689,35 @@ const DATA = {
   }
  ],
  "saber": {
+  "types": [
+   {
+    "name": "Lightsaber",
+    "skill": "Lightsaber",
+    "diff": "Difficult",
+    "cost": 0,
+    "avail": "",
+    "note": "",
+    "source": ""
+   },
+   {
+    "name": "Double-Bladed Lightsaber",
+    "skill": "Lightsaber: double-bladed lightsaber",
+    "diff": "Difficult",
+    "cost": 0,
+    "avail": "4, X",
+    "note": "Requires the specialization \"Lightsaber: double-bladed lightsaber\". Without it the difficulty is one grade higher (Very Difficult) and none of the special benefits apply. With only one blade lit it counts as a normal lightsaber. Properly trained and with both blades extended: +5 to all parry rolls. Missing the base difficulty by more than 10 injures the wielder - apply normal damage. Not available for sale.",
+    "source": "d20 Core Rulebook (page 134), The Dark Side Sourcebook (pages 58-59)"
+   },
+   {
+    "name": "Lightwhip",
+    "skill": "Lightsaber: lightwhip",
+    "diff": "Difficult",
+    "cost": 11400,
+    "avail": "4, X",
+    "note": "-1D to parry rolls, +1D to attack rolls. The flexible blade bends around a parrying weapon and reaches several meters. 1 kg. 11,400 credits during the Galactic Civil War, 5,000 earlier.",
+    "source": "Weapons D6 / Lightwhip"
+   }
+  ],
   "primary": [
    {
     "name": "Danite",

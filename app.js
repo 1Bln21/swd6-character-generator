@@ -154,7 +154,7 @@ de: {
   explosives: 'Sprengstoffe', custom_expl: 'Eigene Sprengstoffe', explosive: 'Sprengstoff',
   range_pkml: 'Reichweite (P/K/M/L)', throw_range: 'Wurfweite (P/K/M/L)', radius: 'Radius',
   rof: 'Feuerrate', ammo: 'Munition', ammo_short: 'Mun.',
-  saber_shop: 'Lichtschwert-Werkstatt',
+  saber_shop: 'Lichtschwert-Werkstatt', saber_type: 'Waffentyp',
   pri_crystal: 'Primärkristall', sec_crystal: 'Sekundärkristall', ter_crystal: 'Tertiärkristall',
   blade_color: 'Klingenfarbe', modification: 'Modifikation',
   choose_crystal: '– Kristall wählen –', pip: 'Pip',
@@ -336,7 +336,7 @@ en: {
   explosives: 'Explosives', custom_expl: 'Custom Explosives', explosive: 'Explosive',
   range_pkml: 'Range (PB/S/M/L)', throw_range: 'Throw Range (PB/S/M/L)', radius: 'Blast Radius',
   rof: 'Rate of Fire', ammo: 'Ammo', ammo_short: 'Ammo',
-  saber_shop: 'Lightsaber Workshop',
+  saber_shop: 'Lightsaber Workshop', saber_type: 'Weapon type',
   pri_crystal: 'Primary Crystal', sec_crystal: 'Secondary Crystal', ter_crystal: 'Tertiary Crystal',
   blade_color: 'Blade Color', modification: 'Modification',
   choose_crystal: '– choose crystal –', pip: 'pip',
@@ -726,9 +726,12 @@ function creditTotals() {
   let melee = 0;
   C.melee.forEach(n => { const m = catByName(DATA.melee, n); if (m) melee += m.cost; });
   C.customMelee.forEach(m => melee += (+m.cost || 0));
-  C.sabers.forEach(sb => (sb.mods || []).forEach(mn => {
-    const m = catByName(DATA.saber.mods, mn); if (m) melee += m.cost;
-  }));
+  C.sabers.forEach(sb => {
+    melee += +saberType(sb).cost || 0;
+    (sb.mods || []).forEach(mn => {
+      const m = catByName(DATA.saber.mods, mn); if (m) melee += m.cost;
+    });
+  });
   let ranged = 0;
   C.ranged.forEach(n => { const r = catByName(DATA.ranged, n); if (r) ranged += r.cost; });
   C.customRanged.forEach(r => ranged += (+r.cost || 0));
@@ -741,7 +744,18 @@ function creditTotals() {
   return { equip, armor, melee, ranged, expl, spent, left: (+C.credits.earned || 0) - spent };
 }
 
-/* ---------------- lightsaber ---------------- */
+/* ---------------- lightsaber ----------------
+   The workshop used to know crystals and fittings only; skill and
+   difficulty stood fixed in the code. A double-bladed lightsaber and a
+   lightwhip are neither crystal nor fitting - they are weapons of their
+   own, with their own skill, their own difficulty and their own rules. So
+   the build starts with a type now. Documents written before this have no
+   type; they are the plain lightsaber they always were. */
+function saberType(sb) {
+  const list = (DATA.saber && DATA.saber.types) || [];
+  return catByName(list, (sb && sb.type) || '') || list[0]
+    || { name: 'Lightsaber', skill: 'Lightsaber', diff: 'Difficult', cost: 0, note: '' };
+}
 function saberDamage(sb) {
   const p = catByName(DATA.saber.primary, sb.primary);
   let dmg = p ? p.dmg : 15;
@@ -753,6 +767,8 @@ function saberDamage(sb) {
 }
 function saberAbilities(sb) {
   const out = [];
+  const ty = saberType(sb);
+  if (ty.note) out.push(ty.name + ': ' + ty.note);
   const p = catByName(DATA.saber.primary, sb.primary);
   if (p && p.ability) out.push(p.name + ': ' + p.ability);
   [sb.secondary, sb.tertiary].forEach(n => {
@@ -1478,7 +1494,7 @@ function viewEquip() {
 
 /* ---------------- tab: weapons ---------------- */
 let weaponsSub = 'melee';
-let saberTemp = { name: '', primary: 'Mephite', secondary: '', tertiary: '', color: 'Blue', mods: ['', '', '', ''] };
+let saberTemp = { name: '', type: 'Lightsaber', primary: 'Mephite', secondary: '', tertiary: '', color: 'Blue', mods: ['', '', '', ''] };
 function viewWeapons() {
   const sub = weaponsSub;
   const btn = (id, label) => `<button class="${sub === id ? 'active' : ''}" data-act="wsub" data-sub="${id}">${label}</button>`;
@@ -1580,18 +1596,23 @@ function viewWeapons() {
     const secOpts = sel => [`<option value="">${t('none_one')}</option>`].concat(DATA.saber.secondary.map(p =>
       `<option ${sel === p.name ? 'selected' : ''} value="${esc(p.name)}">${esc(p.name)} (${p.mod >= 0 ? '+' : ''}${p.mod} ${t('pip')}, ${esc(p.color)})</option>`)).join('');
     const colorOpts = DATA.saber.colors.map(c => `<option ${S.color === c ? 'selected' : ''}>${esc(c)}</option>`).join('');
+    const typeOpts = (DATA.saber.types || []).map(ty =>
+      `<option ${S.type === ty.name ? 'selected' : ''} value="${esc(ty.name)}">${esc(ty.name)}${
+        ty.cost ? ' (' + fmtCr(ty.cost) + ' Cr.)' : ''}</option>`).join('');
     const modOpts = sel => [`<option value="">${t('none_dash')}</option>`].concat(DATA.saber.mods.map(m =>
       `<option ${sel === m.name ? 'selected' : ''} value="${esc(m.name)}">${esc(m.name)} (${fmtCr(m.cost)} Cr.)</option>`)).join('');
     const dmg = saberDamage(S);
     const abilities = saberAbilities(S);
     const ownedRows = C.sabers.map((sb, i) => `<tr>
-      <td>${esc(sb.name || t('custom_saber'))}</td><td>${esc(sb.color)}</td><td>${fmtD(saberDamage(sb))}</td>
+      <td>${esc(sb.name || saberType(sb).name)}<br><span class="hint">${esc(saberType(sb).name)}</span></td>
+      <td>${esc(sb.color)}</td><td>${fmtD(saberDamage(sb))}</td>
       <td>${saberAbilities(sb).map(a => esc(a)).join('<br>')}</td>
       <td><button class="mini danger" data-act="delSaber" data-idx="${i}">×</button></td></tr>`).join('');
     body = `
       <div class="card"><h2>${t('saber_shop')}</h2>
         <div class="formgrid">
           <div><label>${t('name')}</label><input type="text" data-saber="name" value="${esc(S.name)}" placeholder="${esc(t('saber_name_ph'))}"></div>
+          <div><label>${t('saber_type')}</label><select data-saber="type" data-rerender="1">${typeOpts}</select></div>
           <div><label>${t('pri_crystal')}</label><select data-saber="primary">${priOpts}</select></div>
           <div><label>${t('sec_crystal')}</label><select data-saber="secondary">${secOpts(S.secondary)}</select></div>
           <div><label>${t('ter_crystal')}</label><select data-saber="tertiary">${secOpts(S.tertiary)}</select></div>
@@ -1602,7 +1623,8 @@ function viewWeapons() {
           <div><label>${t('modification')} 4</label><select data-saber="mod3">${modOpts(S.mods[3])}</select></div>
         </div>
         <p style="margin-top:12px">${t('damage')}: <span class="dice">${fmtD(dmg)}</span>
-          &nbsp; ${t('difficulty')}: <b>Difficult</b> &nbsp; ${t('skill')}: <b>Lightsaber</b></p>
+          &nbsp; ${t('difficulty')}: <b>${esc(saberType(S).diff)}</b>
+          &nbsp; ${t('skill')}: <b>${esc(saberType(S).skill)}</b></p>
         ${abilities.length ? `<p class="hint">${abilities.map(a => esc(a)).join('<br>')}</p>` : ''}
         <p><button class="accent" data-act="addSaber">${t('build_saber')}</button></p>
       </div>
@@ -1963,7 +1985,7 @@ function renderSheet() {
 
   const meleeRows = C.melee.map(n => catByName(DATA.melee, n)).filter(Boolean)
     .map(m => `<tr><td>${esc(m.name)}</td><td>STR+${fmtD(m.dmg)}</td><td>${m.maxDmg ? fmtD(m.maxDmg) : '–'}</td><td>${esc(m.diff)}</td><td>${esc(m.ability)}</td></tr>`)
-    .concat(C.sabers.map(sb => `<tr><td>${esc(sb.name || t('custom_saber'))} (${esc(sb.color)})</td><td>${fmtD(saberDamage(sb))}</td><td>–</td><td>Difficult</td><td>${saberAbilities(sb).map(esc).join('; ')}</td></tr>`))
+    .concat(C.sabers.map(sb => `<tr><td>${esc(sb.name || saberType(sb).name)} (${esc(saberType(sb).name)}, ${esc(sb.color)})</td><td>${fmtD(saberDamage(sb))}</td><td>–</td><td>${esc(saberType(sb).diff)}</td><td>${saberAbilities(sb).map(esc).join('; ')}</td></tr>`))
     .concat(C.customMelee.filter(m => m.name).map(m => `<tr><td>${esc(m.name)}</td><td>${esc(m.dmg)}</td><td>–</td><td>${esc(m.diff)}</td><td>${esc(m.note || '')}</td></tr>`));
   const rangedRows = C.ranged.map(n => catByName(DATA.ranged, n)).filter(Boolean)
     .map(r => `<tr><td>${esc(r.name)}</td><td>${esc(r.skill)}</td><td>${fmtD(r.dmg)}</td><td>${esc(r.close)}/${esc(r.short)}/${esc(r.medium)}/${esc(r.long)}</td><td>${esc(r.rof)}</td><td>${esc(r.ammo)}</td><td>${esc(r.ability)}</td></tr>`)
@@ -2121,6 +2143,13 @@ function migrate(obj) {
      requirement could never be met. Correcting the catalogue alone would
      drop the power from every character who had already learned it - the
      sheet stores powers by name - so it is renamed here as well. */
+  /* Lightsabers built before the workshop knew weapon types carry none.
+     They are the plain lightsaber they always were - saying so in the
+     document beats leaving the field absent and hoping every reader
+     falls back the same way. */
+  if (Array.isArray(merged.sabers)) {
+    merged.sabers.forEach(sb => { if (sb && !sb.type) sb.type = 'Lightsaber'; });
+  }
   if (Array.isArray(merged.powers)) {
     const UMBENANNT = { "Dim Other's Senses": "Dim Another's Senses" };
     merged.powers = merged.powers.map(n => UMBENANNT[n] || n);
@@ -2288,7 +2317,7 @@ content.addEventListener('click', e => {
     case 'addSaber': {
       if (!saberTemp.primary) { alert(t('alert_primary')); break; }
       C.sabers.push(JSON.parse(JSON.stringify(saberTemp)));
-      saberTemp = { name: '', primary: 'Mephite', secondary: '', tertiary: '', color: 'Blue', mods: ['', '', '', ''] };
+      saberTemp = { name: '', type: 'Lightsaber', primary: 'Mephite', secondary: '', tertiary: '', color: 'Blue', mods: ['', '', '', ''] };
       update(); break;
     }
     case 'delSaber': {
