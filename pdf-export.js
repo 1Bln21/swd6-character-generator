@@ -130,15 +130,31 @@ async function exportSheetPdf(btn) {
       y = startY + (title ? 6.5 : 3);
       walk(box, x0 + 2.5, width - 5, head);
       y += 2;
-      /* Frame and heading only when the box stayed on one page - otherwise
-         the frame would be drawn across half the sheet. */
-      if (seite() !== startSeite) { y += 3; return; }
+      const endSeite = seite(), endY = y;
       pdf.setDrawColor(60);
       pdf.setLineWidth(0.35);
-      pdf.rect(x0, startY, width, y - startY);
+      if (endSeite === startSeite) {
+        pdf.rect(x0, startY, width, endY - startY);
+      } else {
+        /* The box ran over a page break. A single rectangle would start at
+           the top of the box and end at a y-value belonging to a different
+           sheet, which used to draw a frame across half the page - so one
+           segment per page instead. */
+        for (let p = startSeite; p <= endSeite; p++) {
+          pdf.setPage(p);
+          const oben = p === startSeite ? startY : M;
+          const unten = p === endSeite ? endY : PH - M;
+          if (unten - oben > 1) pdf.rect(x0, oben, width, unten - oben);
+        }
+      }
       /* The heading last: on the sheet it sits as a black bar on the box's
-         edge, and the bar has to lie on top of the frame. */
+         edge, and the bar has to lie on top of the frame. It belongs on the
+         page the box STARTED on. Before this, a box that broke across pages
+         was left without any heading at all - which is how the droid
+         sheet's "Installed modifications" bar went missing from the export
+         while the browser's own print kept it. */
       if (title) {
+        pdf.setPage(startSeite);
         pdf.setFillColor(20);
         pdf.rect(x0, startY, width, 6, 'F');
         setFont(7.4, 'bold');
@@ -146,7 +162,8 @@ async function exportSheetPdf(btn) {
         pdf.text(title.toUpperCase(), x0 + 2.5, startY + 4.3);
         pdf.setTextColor(20);
       }
-      y += 3;
+      pdf.setPage(endSeite);
+      y = endY + 3;
     }
 
     function drawStats(row, x0, width) {
