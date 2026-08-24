@@ -3394,7 +3394,7 @@ const DATA = {
    "dark": "Yes"
   },
   {
-   "name": "Dim Other's Senses",
+   "name": "Dim Another's Senses",
    "cat": "Sense & Alter",
    "prereq": "No Prerequisite",
    "page": "p. 64",
@@ -3459,7 +3459,7 @@ const DATA = {
   {
    "name": "Create Force Storm",
    "cat": "Control, Sense & Alter",
-   "prereq": "Hibernation Trance, Life Sense, Magnify Senses, Projective Telepathy, Sense Force, Telekinesis, Instictive Astrogation (Either), Rage",
+   "prereq": "Hibernation Trance, Life Sense, Magnify Senses, Projective Telepathy, Sense Force, Telekinesis, Instinctive Astrogation (Either), Rage",
    "page": "p. 60",
    "diff": "Heroic / Heroic / Heroic",
    "kept": "No",
@@ -3504,7 +3504,7 @@ const DATA = {
   {
    "name": "Force Harmony",
    "cat": "Control, Sense & Alter",
-   "prereq": "Life Sense, and Projected Telepathy",
+   "prereq": "Life Sense, and Projective Telepathy",
    "page": "p. 62-63",
    "diff": "Diff. + / Diff. + / Mod.",
    "kept": "Yes",

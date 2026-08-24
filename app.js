@@ -449,6 +449,22 @@ const FORCE = [
 /* "First Aid 5D" / "Repulsorlift Op. 5D" -> is the skill high enough?
    With nothing recognisable there, the prerequisite counts as met: an
    unreadable rule must not lock the player out. */
+/* Requirements are prose, and the books are not consistent about it:
+   "Injure/Kill" in the requirement, "Injure / Kill" as the power's name.
+   Both mean the same power, so the comparison is made on a reduced form -
+   lower case, no spaces around a slash, a trailing bracket like "(Either)"
+   removed. Genuine misspellings are NOT smoothed over here; they were
+   corrected in data.js against the books, because a requirement naming a
+   power that does not exist can never be met. */
+function powerKey(s) {
+  return String(s || '').trim()
+    .replace(/\s*\([^)]*\)\s*$/, '')
+    .replace(/\.$/, '')
+    .replace(/\s*\/\s*/g, '/')
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+}
+
 function advReqMet(req) {
   const m = /^(.*?)\s+(\d+)D(?:\+(\d))?\s*$/.exec(String(req || '').trim());
   if (!m) return true;
@@ -1385,8 +1401,15 @@ function viewForce() {
       const has = C.powers.includes(p.name);
       const missing = p.prereq && p.prereq !== 'No Prerequisite' && p.prereq !== 'Special' &&
         !p.prereq.split(/,| and /i).every(x => {
-          const tr = x.trim().replace(/\.$/, '');
-          return !tr || C.powers.some(pw => pw.toLowerCase().startsWith(tr.toLowerCase().slice(0, Math.max(4, tr.length - 2))));
+          const tr = powerKey(x);
+          /* Exact match, or the requirement is the front of a power's name:
+             "Instinctive Astrogation (Either)" loses its bracket and then
+             matches both "Instinctive Astrogation: Control" and ": Sense",
+             which is what "either" means. */
+          return !tr || C.powers.some(pw => {
+            const k = powerKey(pw);
+            return k === tr || k.startsWith(tr + ':') || k.startsWith(tr + ' ');
+          });
         });
       return `<div class="power-row ${has ? 'learned' : ''}">
         <input type="checkbox" data-act="powerToggle" data-power="${esc(p.name)}" ${has ? 'checked' : ''}>
@@ -2093,6 +2116,15 @@ function migrate(obj) {
     if (!v || typeof v !== 'object') { merged[k] = {}; return; }
     if (Array.isArray(v)) merged[k] = Object.fromEntries(Object.entries(v));
   });
+  /* REUP p. 170 spells it "Dim Another's Senses". The catalogue carried
+     "Dim Other's Senses" while Illusion asked for the correct name, so that
+     requirement could never be met. Correcting the catalogue alone would
+     drop the power from every character who had already learned it - the
+     sheet stores powers by name - so it is renamed here as well. */
+  if (Array.isArray(merged.powers)) {
+    const UMBENANNT = { "Dim Other's Senses": "Dim Another's Senses" };
+    merged.powers = merged.powers.map(n => UMBENANNT[n] || n);
+  }
   if (!merged.credits.loans || merged.credits.loans.length < 2)
     merged.credits.loans = emptyChar().credits.loans;
   return merged;
