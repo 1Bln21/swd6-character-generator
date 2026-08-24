@@ -1,36 +1,25 @@
-# App-Dateien beim Server rueckfragen lassen, statt sie blind aus dem
-# Browser-Cache zu nehmen. Sonst zeigt der Browser nach einem Update noch
-# die alte Fassung an (z. B. eine veraltete Versionsnummer in den Credits),
-# obwohl auf dem Server bereits die neue Datei liegt.
-#
-# "no-cache" heisst nicht "nicht speichern": Der Browser darf die Datei
-# behalten, muss aber vor der Verwendung kurz nachfragen. Hat sich nichts
-# geaendert, antwortet der Server mit 304 (nicht neu uebertragen) - das
-# kostet also kaum etwas.
-#
 # Make browsers revalidate the app files instead of serving them straight
-# from cache, so an update is picked up immediately. "no-cache" still
-# allows storing; the browser just has to check, and gets a cheap 304 if
-# nothing changed.
+# from cache, so an update is picked up immediately - otherwise the browser
+# still shows the old version after an update (a stale version number in the
+# credits, say) although the new file is already on the server.
+#
+# "no-cache" does not mean "do not store": the browser may keep the file, it
+# just has to check before using it. If nothing changed the server answers
+# 304 (not retransmitted), so it costs almost nothing.
 
 <IfModule mod_headers.c>
   <FilesMatch "\.(html|js|css)$">
     Header set Cache-Control "no-cache, must-revalidate"
   </FilesMatch>
 
-  # Sicherheits-Header / security headers.
-  # Schuetzen vor Clickjacking (Einbetten der Login-Seite in fremde iframes),
-  # MIME-Sniffing und dem Verraten der Herkunfts-URL an fremde Seiten.
-  # Kein CSP-Header: die App nutzt bewusst Inline-Skripte/-Styles und Data-URIs,
-  # ein striktes CSP wuerde sie lahmlegen.
+  # Security headers. They guard against clickjacking (the sign-in page
+  # embedded in someone else's iframe), MIME sniffing, and leaking the
+  # originating URL to other sites.
+  # No CSP header: the app deliberately uses inline scripts and styles and
+  # data URIs, and a strict CSP would cripple it.
   Header set X-Frame-Options "SAMEORIGIN"
   Header set X-Content-Type-Options "nosniff"
   Header set Referrer-Policy "no-referrer"
-  # Mikrofon und Kamera braucht der Spieltisch selbst (Sprach- und
-  # Videochat), fremde Einbettungen sollen sie nicht bekommen - deshalb
-  # "self" statt der leeren Liste. Eine leere Liste sperrt auch die eigene
-  # Seite aus, dann bleibt die Kachel im Gespraech schwarz.
-  #
   # Microphone and camera are needed by the table top itself (voice and
   # video chat); embedded third parties must not get them - hence "self"
   # rather than the empty list. An empty list locks out our own page too,
@@ -38,10 +27,6 @@
   Header set Permissions-Policy "geolocation=(), microphone=(self), camera=(self), display-capture=(self)"
 </IfModule>
 
-# Die Kataloge aus den Regelwerken sind gross (pdfdata-craft.js allein rund
-# 1,5 MB). Als Text lassen sie sich hervorragend komprimieren - gzip drueckt
-# sie auf etwa ein Fuenftel. Ohne diesen Block uebertraegt Apache sie roh.
-#
 # The rulebook catalogs are large (pdfdata-craft.js alone is about 1.5 MB).
 # Being plain text they compress very well - gzip cuts them to roughly a
 # fifth. Without this block Apache would send them uncompressed.

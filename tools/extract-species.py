@@ -405,7 +405,7 @@ for name, err, ganz, neu in per_file:
     if err:
         print('  %-34s %s' % (name[:34], err))
     else:
-        print('  %-34s gefunden: %4d   davon neu: %4d' % (name[:34], ganz, neu))
+        print('  %-34s found: %4d   of those new: %4d' % (name[:34], ganz, neu))
 print('--- Ergebnis ---')
 print('  Neue Spezies:      %d' % len(found_all))
 print('  Bereits im Excel:  %d' % len(existing_names()))

@@ -30,7 +30,7 @@ DROID_SRC = sys.argv[1] if len(sys.argv) > 1 else 'Droid Generator v1-3.xlsm'
 SHIP_SRC = sys.argv[2] if len(sys.argv) > 2 else 'Ship Generator v1-1.xlsx'
 for p in (DROID_SRC, SHIP_SRC):
     if not os.path.isfile(p):
-        sys.exit(f'Excel-Datei nicht gefunden: {p}')
+        sys.exit(f'Excel file not found: {p}')
 
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'gendata.js')
 

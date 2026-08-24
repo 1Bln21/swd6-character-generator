@@ -327,8 +327,8 @@ print('angeklebte Namen entfernt:%2d' % len(report['glued_stripped']))
 print('Waffennamen repariert: %5d' % len(report['weapons_repaired']))
 print('Phantomwaffen entfernt:%5d' % len(report['weapons_dropped']))
 print('Eintragsnamen repariert:%4d' % len(report['names_repaired']))
-print('Eintraege verworfen:  %5d   %s' % (len(report['entries_dropped']), report['entries_dropped']))
-print('Waffenkatalog: %d -> %d Eintraege' % (before, len(craft['PDF_SHIP_WEAPONS'])))
+print('entries discarded:   %5d   %s' % (len(report['entries_dropped']), report['entries_dropped']))
+print('weapon catalog: %d -> %d entries' % (before, len(craft['PDF_SHIP_WEAPONS'])))
 for k in ('picture_stripped', 'glued_stripped', 'names_repaired',
           'weapons_repaired', 'weapons_dropped'):
     print('\n--- %s (erste 40) ---' % k)
@@ -340,6 +340,6 @@ if WRITE:
     save_arrays(craft_path, craft_src, craft, craft_spans)
     save_arrays(gear_path, gear_src, gear, gear_spans)
     save_arrays(droid_path, droid_src, droids, droid_spans)
-    print('\nDateien geschrieben.')
+    print('\nFiles written.')
 else:
     print('\nProbelauf - mit --write werden die Dateien geaendert.')

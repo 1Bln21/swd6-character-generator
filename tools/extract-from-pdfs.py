@@ -1197,9 +1197,9 @@ def dedupe(items, by_craft=False):
      pdfdata-craft.js  - ships + vehicles     (ship page)
      pdfdata-droids.js - droid templates      (droid page)"""
 APPDIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-HEAD = ('// Automatisch erzeugt aus den Regelwerk-PDFs.\n'
-        '// Quelle: Star Wars D6 (West End Games) sowie Fan-Kompilationen der Community.\n'
-        '// Nicht von Hand bearbeiten - stattdessen tools/extract-from-pdfs.py laufen lassen.\n')
+HEAD = ('// Generated from the rulebook PDFs.\n'
+        '// Source: Star Wars D6 (West End Games) and fan compilations from the community.\n'
+        '// Do not edit by hand - run tools/extract-from-pdfs.py instead.\n')
 
 
 # Order for the app's era dropdown. Written into every generated file, so
@@ -1233,13 +1233,13 @@ kb_droid = write_file('pdfdata-droids.js', [('PDF_DROIDS', droids)])
 print('--- Gelesene Buecher ---')
 for book, counts in used:
     detail = ', '.join(f'{k}: {v}' for k, v in counts.items() if v)
-    print(f'  {book:<30} {detail or "nichts gefunden"}')
+    print(f'  {book:<30} {detail or "nothing found"}')
 if REJECTED:
-    print('--- Verworfen (unplausible Werte, meist zweispaltige Scans) ---')
+    print('--- Discarded (implausible values, usually two-column scans) ---')
     for book, n in sorted(REJECTED.items(), key=lambda x: -x[1]):
         print(f'  {book:<30} {n}')
 if missing:
-    print('--- Nicht gefunden ---')
+    print('--- Not found ---')
     for m in missing:
         print(f'  {m}')
 

@@ -1,5 +1,5 @@
-// Automatisch erzeugt aus "Character Generator v2-5.xlsx"
-// Quelle: Excel-Charaktergenerator von Chance Gibboney
+// Generated from "Character Generator v2-5.xlsx"
+// Source: Chance Gibboney's Excel character generator
 // (Star Wars D6, 2nd Edition - West End Games)
 // Do not edit by hand - run tools/extract-from-excel.py instead.
 const DATA = {

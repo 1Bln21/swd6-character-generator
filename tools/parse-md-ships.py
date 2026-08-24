@@ -389,6 +389,6 @@ print('Waffenkatalog: %d -> %d' % (before, len(arr['PDF_SHIP_WEAPONS'])))
 
 if WRITE:
     save_craft(src, arr)
-    print('\npdfdata-craft.js geschrieben.')
+    print('\npdfdata-craft.js written.')
 else:
-    print('\nProbelauf - mit --write wird geschrieben.')
+    print('\nDry run - pass --write to write it out.')

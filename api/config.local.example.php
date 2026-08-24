@@ -37,5 +37,5 @@ return [
 
   // A beta is usually not meant to be open to everyone.
   // 'register_mode'  => 'approval',
-  // 'register_code'  => 'nur-fuer-tester',
+  // 'register_code'  => 'testers-only',
 ];

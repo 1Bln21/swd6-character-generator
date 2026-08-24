@@ -1,11 +1,6 @@
-# Authorization-Header an PHP durchreichen.
-# Apache liefert ihn bei PHP-FPM/FastCGI/CGI sonst nicht an PHP aus –
-# dann schlaegt jede angemeldete Anfrage fehl ("Not logged in"), obwohl
-# die Anmeldung selbst funktioniert hat.
-#
 # Pass the Authorization header through to PHP. With PHP-FPM/FastCGI/CGI
-# Apache strips it by default, which makes every authenticated request
-# fail even though signing in worked.
+# Apache strips it by default, which makes every authenticated request fail
+# with "Not logged in" even though signing in itself worked.
 
 <IfModule mod_rewrite.c>
   RewriteEngine On

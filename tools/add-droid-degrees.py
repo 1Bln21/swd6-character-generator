@@ -95,7 +95,7 @@ def main():
     pages = [(p.extract_text() or '') for p in pypdf.PdfReader(pdf_path).pages]
     bounds = chapter_bounds(pages)
     if len(bounds) != 5:
-        print('Nur %d Kapitelueberschriften gefunden - Abbruch.' % len(bounds)); return 2
+        print('Only %d chapter headings found - giving up.' % len(bounds)); return 2
     print('Kapitelanfaenge (Seite):', {d: a + 1 for d, a, _ in bounds})
     page_norm = [norm(t) for t in pages]
 
@@ -145,7 +145,7 @@ def main():
     if '--write' in sys.argv:
         io.open(catalog, 'w', encoding='utf-8').write(
             s[:i0] + json.dumps(arr, ensure_ascii=False, indent=1) + s[i1:])
-        print('geschrieben:', catalog)
+        print('written:', catalog)
     else:
         print('(Probelauf - mit --write schreiben)')
     return 0

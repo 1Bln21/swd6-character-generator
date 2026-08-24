@@ -1,19 +1,20 @@
-# Laufzeitdaten der API (SQLite-Datenbank der Nutzer) – niemals committen!
+# The API's runtime data (the users' SQLite database) - never commit this.
 api/data/
 *.sqlite
 *.sqlite-journal
 *.sqlite-wal
 *.sqlite-shm
 
-# Kampfkarten und Token-Bilder der Spielrunden. Nutzerdaten, gehoeren nicht
-# ins Repository - und NICHT in den MariaDB-Dump, also eigene Sicherung.
+# Battle maps and token pictures belonging to the play groups. User data,
+# so not in the repository - and NOT in the MariaDB dump either, which is
+# why they get a backup of their own.
 api/vtt/
 
-# Zugangsdaten der jeweiligen Installation (DB-Passwort). Bleibt beim
-# Update stehen und darf niemals ins Repository.
+# Each installation's credentials (the database password). It survives an
+# update and must never reach the repository.
 api/config.local.php
 
-# Betriebssystem-Müll
+# Operating system litter
 Thumbs.db
 Desktop.ini
 .DS_Store

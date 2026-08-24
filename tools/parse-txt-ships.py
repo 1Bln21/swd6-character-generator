@@ -233,7 +233,7 @@ def parse_block(block):
     name = field(block, "Name", "Craft", "Model", "Type")
     name = re.sub(r"^(Craft|Model|Type|raft)\s*:\s*", "", name, flags=re.I)
     if not name:
-        return None, ["kein Name"]
+        return None, ["no name"]
 
     craft = field(block, "Craft", "Model") or name
     craft = re.sub(r"^(Craft|Model|raft)\s*:\s*", "", craft, flags=re.I)
@@ -284,8 +284,8 @@ def parse_block(block):
         if paren:
             extra_notes.append("%s: %s" % (label, paren.group(1).strip()))
         if core and core not in HYPER_MULTS:
-            warn.append("%s ausserhalb der Liste (%r)" % (label, core))
-            extra_notes.append("%s laut Quelle: %s" % (label, raw))
+            warn.append("%s outside the list (%r)" % (label, core))
+            extra_notes.append("%s per the source: %s" % (label, raw))
             return ""
         return core
 
@@ -318,12 +318,12 @@ def parse_block(block):
             # The catalogue knows exactly ONE arc per weapon. Take the
             # first and put the full value in the notes, so the battery does
             # not disappear.
-            extra_notes.append("%s - Feuerwinkel laut Quelle: %s" % (w["name"], raw))
-            warn.append("mehrere Feuerwinkel: %s" % w["name"][:32])
+            extra_notes.append("%s - Fire arcs per the source: %s" % (w["name"], raw))
+            warn.append("several fire arcs: %s" % w["name"][:32])
     if hp is None:
-        extra_notes.append("Huelle in der Quelle nicht angegeben (%s)" % (hull or "-"))
+        extra_notes.append("Hull not given in the source (%s)" % (hull or "-"))
     if sp is None and shields and not re.match(r"^\s*(none|no|-)\s*$", shields, re.I):
-        extra_notes.append("Schilde in der Quelle nicht angegeben (%s)" % shields)
+        extra_notes.append("Shields not given in the source (%s)" % shields)
 
     entry = {
         "name": name, "craft": craft, "type": field(block, "Type", "Class"),
@@ -356,7 +356,7 @@ def load_catalog():
     arr = s[i:end]
     ships = json.loads(arr.replace("\r\n", "\n"))
     assert json.dumps(ships, indent=1, ensure_ascii=False).replace("\n", "\r\n") == arr, \
-        "pdfdata-craft.js laesst sich nicht verlustfrei neu schreiben"
+        "pdfdata-craft.js cannot be rewritten without loss"
     return s, i, end, ships
 
 def main():
@@ -452,7 +452,7 @@ def main():
                 tgt["era"] = keep_era
                 tgt["notes"] = ("\n".join(x for x in [
                     e.get("notes", ""),
-                    "Werte 2026 aus der Sammlung des Betreibers ersetzt (vorher aus der "
+                    "Values replaced in 2026 from the maintainer's own collection (previously "
                     "Texterkennung des Sammelbands); dort gefuehrt als: " + e["name"],
                 ] if x)).strip()
                 replaced.append((e["name"], keep_name))
@@ -466,17 +466,17 @@ def main():
     print("Bloecke: %d | uebernommen: %d | Dubletten: %d | verworfen: %d"
           % (len(blocks), len(parsed), len(dupes), len(skipped)))
     if dupes:
-        print("\n-- Dubletten (nicht eingefuegt) --")
+        print("\n-- Duplicates (not inserted) --")
         for n, why in dupes:
             print("   %-52s %s" % (n[:52], why))
     if replaced:
-        print("\n-- vorhandene Eintraege ERSETZT (Name und Buchangabe bleiben) --")
+        print("\n-- existing entries REPLACED (name and book stay) --")
         for src_n, tgt_n in replaced:
             print("   %-52s -> %s" % (src_n[:52], tgt_n))
     if near and not replaced:
         print("\n-- AEHNLICH zu vorhandenen Eintraegen (NICHT eingefuegt) --")
-        print("   Varianten (X-Wing, Y-Wing, Z-95 ...) sind gewollt; echte Dubletten nicht.")
-        print("   --replace-near ersetzt die Werte des vorhandenen Eintrags,")
+        print("   Variants (X-wing, Y-wing, Z-95 ...) are wanted; real duplicates are not.")
+        print("   --replace-near overwrites the values of the existing entry,")
         print("   --include-near legt sie zusaetzlich als zweiten Eintrag an.")
         for n, other in near:
             print("   %-52s ~ %s" % (n[:52], other))
@@ -491,7 +491,7 @@ def main():
             print("   %-52s %s" % (n[:52], " | ".join(w)))
 
     if not write:
-        print("\nTrockenlauf - nichts geschrieben. Mit --write einpflegen.")
+        print("\nDry run - nothing written. Pass --write to apply.")
         return 0
     if not parsed and not replaced:
         print("\nNichts zu tun.")
@@ -504,7 +504,7 @@ def main():
         names.insert(k, e["name"])
     out = s[:i] + json.dumps(ships, indent=1, ensure_ascii=False).replace("\n", "\r\n") + s[end:]
     open(CRAFT, "w", encoding="utf-8", newline="").write(out)
-    print("\npdfdata-craft.js geschrieben - jetzt %d Schiffe." % len(ships))
+    print("\npdfdata-craft.js written - %d ships now." % len(ships))
     return 0
 
 if __name__ == "__main__":

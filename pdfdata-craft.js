@@ -1,6 +1,6 @@
-// Automatisch erzeugt aus den Regelwerk-PDFs.
-// Quelle: Star Wars D6 (West End Games) sowie Fan-Kompilationen der Community.
-// Nicht von Hand bearbeiten - stattdessen tools/extract-from-pdfs.py laufen lassen.
+// Generated from the rulebook PDFs.
+// Source: Star Wars D6 (West End Games) and fan compilations from the community.
+// Do not edit by hand - run tools/extract-from-pdfs.py instead.
 if (typeof PDF_ERAS === "undefined") var PDF_ERAS = ["old-republic", "rise-empire", "rebellion", "new-republic"];
 const PDF_SHIPS = [
  {
@@ -415,7 +415,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "General",
   "source": "Community Additions",
-  "notes": "Werte 2026 aus der Sammlung des Betreibers ersetzt (vorher aus der Texterkennung des Sammelbands); dort gefuehrt als: SoroSuub 1550-LEX Space Yacht",
+  "notes": "Values replaced in 2026 from the maintainer's own collection (previously from the compendium's text recognition); listed there as: SoroSuub 1550-LEX Space Yacht",
   "sensors": {
    "Passive": "10/0D",
    "Scan": "25/1D",
@@ -2741,7 +2741,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "General",
   "source": "Community Additions",
-  "notes": "5 Point Defense Laser Cannon Batteries - Feuerwinkel laut Quelle: 2 Front/Left, 2 Front/Right, 1 Back\n3 Medium TurboLaser Batteries - Feuerwinkel laut Quelle: 1 Front/Left, 1 Front/Right, 1 Back\n5 Heavy TurboLaser Batteries - Feuerwinkel laut Quelle: 2 Front/Left, 2 Front/Right, 1 Back\n2 Tractor beam projectors - Feuerwinkel laut Quelle: 1 Front, 1 Back\nWerte 2026 aus der Sammlung des Betreibers ersetzt (vorher aus der Texterkennung des Sammelbands); dort gefuehrt als: Ardent-class fast frigate",
+  "notes": "5 Point Defense Laser Cannon Batteries - Fire arcs per the source: 2 Front/Left, 2 Front/Right, 1 Back\n3 Medium TurboLaser Batteries - Fire arcs per the source: 1 Front/Left, 1 Front/Right, 1 Back\n5 Heavy TurboLaser Batteries - Fire arcs per the source: 2 Front/Left, 2 Front/Right, 1 Back\n2 Tractor beam projectors - Fire arcs per the source: 1 Front, 1 Back\nValues replaced in 2026 from the maintainer's own collection (previously from the compendium's text recognition); listed there as: Ardent-class fast frigate",
   "sensors": {
    "Passive": "50/1D",
    "Scan": "100/3D",
@@ -5729,7 +5729,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "General",
   "source": "Community Additions",
-  "notes": "4 Laser Cannons (fire-linked by pairs) - Feuerwinkel laut Quelle: 2 front, 2 rear\nWerte 2026 aus der Sammlung des Betreibers ersetzt (vorher aus der Texterkennung des Sammelbands); dort gefuehrt als: Tarrvin-on-Kallik Blade-32 Starfighter",
+  "notes": "4 Laser Cannons (fire-linked by pairs) - Fire arcs per the source: 2 front, 2 rear\nValues replaced in 2026 from the maintainer's own collection (previously from the compendium's text recognition); listed there as: Tarrvin-on-Kallik Blade-32 Starfighter",
   "sensors": {
    "Passive": "15/1D",
    "Scan": "45/1D+2",
@@ -7091,7 +7091,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "General",
   "source": "Community Additions",
-  "notes": "3 Turret-Mounted Twin Heavy Ion Cannons - Feuerwinkel laut Quelle: left, right, turret\n12 Light Laser Cannons - Feuerwinkel laut Quelle: 3 front, 3 left, 3 right, 3 rear\n3 Repulsor-Tractor Beam Emitters - Feuerwinkel laut Quelle: 1 front, 1 left, 1 right\nWerte 2026 aus der Sammlung des Betreibers ersetzt (vorher aus der Texterkennung des Sammelbands); dort gefuehrt als: Kuat Drive Yards Cantwell-class Arrestor Cruiser",
+  "notes": "3 Turret-Mounted Twin Heavy Ion Cannons - Fire arcs per the source: left, right, turret\n12 Light Laser Cannons - Fire arcs per the source: 3 front, 3 left, 3 right, 3 rear\n3 Repulsor-Tractor Beam Emitters - Fire arcs per the source: 1 front, 1 left, 1 right\nValues replaced in 2026 from the maintainer's own collection (previously from the compendium's text recognition); listed there as: Kuat Drive Yards Cantwell-class Arrestor Cruiser",
   "sensors": {
    "Passive": "30/0D",
    "Scan": "50/1D",
@@ -9059,7 +9059,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "General",
   "source": "Community Additions",
-  "notes": "Kann laut Quelle nicht in eine Atmosphaere eintreten. Kein Backup-Hyperantrieb. Die drei Zwillings-Lasertuerme sitzen zwischen den vorderen Containern; Xizor Transport Systems verliess sich ansonsten auf den Schutz durch Black Sun. Bau eingestellt, als das Imperium die Werft nach Prinz Xizors Enttarnung verstaatlichte. Fuer Piraten unattraktiv (langsam im Hyperraum), meist in Firmenhand.",
+  "notes": "Per the source it cannot enter an atmosphere. No backup hyperdrive. The three twin laser turrets sit between the forward containers; beyond that Xizor Transport Systems relied on the protection of Black Sun. Production stopped when the Empire nationalised the yard after Prince Xizor was exposed. Of little interest to pirates (slow in hyperspace), and mostly in corporate hands.",
   "sensors": {
    "Passive": "15/0D",
    "Scan": "25/1D",
@@ -9502,7 +9502,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "General",
   "source": "Community Additions",
-  "notes": "4 Tractor Beam Projectors - Feuerwinkel laut Quelle: 1 front, 1 left, 1 right, 1 back",
+  "notes": "4 Tractor Beam Projectors - Fire arcs per the source: 1 front, 1 left, 1 right, 1 back",
   "sensors": {
    "Passive": "40/1D",
    "Scan": "80/2D",
@@ -11492,7 +11492,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "Mandalorians / Empire",
   "source": "Community Additions",
-  "notes": "Feuerwinkel der 12 Laserkanonen laut Quelle: 1 vorn, 5 links, 5 rechts, 1 achtern.",
+  "notes": "Fire arcs of the 12 laser cannons per the source: 1 front, 5 left, 5 right, 1 back.",
   "sensors": {
    "Passive": "20/0D",
    "Scan": "40/1D",
@@ -15315,7 +15315,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "General",
   "source": "Community Additions",
-  "notes": "Werte 2026 aus der Sammlung des Betreibers ersetzt (vorher aus der Texterkennung des Sammelbands); dort gefuehrt als: Mandalorian Protectorate Fang Fighter",
+  "notes": "Values replaced in 2026 from the maintainer's own collection (previously from the compendium's text recognition); listed there as: Mandalorian Protectorate Fang Fighter",
   "sensors": {
    "Passive": "20/0D",
    "Scan": "35/1D",
@@ -20443,7 +20443,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "Resistance / Hynestian volunteers",
   "source": "Community Additions",
-  "notes": "Zwei Hangars fuer je 3 Faehren und 12 Jaeger. Antrieb aus 2 Haupt- und 6 Hecktriebwerken sowie 2 seitlichen Mittschiffstriebwerken. Besatzung aus Freiwilligen mehrerer Sektoren; kaum elektronische Kampfmittel, dafuer Wendigkeit und Flottenkoordination. Kaempfte bei Exegol, oft in eigener Farbgebung zur Erkennung.",
+  "notes": "Two hangars, each for 3 shuttles and 12 fighters. Propulsion from 2 main and 6 stern engines plus 2 lateral midship engines. Crewed by volunteers from several sectors; little in the way of electronic warfare, but agility and fleet coordination instead. Fought at Exegol, often in its own colours for recognition.",
   "sensors": {},
   "weapons": [
    {
@@ -21271,7 +21271,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "Empire",
   "source": "Community Additions",
-  "notes": "Traegt 12 Jaeger und 3 Transporter.\nFeuerwinkel laut Quelle: Quad-Laser 9 vorn/links, 9 vorn/rechts, 2 achtern; Turbolaser 12 vorn/links, 12 vorn/rechts, 6 achtern; Ionenkanonen 3 vorn/links, 3 vorn/rechts, 1 achtern.\nVariante Immobiliser-Klasse: Gravitationsfeldprojektoren statt der schweren Bewaffnung.",
+  "notes": "Carries 12 fighters and 3 transports.\nFire arcs per the source: quad lasers 9 front/left, 9 front/right, 2 back; turbolasers 12 front/left, 12 front/right, 6 back; ion cannons 3 front/left, 3 front/right, 1 back.\nImmobiliser-class variant: gravity well projectors in place of the heavy armament.",
   "sensors": {
    "Passive": "50/1D",
    "Scan": "100/3D",
@@ -24430,7 +24430,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "Mandalorians",
   "source": "Community Additions",
-  "notes": "Traegt 128 Davaab-type-Jaeger, 8 Shaadlar-type-Truppentransporter und diverse Beiboote, dazu mehrere Basilisk-Kriegsdroiden.\nFeuerwinkel laut Quelle: schwere Doppel-Turbolaser 2 vorn, 1 links, 1 rechts, 1 achtern; mittlere Ionenkanonen je 1 pro Seite; Traktorstrahlen 1 vorn, 1 achtern.\nKonstruktionsschwaeche: eine gezielte Ladung im Heck legt die Hyperraum-Navigation lahm.",
+  "notes": "Carries 128 Davaab-type fighters, 8 Shaadlar-type troop transports and assorted auxiliary craft, along with several Basilisk war droids.\nFire arcs per the source: heavy dual turbolasers 2 front, 1 left, 1 right, 1 back; medium ion cannons 1 per side; tractor beams 1 front, 1 back.\nDesign flaw: a well-placed charge in the stern disables hyperspace navigation.",
   "sensors": {
    "Passive": "40/1D",
    "Scan": "80/2D",
@@ -25540,7 +25540,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "General",
   "source": "Community Additions",
-  "notes": "10 Heavy Turbolasers - Feuerwinkel laut Quelle: 8 front, 4 right, 4 left\n6 Point-Defense Lasers - Feuerwinkel laut Quelle: 6 front, 4 right, 4 left, 4 back\nProton Torpedo Launchers (10 missiles each) - Feuerwinkel laut Quelle: 2 front, 2 right, 2 left",
+  "notes": "10 Heavy Turbolasers - Fire arcs per the source: 8 front, 4 right, 4 left\n6 Point-Defense Lasers - Fire arcs per the source: 6 front, 4 right, 4 left, 4 back\nProton Torpedo Launchers (10 missiles each) - Fire arcs per the source: 2 front, 2 right, 2 left",
   "sensors": {
    "Passive": "30/0D",
    "Scan": "60/1D",
@@ -25721,7 +25721,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "General",
   "source": "Community Additions",
-  "notes": "10 Twin Laser Cannons - Feuerwinkel laut Quelle: 2 front, 3 left, 3 right, 2 back",
+  "notes": "10 Twin Laser Cannons - Fire arcs per the source: 2 front, 3 left, 3 right, 2 back",
   "sensors": {
    "Passive": "30/0D",
    "Scan": "50/1D",
@@ -28148,7 +28148,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "General",
   "source": "Community Additions",
-  "notes": "3 Laser Cannons - Feuerwinkel laut Quelle: 2 front, 1 turret",
+  "notes": "3 Laser Cannons - Fire arcs per the source: 2 front, 1 turret",
   "sensors": {
    "Passive": "30/0D",
    "Scan": "50/1D",
@@ -32206,7 +32206,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "General",
   "source": "Community Additions",
-  "notes": "2 Twin Turbolasters - Feuerwinkel laut Quelle: Turret | 1 Left, 1 Right\n2 Dual Laser Cannon - Feuerwinkel laut Quelle: Turret 1 Upper Mid Deck, 1 Lower Mid Deck\n4 Light Turbolaser Cannon - Feuerwinkel laut Quelle: Turret| 2 Left, 2 Right\n4 Laser Turrets - Feuerwinkel laut Quelle: 2 upper front, 1 right, 1 left",
+  "notes": "2 Twin Turbolasters - Fire arcs per the source: Turret | 1 Left, 1 Right\n2 Dual Laser Cannon - Fire arcs per the source: Turret 1 Upper Mid Deck, 1 Lower Mid Deck\n4 Light Turbolaser Cannon - Fire arcs per the source: Turret| 2 Left, 2 Right\n4 Laser Turrets - Fire arcs per the source: 2 upper front, 1 right, 1 left",
   "sensors": {
    "Passive": "30/1D",
    "Scan": "70/2D",
@@ -34066,7 +34066,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "General",
   "source": "Community Additions",
-  "notes": "Werte 2026 aus der Sammlung des Betreibers ersetzt (vorher aus der Texterkennung des Sammelbands); dort gefuehrt als: Cygnus Spaceworks Nu-Class Attack Shuttle",
+  "notes": "Values replaced in 2026 from the maintainer's own collection (previously from the compendium's text recognition); listed there as: Cygnus Spaceworks Nu-Class Attack Shuttle",
   "sensors": {
    "Passive": "20/0D",
    "Scan": "35/1D",
@@ -34905,7 +34905,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "Tapani sector",
   "source": "Community Additions",
-  "notes": "Zwei Cockpits teilen Backbord- und Steuerbordfeuer auf zwei Kommandanten auf; die Steuerung ist doppelt ausgelegt, jeder Pilot kann das Schiff uebernehmen.\nEingebaute Waffenaufnahmen und Energieleitungen machen Umbauten leichter als bei vergleichbaren Schiffen. Kein Backup-Hyperantrieb.",
+  "notes": "Two cockpits split port and starboard fire between two commanders; the controls are duplicated, so either pilot can take the ship.\nBuilt-in weapon mounts and power runs make refits easier than on comparable ships. No backup hyperdrive.",
   "sensors": {
    "Passive": "20/0D",
    "Scan": "30/1D",
@@ -35066,7 +35066,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "Galactic Republic",
   "source": "Community Additions",
-  "notes": "Feuerwinkel der Traktorstrahlen laut Quelle: 1 vorn, 2 achtern.",
+  "notes": "Fire arcs of the tractor beams per the source: 1 front, 2 back.",
   "sensors": {
    "Passive": "40/1D",
    "Scan": "80/2D",
@@ -36937,7 +36937,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "General",
   "source": "Community Additions",
-  "notes": "Werte 2026 aus der Sammlung des Betreibers ersetzt (vorher aus der Texterkennung des Sammelbands); dort gefuehrt als: Starypon/SunHui Spacework Razor Fighter",
+  "notes": "Values replaced in 2026 from the maintainer's own collection (previously from the compendium's text recognition); listed there as: Starypon/SunHui Spacework Razor Fighter",
   "sensors": {
    "Passive": "20/0D",
    "Scan": "35/1D",
@@ -38264,7 +38264,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "General",
   "source": "Community Additions",
-  "notes": "Huelle in der Quelle nicht angegeben (XD)\nSchilde in der Quelle nicht angegeben (XD)",
+  "notes": "Hull not given in the source (XD)\nShields not given in the source (XD)",
   "sensors": {
    "Passive": "35/1D",
    "Scan": "70/2D",
@@ -46624,7 +46624,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "General",
   "source": "Community Additions",
-  "notes": "Werte 2026 aus der Sammlung des Betreibers ersetzt (vorher aus der Texterkennung des Sammelbands); dort gefuehrt als: Incom T-65AC4 X-Wing",
+  "notes": "Values replaced in 2026 from the maintainer's own collection (previously from the compendium's text recognition); listed there as: Incom T-65AC4 X-Wing",
   "sensors": {
    "Passive": "30 / 0D",
    "Scan": "60 / 1D",
@@ -55027,7 +55027,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "Empire",
   "source": "Community Additions",
-  "notes": "Nachfolgeentwurf des Eta-2 Actis, den ohne Machtbegabung kaum jemand beherrschte: Schilde, schwerere Bewaffnung und mehr Panzerung gegen etwas Wendigkeit.\nSpitzname \"CloneFighter\". Kein Backup-Hyperantrieb.",
+  "notes": "Successor to the Eta-2 Actis, which almost nobody without the Force could handle: shields, heavier armament and more armour, at the price of some agility.\nNicknamed the \"CloneFighter\". No backup hyperdrive.",
   "sensors": {
    "Passive": "15/0D+1",
    "Scan": "30/1D+1",
@@ -55506,7 +55506,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "General",
   "source": "Community Additions",
-  "notes": "Werte 2026 aus der Sammlung des Betreibers ersetzt (vorher aus der Texterkennung des Sammelbands); dort gefuehrt als: Yevethan \"D-type\" Starfighter",
+  "notes": "Values replaced in 2026 from the maintainer's own collection (previously from the compendium's text recognition); listed there as: Yevethan \"D-type\" Starfighter",
   "sensors": {
    "Passive": "30/0D",
    "Scan": "50/1D",
@@ -57381,7 +57381,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "",
   "source": "Community Additions",
-  "notes": "Zwei geraeumige Frachtraeume, zwei Rettungskapseln; keine Kampfschilde. Ein Offizier genuegt zum Fliegen. Waffe sitzt im Dachturm (Feuerkontrolle 2D, aus dem Cockpit 0D). Backup-Hyperantrieb laut Quelle vorhanden, aber ohne Multiplikator-Angabe.",
+  "notes": "Two roomy holds, two escape pods, no combat shields. One officer is enough to fly it. The gun sits in the dorsal turret (fire control 2D, 0D from the cockpit). The source gives it a backup hyperdrive but names no multiplier.",
   "sensors": {
    "Passive": "15/0D",
    "Scan": "30/1D",
@@ -58041,7 +58041,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "Galactic Alliance",
   "source": "Community Additions",
-  "notes": "Einer der groessten Raumtransporter am Markt; Laenge in der Quelle nicht angegeben.",
+  "notes": "One of the largest space transports on the market; the source gives no length.",
   "sensors": {
    "Passive": "40/1D",
    "Scan": "80/2D",
@@ -58594,7 +58594,7 @@ const PDF_SHIPS = [
   "cover": "",
   "affiliation": "General",
   "source": "Community Additions",
-  "notes": "Werte 2026 aus der Sammlung des Betreibers ersetzt (vorher aus der Texterkennung des Sammelbands); dort gefuehrt als: Incom/Subpro Z-95 Mark I Headhunter",
+  "notes": "Values replaced in 2026 from the maintainer's own collection (previously from the compendium's text recognition); listed there as: Incom/Subpro Z-95 Mark I Headhunter",
   "sensors": {
    "Passive": "15/0D",
    "Scan": "25/1D",

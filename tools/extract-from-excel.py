@@ -37,7 +37,7 @@ except ImportError:
 
 SRC = sys.argv[1] if len(sys.argv) > 1 else 'Character Generator v2-5.xlsx'
 if not os.path.isfile(SRC):
-    sys.exit(f'Excel-Datei nicht gefunden: {SRC}')
+    sys.exit(f'Excel file not found: {SRC}')
 
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'data.js')
 wb = openpyxl.load_workbook(SRC, data_only=True)
