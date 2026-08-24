@@ -56,6 +56,13 @@ Object.assign(T.de, {
   dr_mod_cap_override: 'Kapazität überschreiben:',
   dr_mod_cap_hint: 'Ab Werk = Pips aus dem Startpool. Nachgerüstet = kostet CP und belegt Einbauplatz; Standard ist ein Drittel des Startpools.',
   dr_custom_mods: 'Eigene Modifikationen',
+  dr_resist_p: 'Widerstand phys.', dr_resist_e: 'Widerstand energ.',
+  dr_resist_sum: 'Schadenswiderstand',
+  dr_resist_note: 'Stärke plus Panzerung und Schilde aus den Modifikationen.',
+  dr_credits: 'Credits', dr_cr_earned: 'Verdient', dr_cr_spent_misc: 'Sonstige Ausgaben',
+  dr_cr_equip: 'Ausrüstung', dr_cr_melee: 'Nahkampfwaffen', dr_cr_ranged: 'Fernkampfwaffen',
+  dr_cr_spent: 'Ausgegeben', dr_cr_left: 'Credits übrig',
+  dr_cr_hint: 'Katalogpreise der angeschafften Ausrüstung und Waffen. Was ab Werk verbaut ist, kostet Pips aus dem Startpool und zählt hier nicht mit.',
   dr_points: 'Charakterpunkte', dr_cp_earned: 'Verdient (gesamt)', dr_cp_other: 'Sonstig ausgegeben',
   dr_cp_auto: 'Durch Steigerungen ausgegeben',
   dr_equipment: 'Ausrüstung', dr_weapons: 'Waffen (getragen)',
@@ -125,6 +132,13 @@ Object.assign(T.en, {
   dr_mod_cap_override: 'Override capacity:',
   dr_mod_cap_hint: 'Factory = pips from the starting pool. Retrofitted = costs CP and takes up install space; the default is one third of the starting pool.',
   dr_custom_mods: 'Custom modifications',
+  dr_resist_p: 'Resist phys.', dr_resist_e: 'Resist energy',
+  dr_resist_sum: 'Damage resistance',
+  dr_resist_note: 'Strength plus armor and shields from the modifications.',
+  dr_credits: 'Credits', dr_cr_earned: 'Earned', dr_cr_spent_misc: 'Other spending',
+  dr_cr_equip: 'Equipment', dr_cr_melee: 'Melee weapons', dr_cr_ranged: 'Ranged weapons',
+  dr_cr_spent: 'Spent', dr_cr_left: 'Credits left',
+  dr_cr_hint: 'Catalogue prices of the equipment and weapons bought. Anything fitted at the factory costs pips from the starting pool and does not count here.',
   dr_points: 'Character Points', dr_cp_earned: 'Earned (total)', dr_cp_other: 'Spent elsewhere',
   dr_cp_auto: 'Spent on improvements',
   dr_equipment: 'Equipment', dr_weapons: 'Weapons (carried)',
@@ -183,6 +197,7 @@ function emptyDoc() {
     overrides: { startDice: null, modCapacity: null },
     equipment: {}, customEquipment: [],
     melee: [], ranged: [], customMelee: [], customRanged: [],
+    credits: { earned: 0, spentMisc: 0 },
   };
 }
 let C = emptyDoc();
@@ -192,6 +207,7 @@ function migrate(obj) {
   m.info = Object.assign(emptyDoc().info, obj.info || {});
   m.points = Object.assign(emptyDoc().points, obj.points || {});
   m.overrides = Object.assign(emptyDoc().overrides, obj.overrides || {});
+  m.credits = Object.assign(emptyDoc().credits, obj.credits || {});
   ['attrs', 'attrsCP'].forEach(k => m[k] = Object.assign(emptyDoc()[k], obj[k] || {}));
   ['skills', 'mods', 'modsCP', 'equipment'].forEach(k => { if (!m[k] || typeof m[k] !== 'object') m[k] = {}; });
   ['extraSkills', 'customMods', 'customEquipment', 'melee', 'ranged', 'customMelee', 'customRanged']
@@ -213,6 +229,69 @@ function degree() {
 function attrTotal(key) {
   return DROID_DATA.attrMinPips + (C.attrs[key] || 0) + (C.attrsCP[key] || 0);
 }
+/* ---------------- damage resistance ----------------
+   Armor and shields are modifications, and the catalogue says what they do
+   in words: "+2D against physical and +2D against energy damage". Rather
+   than keep a second table beside it that could drift, the wording is read
+   - strictly. Anything phrased differently is ignored instead of guessed
+   at, and that is deliberate: the forearm shield gives a parry bonus, the
+   molecular shield swallows bolts outright, and the shielded circuitry only
+   helps against ion and DEMP. None of those is a general resistance. */
+function armorBonusOf(desc) {
+  const out = { phys: 0, ener: 0 };
+  String(desc || '').replace(/\+\s*(\d+)\s*D\s+against\s+(physical|energy)/gi,
+    (all, d, kind) => {
+      out[/^p/i.test(kind) ? 'phys' : 'ener'] += (+d) * 3;
+      return all;
+    });
+  return out;
+}
+function droidArmorTotals() {
+  let phys = 0, ener = 0;
+  const add = (desc, n) => {
+    const b = armorBonusOf(desc);
+    phys += b.phys * n;
+    ener += b.ener * n;
+  };
+  /* Factory-fitted and retrofitted armor protect alike - where the pips
+     came from is a question of book-keeping, not of plating. */
+  [C.mods, C.modsCP].forEach(set => {
+    Object.entries(set || {}).forEach(([name, q]) => {
+      if (!(q > 0)) return;
+      const m = DROID_DATA.mods.find(x => x.name === name);
+      if (m) add(m.desc, q);
+    });
+  });
+  /* Hand-written modifications count too, as long as they are worded the
+     same way - otherwise someone's own armor plate would be invisible. */
+  (C.customMods || []).forEach(cm => add(cm.desc, 1));
+  const str = attrTotal('str');
+  return { str, phys, ener, physTotal: str + phys, enerTotal: str + ener };
+}
+
+/* ---------------- credits ----------------
+   What is fitted at the factory costs pips out of the starting pool, not
+   money. Only what the droid buys afterwards is paid for in credits - so
+   only equipment and weapons are counted here. */
+function creditTotals() {
+  const find = (list, n) => (list || []).find(x => x.name === n);
+  let equip = 0;
+  Object.entries(C.equipment || {}).forEach(([n, q]) => {
+    if (!(q > 0)) return;
+    const it = find(DATA.equipment, n)
+      || (typeof PDF_EQUIPMENT !== 'undefined' ? find(PDF_EQUIPMENT, n) : null);
+    if (it) equip += (+it.cost || 0) * q;
+  });
+  (C.customEquipment || []).forEach(it => equip += (+it.cost || 0) * (+it.qty || 1));
+  let melee = 0, ranged = 0;
+  (C.melee || []).forEach(n => { const w = find(DATA.melee, n); if (w) melee += (+w.cost || 0); });
+  (C.ranged || []).forEach(n => { const w = find(DATA.ranged, n); if (w) ranged += (+w.cost || 0); });
+  (C.customMelee || []).forEach(w => melee += (+w.cost || 0));
+  (C.customRanged || []).forEach(w => ranged += (+w.cost || 0));
+  const spent = (+C.credits.spentMisc || 0) + equip + melee + ranged;
+  return { equip, melee, ranged, spent, left: (+C.credits.earned || 0) - spent };
+}
+
 function dbLevelPips(label) {
   const l = DROID_DATA.dbLevels.find(x => x.label === label);
   return l ? l.pips : 0;
@@ -906,6 +985,7 @@ function viewMods() {
   return `
   ${poolBanner()}
   ${retroBanner}
+  <p class="hint">${t('dr_resist_sum')}: <b>${fmtD(droidArmorTotals().physTotal)}</b> ${t('dr_resist_p')} &middot; <b>${fmtD(droidArmorTotals().enerTotal)}</b> ${t('dr_resist_e')} &nbsp;(${t('dr_resist_note')})</p>
   <p class="hint">${t('dr_mod_hint')}</p>
   ${blocks}
   <div class="card"><h2>${t('dr_custom_mods')}</h2>
@@ -916,6 +996,7 @@ function viewMods() {
 }
 
 function viewGear() {
+  const cr = creditTotals();
   const cats = [...new Set(DATA.equipment.map(e => e.cat))];
   const eqBlocks = cats.map(cat => {
     const rows = DATA.equipment.filter(e => e.cat === cat).map(e => {
@@ -944,6 +1025,20 @@ function viewGear() {
   const mCat = DATA.melee.map((m, i2) => `<option value="${i2}">${esc(m.name)} (STR+${fmtD(m.dmg)}, ${fmtCr(m.cost)} Cr.)</option>`).join('');
   const rCat = DATA.ranged.map((r, i2) => `<option value="${i2}">${esc(r.name)} (${fmtD(r.dmg)}, ${fmtCr(r.cost)} Cr.)</option>`).join('');
   return `
+  <div class="card"><h2>${t('dr_credits')}</h2>
+    <div class="formgrid">
+      <div><label>${t('dr_cr_earned')}</label>${inputN('credits.earned', C.credits.earned, 'data-rerender="1"')}</div>
+      <div><label>${t('dr_cr_spent_misc')}</label>${inputN('credits.spentMisc', C.credits.spentMisc, 'data-rerender="1"')}</div>
+    </div>
+    <div class="table-scroll"><table class="list" style="margin-top:12px">
+      <tr><td>${t('dr_cr_equip')}</td><td class="num">${fmtCr(cr.equip)}</td></tr>
+      <tr><td>${t('dr_cr_melee')}</td><td class="num">${fmtCr(cr.melee)}</td></tr>
+      <tr><td>${t('dr_cr_ranged')}</td><td class="num">${fmtCr(cr.ranged)}</td></tr>
+      <tr><td><b>${t('dr_cr_spent')}</b></td><td class="num"><b>${fmtCr(cr.spent)}</b></td></tr>
+      <tr><td><b>${t('dr_cr_left')}</b></td><td class="num"><b class="${cr.left < 0 ? 'warn' : ''}">${fmtCr(cr.left)}</b></td></tr>
+    </table></div>
+    <p class="hint">${t('dr_cr_hint')}</p>
+  </div>
   <div class="card"><h2>${t('dr_weapons')}</h2>
     <h3>${t('dr_melee')}</h3>
     <div class="table-scroll"><table class="list"><tr><th>${t('weapon')}</th><th>${t('damage')}</th><th>${t('difficulty')}</th><th></th></tr>
@@ -998,7 +1093,7 @@ function sheetField(lbl, val, span) {
     <span class="lbl">${esc(lbl)}</span><span class="val">${esc(val) || '&nbsp;'}</span></div>`;
 }
 function renderSheet() {
-  const i = C.info;
+  const i = C.info, res = droidArmorTotals(), cr = creditTotals();
   const attrBlock = a => {
     const rows = skillsFor(a.key).filter(r => {
       const e = C.skills[skillKey(a.key, r.name)];
@@ -1062,7 +1157,10 @@ function renderSheet() {
       ${sheetField(t('dr_weight'), i.weight ? i.weight + ' kg' : '', 2)}
       ${sheetField(t('dr_fp'), String(i.forcePoints || 0), 2)}
       ${sheetField('CP', String(cpLeft()), 2)}
-      ${sheetField(t('dr_quote'), i.quote ? '„' + i.quote + '“' : '', 12)}
+      ${sheetField(t('dr_resist_p'), fmtD(res.physTotal), 2)}
+      ${sheetField(t('dr_resist_e'), fmtD(res.enerTotal), 2)}
+      ${sheetField(t('dr_credits'), fmtCr(cr.left), 4)}
+      ${sheetField(t('dr_quote'), i.quote ? '„' + i.quote + '“' : '', 8)}
     </div>
     <div class="sp-portrait">
       ${i.portrait ? `<img src="${i.portrait}" alt="">` : `<span>${t('dr_portrait')}</span>`}
