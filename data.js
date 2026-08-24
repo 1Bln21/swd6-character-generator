@@ -3563,6 +3563,357 @@ const DATA = {
    "diff": "No Roll",
    "kept": "No",
    "dark": "Special"
+  },
+  {
+   "name": "Breath Control",
+   "cat": "Control",
+   "prereq": "Concentration, Hibernation Trance",
+   "page": "GG16 p. 187",
+   "diff": "Moderate if at ease or rest, Difficult if in motion, Very Difficult if performing strenuous activities",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Deflect Energy",
+   "cat": "Control",
+   "prereq": "Absorb / Dissipate Energy",
+   "page": "GG16 p. 189",
+   "diff": "Moderate plus the damage roll of the attack",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Force Body",
+   "cat": "Control",
+   "prereq": "Concentration, Control Pain, Reduce Injury, Remain Conscious",
+   "page": "GG16 p. 190",
+   "diff": "Difficult",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Force Comprehension",
+   "cat": "Control",
+   "prereq": "Concentration",
+   "page": "GG16 p. 191",
+   "diff": "Moderate",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Resist Force",
+   "cat": "Control",
+   "prereq": "Concentration",
+   "page": "GG16 p. 194",
+   "diff": "Moderate",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Mechu-Deru",
+   "cat": "Sense",
+   "prereq": "Absorb / Dissipate Energy, Affect Mind",
+   "page": "GG16 p. 197",
+   "diff": "Very Easy for hand-held devices, Easy for droids and character -scale devices, Moderate for starfighters and speeder -scale vehicles and devices, Difficult for walkerscale vehicles and devices, Very Difficult for space transports, Heroic for capital -scale vehicles and devices",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Sense True Nature",
+   "cat": "Sense",
+   "prereq": "Life Detection, Life Sense, Receptive Telepathy",
+   "page": "GG16 p. 200",
+   "diff": "Moderate for friendly, unresistant targets. Moderate plus target’s Perception or control roll (whichever is higher) to determine the difficulty of the probe on an unwilling subject",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Time Awareness",
+   "cat": "Sense",
+   "prereq": "Magnify Senses, Sense Force",
+   "page": "GG16 p. 201",
+   "diff": "Moderate",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Force Whirlwind",
+   "cat": "Alter",
+   "prereq": "Telekinesis",
+   "page": "GG16 p. 202",
+   "diff": "Moderate, or target’s Strength roll (whichever is higher)",
+   "kept": "No",
+   "dark": "Yes"
+  },
+  {
+   "name": "Force Bomb",
+   "cat": "Alter",
+   "prereq": "Combustion",
+   "page": "GG16 p. 202",
+   "diff": "Very Difficult or opposed dodge roll",
+   "kept": "No",
+   "dark": "Yes"
+  },
+  {
+   "name": "Force Burst",
+   "cat": "Alter",
+   "prereq": "Concentration, Force blast, Force Push, Projected Fighting, repulse, Telekinesis",
+   "page": "GG16 p. 202",
+   "diff": "Varies",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Force Channel",
+   "cat": "Control & Alter",
+   "prereq": "No Prerequisite",
+   "page": "GG16 p. 202",
+   "diff": "Difficult / Difficult",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Force Eruption",
+   "cat": "Alter",
+   "prereq": "No Prerequisite",
+   "page": "GG16 p. 203",
+   "diff": "Moderate; modified by proximity",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Force Flight",
+   "cat": "Alter",
+   "prereq": "Concentration, Telekinesis",
+   "page": "GG16 p. 203",
+   "diff": "Equal to the number of meters the Jedi wishes to move himself (20 meters maximum)",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Force Potency",
+   "cat": "Alter",
+   "prereq": "Empower Force",
+   "page": "GG16 p. 203",
+   "diff": "Very Difficult",
+   "kept": "No",
+   "dark": "Yes"
+  },
+  {
+   "name": "Forcequake",
+   "cat": "Alter",
+   "prereq": "Force whirlwind, Telekinesis",
+   "page": "GG16 p. 204",
+   "diff": "Moderate or Difficult, modified by proximity, but must be within line of sight",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Inspire",
+   "cat": "Alter",
+   "prereq": "Affect Mind, Battle Meditation",
+   "page": "GG16 p. 205",
+   "diff": "Very Difficult, modified for proximity. This power may be kept \"up.\"",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Detoxify Another’s Poison",
+   "cat": "Control & Alter",
+   "prereq": "Accelerate Healing, Accelerate Another's Healing, Control Pain, Control Another's Pain, Detoxify Poison",
+   "page": "GG16 p. 208",
+   "diff": "Very Easy, modified by relationship / Very Easy for a very mild poison (such as alcohol); Easy for a mild poison; Moderate for an average poison ; Difficult for a virulent poison; Very Difficult to Heroic for a neurotoxin",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Force Weapon",
+   "cat": "Control & Alter",
+   "prereq": "Concentration",
+   "page": "GG16 p. 209",
+   "diff": "Equal to the melee weapon’s base difficulty (ie, a knife is Very Easy) / Moderate",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Overload Saber",
+   "cat": "Control & Alter",
+   "prereq": "Concentration, Force weapon",
+   "page": "GG16 p. 211",
+   "diff": "Moderate / Moderate",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Slow",
+   "cat": "Control & Alter",
+   "prereq": "Accelerate Healing, Accelerate Another's Healing, Control Pain, Control Another's Pain, Remove Fatigue, Remove Another's Fatigue",
+   "page": "GG16 p. 211",
+   "diff": "Easy / Moderate, or target’s control or Perception roll",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Stasis",
+   "cat": "Control & Alter",
+   "prereq": "Concentration, Control Another's Pain, Control Pain, Dim Another's Senses, enhance another’s attribute, Enhance Attribute, Force stun, Telekinesis, Transfer Force",
+   "page": "GG16 p. 212",
+   "diff": "Moderate / Target’s control, Perception, or willpower, modified by proximity",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Force Breach",
+   "cat": "Sense & Alter",
+   "prereq": "Affect Mind, Dim Another's Senses, Sense Force",
+   "page": "GG16 p. 212",
+   "diff": "Easy / Target’s opposed control roll",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Force Blinding",
+   "cat": "Sense & Alter",
+   "prereq": "Dim Another's Senses",
+   "page": "GG16 p. 213",
+   "diff": "Easy, modified by proximity / Difficult, or target’s Perception or control roll",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Balance of the Force",
+   "cat": "Control, Sense & Alter",
+   "prereq": "Sense Force",
+   "page": "GG16 p. 215",
+   "diff": "Moderate if the user was initially a servant of the Light Side; Difficult if the user was initially a minion of the Dark Side / Moderate / Target’s control or Strength roll, line of sight only",
+   "kept": "No",
+   "dark": "Yes"
+  },
+  {
+   "name": "Crush Opposition",
+   "cat": "Control, Sense & Alter",
+   "prereq": "Affect Mind, Battle Meditation, Control Another's Pain, Control Pain, enhance another’s attribute, Enhance Attribute",
+   "page": "GG16 p. 215",
+   "diff": "Moderate, modified by proximity / Moderate, mod ified by proximity / Target’s control or willpower, modified by proximity",
+   "kept": "No",
+   "dark": "Yes"
+  },
+  {
+   "name": "Force Mastery",
+   "cat": "Control, Sense & Alter",
+   "prereq": "Extend Force, Force channel",
+   "page": "GG16 p. 216",
+   "diff": "Difficult / Difficult / Difficult",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Machine Meld",
+   "cat": "Control, Sense & Alter",
+   "prereq": "Absorb / Dissipate Energy, Affect Mind, Concentration, mechu-deru, technometry",
+   "page": "GG16 p. 218",
+   "diff": "Moderate / Difficult / Difficult for a single computer terminal, speeder-scale, and walker-scale vehicles, Very Difficult for a ship’s system, Heroic for a starfighter-scale starship, Heroic +10 for a capital- scale ship",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Technometry",
+   "cat": "Control, Sense & Alter",
+   "prereq": "Absorb / Dissipate Energy, Affect Mind",
+   "page": "GG16 p. 219",
+   "diff": "Easy / Moderate / Moderate (or opposed Perception roll for droids)",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Teleport",
+   "cat": "Control, Sense & Alter",
+   "prereq": "Concentration, Farseeing, Hibernation Trance, Instinctive Astrogation: Sense, Life Detection, Life Sense, Magnify Senses, Projective Telepathy, Receptive Telepathy, Sense Force, Telekinesis",
+   "page": "GG16 p. 219",
+   "diff": "Difficult / Difficult, modified by familiarity of destination / Difficult, modified by distance to destination",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Ball Lightning",
+   "cat": "Alter",
+   "prereq": "Absorb / Dissipate Energy, Control Pain, Force Lightning, Force shot, Inflict Pain, Injure / Kill, Life Detection, Life Sense, Sense Force",
+   "page": "GG16 p. 221",
+   "diff": "Moderate",
+   "kept": "No",
+   "dark": "Yes"
+  },
+  {
+   "name": "Crushing Darkness",
+   "cat": "Alter",
+   "prereq": "Control Pain, Inflict Pain, Life Detection, Life Sense, Telekinesis",
+   "page": "GG16 p. 221",
+   "diff": "Moderate",
+   "kept": "No",
+   "dark": "Yes"
+  },
+  {
+   "name": "Devastating Force",
+   "cat": "Alter",
+   "prereq": "Empower Force",
+   "page": "GG16 p. 222",
+   "diff": "Difficult or Very Difficult",
+   "kept": "No",
+   "dark": "Yes"
+  },
+  {
+   "name": "Drain Energy",
+   "cat": "Control & Alter",
+   "prereq": "Absorb / Dissipate Energy",
+   "page": "GG16 p. 223",
+   "diff": "Very Easy for simple devices (datapads, holorecorders, droid callers); Easy for power packs (such as blasters); Moderate for energy cells (lightsabers, force pikes, vibro weapons); Difficult for portable generators (E -Web repeating blasters, droids) / Easy if the target is a non - sentient piece of equipment. If the target is a droid, the alter difficulty is the droid’s Strength roll",
+   "kept": "No",
+   "dark": "Yes"
+  },
+  {
+   "name": "Fear",
+   "cat": "Control & Alter",
+   "prereq": "Aura of Uneasiness",
+   "page": "GG16 p. 223",
+   "diff": "Target’s opposing control or Perception roll / Moderate",
+   "kept": "No",
+   "dark": "Yes"
+  },
+  {
+   "name": "Consume Essence",
+   "cat": "Control, Sense & Alter",
+   "prereq": "Accelerate Another's Healing, Affect Mind, Control Another's Pain, Control Mind, Control Pain, Dim Another's Senses, Drain Life Energy, Drain Life Essence, enhance another’s attribute, Enhance Attribute, Farseeing, Feed on Dark Side, Hibernation Trance, Injure / Kill, Life Detection, Life Sense, Magnify Senses, Place Another in Hibernation Trance, Projective Telepathy, Receptive Telepathy, Sense Force, Sith Sorcery, Telekinesis, Transfer Force",
+   "page": "GG16 p. 225",
+   "diff": "Heroic / Heroic / Heroic",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Death Field",
+   "cat": "Control, Sense & Alter",
+   "prereq": "Accelerate Another's Healing, Accelerate Healing, Affect Mind, Concentration, Control Another's Pain, Control Mind, Control Pain, Dim Another's Senses, drain life, Drain Life Energy, Drain Life Essence, Farseeing, Hibernation Trance, Injure / Kill, Life Detection, Life Sense, Magnify Senses, Projective Telepathy, Receptive Telepathy, Sense Force, Telekinesis, Transfer Force",
+   "page": "GG16 p. 227",
+   "diff": "Target’s Perception or control roll / Difficult / Target’s Strength roll",
+   "kept": "No",
+   "dark": "Yes"
+  },
+  {
+   "name": "Force Walk",
+   "cat": "Control, Sense & Alter",
+   "prereq": "Accelerate Another's Healing, Accelerate Healing, Affect Mind, Control Another's Pain, Control Mind, Control Pain, Dim Another's Senses, Drain Life Essence, Enhance Attribute, Farseeing, Feed on Dark Side, Hibernation Trance, Injure / Kill, Life Detection, Life Sense, Magnify Senses, Projective Telepathy, Receptive Telepathy, Sense Force, Sith Sorcery, Telekinesis, Transfer Force",
+   "page": "GG16 p. 229",
+   "diff": "Very Difficult / Difficult / Difficult",
+   "kept": "No",
+   "dark": "No"
+  },
+  {
+   "name": "Voss Healing Ritual",
+   "cat": "Control, Sense & Alter",
+   "prereq": "Accelerate Another's Healing, Control Another's Pain, Control Pain, Life Detection, Life Sense, Projective Telepathy, Receptive Telepathy, Transfer Force",
+   "page": "GG16 p. 231",
+   "diff": "Easy. Modified by relationship / Easy. Modified by proximity / Very Easy. Modified by relationship",
+   "kept": "No",
+   "dark": "No"
   }
  ],
  "equipment": [
