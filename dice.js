@@ -185,7 +185,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.id === 'clearHist') { history = []; renderResult(); return; }
   });
   document.querySelectorAll('input[name="langOpt"]').forEach(r =>
-    r.addEventListener('change', () => { LANG = r.value; localStorage.setItem(LS_LANG, LANG); render(); }));
+    r.addEventListener('change', () => {
+      LANG = r.value;
+      localStorage.setItem(LS_LANG, LANG);
+      render();
+  /* Credits and the legal links come from their own files and are not
+     covered by data-i18n - they have to be redrawn by hand, the same way
+     genshared.js does it for the generator pages. */
+  if (typeof renderLegal === 'function') renderLegal();
+  const am = document.getElementById('aboutModal');
+  if (am && !am.classList.contains('hidden') && typeof renderAbout === 'function') renderAbout();
+    }));
   const om = document.getElementById('optionsMenu'), ob = document.getElementById('btnOptions');
   if (ob) ob.addEventListener('click', e => { e.stopPropagation(); om.classList.toggle('hidden'); });
   if (om) om.addEventListener('click', e => e.stopPropagation());

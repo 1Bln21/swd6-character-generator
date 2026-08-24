@@ -165,6 +165,12 @@ function applyLang() {
     if (s) el.textContent = s;
   });
   document.querySelectorAll('input[name="langOpt"]').forEach(r => { r.checked = r.value === LANG; });
+  /* Credits and the legal links come from their own files and are not
+     covered by data-i18n - they have to be redrawn by hand, the same way
+     genshared.js does it for the generator pages. */
+  if (typeof renderLegal === 'function') renderLegal();
+  const am = document.getElementById('aboutModal');
+  if (am && !am.classList.contains('hidden') && typeof renderAbout === 'function') renderAbout();
 }
 
 /* ---------------- helpers ---------------- */
@@ -173,6 +179,13 @@ function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g,
     c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
+/* credits.js and legal.js are shared with the generator pages and reach for
+   the dictionary and these two helpers by their bare names. Everything in
+   this file sits inside an IIFE, so hand exactly those three out - they are
+   the whole surface this page shares, and nothing else leaks. */
+window.T = T;
+window.t = t;
+window.esc = esc;
 function apiUrl() {
   return (typeof SITE_CONFIG !== 'undefined' && SITE_CONFIG.apiUrl) || '';
 }
