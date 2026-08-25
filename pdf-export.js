@@ -47,6 +47,22 @@ function pdfText(s) {
     .trim();
 }
 
+/* textContent glues everything together: a <br> yields no character at all,
+   so the ship sheet's list of modifications reached the PDF as "Improve
+   hyperdrive: x0.5Reinforce shields: +0D+2Weapon damage: ...". Walking the
+   nodes turns every line break in the markup into a real one. pdfText()
+   would flatten it straight back - which is why put() splits on newlines
+   BEFORE running it. */
+function nodeText(el) {
+  if (!el) return '';
+  if (el.nodeType === 3) return el.nodeValue;
+  let out = '';
+  Array.prototype.forEach.call(el.childNodes, n => {
+    out += n.nodeName === 'BR' ? '\n' : nodeText(n);
+  });
+  return out;
+}
+
 async function exportSheetPdf(btn) {
   const jspdfNS = window.jspdf || window.jsPDF;
   if (!jspdfNS) {
@@ -86,10 +102,15 @@ async function exportSheetPdf(btn) {
     };
     /* Wrap text to a width and set it line by line. */
     const put = (txt, x, size, style, grey, maxW) => {
-      const s = pdfText(txt);
-      if (!s) return 0;
+      /* The font has to be set before measuring - splitTextToSize works out
+         its widths from whatever is current. */
       setFont(size, style, grey);
-      const lines = pdf.splitTextToSize(s, maxW || (CW - (x - M)));
+      const breite = maxW || (CW - (x - M));
+      const lines = [];
+      String(txt == null ? '' : txt).split('\n').forEach(teil => {
+        const s = pdfText(teil);
+        if (s) lines.push.apply(lines, pdf.splitTextToSize(s, breite));
+      });
       lines.forEach(l => { need(size * 0.42 + 1); pdf.text(l, x, y + size * 0.35); y += size * 0.42 + 1; });
       return lines.length;
     };
@@ -111,7 +132,11 @@ async function exportSheetPdf(btn) {
         setFont(5.6, 'normal', true);
         pdf.text(pdfText(lbl ? lbl.textContent : ''), x, top + 3);
         setFont(8.6, 'bold');
-        const lines = pdf.splitTextToSize(pdfText(val ? val.textContent : ''), w);
+        const lines = [];
+        nodeText(val).split('\n').forEach(teil => {
+          const s = pdfText(teil);
+          if (s) lines.push.apply(lines, pdf.splitTextToSize(s, w));
+        });
         lines.slice(0, 3).forEach((l, n) => pdf.text(l, x, top + 7 + n * 3.4));
         const h = 8 + Math.min(3, lines.length) * 3.2 - 3.2;
         pdf.setDrawColor(190);
@@ -376,7 +401,7 @@ async function exportSheetPdf(btn) {
       const strukturiert = el.querySelector(
         '.sp-grid, .sp-box, .sp-skill, .sp-attr, .sp-stat, .sp-portrait, .sp-header, .sp-footer, table');
       if (strukturiert) { walk(el, x0, width); return; }
-      put(el.textContent, x0, 7.6, 'normal', false, width);
+      put(nodeText(el), x0, 7.6, 'normal', false, width);
     }
 
     for (let p = 0; p < pages.length; p++) {
