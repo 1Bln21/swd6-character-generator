@@ -43,6 +43,8 @@ const T = {
     gate_noserver: 'Für den Spieltisch wird der Server gebraucht. Diese Installation läuft ohne API.',
     gate_norounds: 'Du bist in keiner Spielrunde. Über ☁ oben kannst du eine anlegen oder mit einem Einladungscode beitreten.',
     gm_title: 'Spielleitung', gm_map_pick: 'Karte', gm_grid: 'Raster (px, 0 = aus)',
+    gm_dim: 'Dunkelheit',
+    gm_dim_hint: 'Tag und Nacht auf derselben Karte. Verdunkelt die Szene für alle – auch schon erkundetes Gelände. Die Marken bleiben sichtbar. Nur die Spielleitung kann das stellen.',
     gm_upload: '＋ Karte hochladen', gm_delete: 'Karte löschen',
     gm_hint: 'Nur die Spielleitung kann Karten hochladen und umschalten. Große Bilder werden vor dem Hochladen verkleinert.',
     fog_title: 'Nebel', fog_off: 'Marken bewegen',
@@ -83,7 +85,7 @@ const T = {
     log_title: 'Protokoll', log_empty: 'Noch nichts gewürfelt.',
     no_map: 'Noch keine Karte auf dem Tisch.',
     no_map_gm: 'Noch keine Karte. Lade rechts eine hoch.',
-    stage_hint: 'Marken lassen sich mit der Maus oder dem Finger ziehen.',
+    stage_hint: 'Marken lassen sich mit der Maus oder dem Finger ziehen – wohin sie gezogen werden, dahin schauen sie. Auf der Stelle drehen: Umschalt halten und ziehen, oder lange gedrückt halten. Ein Umschalt-Klick ohne Drehen nimmt den Sichtkegel wieder weg.',
     st_live: 'verbunden', st_off: 'keine Verbindung', st_saving: 'speichert …',
     doc_none: '– kein Bogen –', complication: 'Komplikation!',
     confirm_map_delete: 'Diese Karte und alle Marken darauf löschen?',
@@ -101,6 +103,8 @@ const T = {
     gate_noserver: 'The table needs the server. This installation runs without the API.',
     gate_norounds: 'You are not in a game round. Create one under ☁ up top, or join with an invite code.',
     gm_title: 'Game master', gm_map_pick: 'Map', gm_grid: 'Grid (px, 0 = off)',
+    gm_dim: 'Darkness',
+    gm_dim_hint: 'Day and night on the same map. Darkens the scene for everyone, explored ground included. The tokens stay visible. Only the GM can set this.',
     gm_upload: '＋ Upload map', gm_delete: 'Delete map',
     gm_hint: 'Only the GM can upload maps and switch between them. Large pictures are scaled down before upload.',
     fog_title: 'Fog', fog_off: 'Move tokens',
@@ -141,7 +145,7 @@ const T = {
     log_title: 'Log', log_empty: 'Nothing rolled yet.',
     no_map: 'No map on the table yet.',
     no_map_gm: 'No map yet. Upload one on the right.',
-    stage_hint: 'Tokens can be dragged with the mouse or a finger.',
+    stage_hint: 'Tokens can be dragged with the mouse or a finger - which way they went is which way they look. To turn one where it stands: hold shift and drag, or press and hold. A shift click without turning takes the cone off again.',
     st_live: 'connected', st_off: 'no connection', st_saving: 'saving …',
     doc_none: '– no sheet –', complication: 'Complication!',
     confirm_map_delete: 'Delete this map and every token on it?',
@@ -170,6 +174,11 @@ function applyLang() {
      genshared.js does it for the generator pages. */
   if (typeof renderLegal === 'function') renderLegal();
   if (typeof relangOnline === 'function') relangOnline();
+  /* help.js reads the language off LANG; inside the IIFE it is invisible
+     from outside, so the copy on window is kept in step. */
+  window.LANG = LANG;
+  const hm = document.getElementById('helpModal');
+  if (hm && !hm.classList.contains('hidden') && typeof renderHelp === 'function') renderHelp();
   const am = document.getElementById('aboutModal');
   if (am && !am.classList.contains('hidden') && typeof renderAbout === 'function') renderAbout();
 }
@@ -187,6 +196,8 @@ function esc(s) {
 window.T = T;
 window.t = t;
 window.esc = esc;
+window.HELP_PAGE = 'vtt';
+window.LANG = LANG;
 function apiUrl() {
   return (typeof SITE_CONFIG !== 'undefined' && SITE_CONFIG.apiUrl) || '';
 }
@@ -410,6 +421,17 @@ function renderTokens() {
   const box = $('tokens');
   const list = (state && state.tokens) || [];
   box.innerHTML = list.map(tok => {
+    /* The field of view sits in a layer of its own BEHIND the figure, not
+       inside it: the token clips its contents (that is what keeps a round
+       portrait round), and rotating the token itself would stand the
+       picture on its head. */
+    const kegel = (tok.facing >= 0 && tok.facing < 360)
+      ? '<div class="vtt-facing" style="left:' + (tok.x * 100) + '%;top:' + (tok.y * 100) + '%;'
+        + '--tok-size:' + (tok.size || 1) + ';transform:translate(-50%,-50%) rotate('
+        + tok.facing + 'deg);'
+        + (tok.color ? 'background:' + esc(tok.color) + ';' : '') + '"'
+        + ' data-facing-for="' + tok.id + '"></div>'
+      : '';
     const cls = 'vtt-token kind-' + esc(tok.kind || 'npc') + (mayMove(tok) ? ' mine' : '');
     const style = 'left:' + (tok.x * 100) + '%;top:' + (tok.y * 100) + '%;'
                 + '--tok-size:' + (tok.size || 1) + ';'
@@ -417,10 +439,20 @@ function renderTokens() {
     const inner = tok.url
       ? '<img src="' + esc(assetUrl(tok.url)) + '" alt="">'
       : '<span>' + esc(tokenInitials(tok)) + '</span>';
-    return '<div class="' + cls + '" style="' + style + '" data-id="' + tok.id + '" '
+    return kegel + '<div class="' + cls + '" style="' + style + '" data-id="' + tok.id + '" '
          + 'title="' + esc(tok.label || '') + (tok.owner ? ' – ' + esc(tok.owner) : '') + '">'
          + inner + '</div>';
   }).join('');
+}
+
+/* 0 = broad daylight, 100 = pitch black. Not quite black even then: at
+   full strength a little of the ground still shows through, so the GM can
+   still tell where the walls are. */
+function zeigeDunkelheit(prozent) {
+  const el = $('night');
+  if (!el) return;
+  const p = Math.max(0, Math.min(100, +prozent || 0));
+  el.style.opacity = String(p / 100 * 0.92);
 }
 
 function renderMapList() {
@@ -434,6 +466,13 @@ function renderMapList() {
   $('fogCard').classList.toggle('hidden', !isGm);
   const map = activeMap();
   $('gridSize').value = map ? (map.grid || 0) : 0;
+  const dunkel = map ? (map.dim || 0) : 0;
+  /* Do not overwrite the slider while it is being dragged - the answer to
+     the previous step would jump it back under the finger. */
+  const rg = $('dimRange');
+  if (rg && document.activeElement !== rg) rg.value = String(dunkel);
+  if ($('dimVal')) $('dimVal').textContent = dunkel + ' %';
+  zeigeDunkelheit(dunkel);
 }
 
 /* ---------------- rolls on the map ----------------
@@ -811,6 +850,10 @@ function stageFraction(ev) {
   };
 }
 let painting = false;
+let drehen = null;          // figure being turned on the spot (shift)
+let drehStart = null;       // where the pointer went down - a click that does not move clears it
+let drehLetzt = null;       // and where it is now: the two together say whether it was turned
+let drehTimer = 0;          // long press starts turning without a shift key
 function wireDragging() {
   const stage = $('stage');
   stage.addEventListener('pointerdown', ev => {
@@ -838,9 +881,36 @@ function wireDragging() {
     const id = +el.getAttribute('data-id');
     const tok = (state.tokens || []).find(x => x.id === id);
     if (!tok || !mayMove(tok)) return;
+    /* Shift turns the figure where it stands. Without it the drag decides
+       the facing, which is how you move a miniature: you push it, and it
+       ends up looking the way it went. */
+    if (ev.shiftKey) {
+      drehen = tok;
+      drehStart = stageFraction(ev);
+      try { el.setPointerCapture(ev.pointerId); } catch (e) {}
+      el.classList.add('drag');
+      ev.preventDefault();
+      return;
+    }
     dragging = tok;
+    dragging._von = { x: tok.x, y: tok.y };
     try { el.setPointerCapture(ev.pointerId); } catch (e) {}
     el.classList.add('drag');
+    /* A phone has no shift key. Holding the figure for half a second
+       switches to turning, so a player on a tablet can set the facing of a
+       piece that is not going anywhere. The timer is cancelled by the first
+       real movement - dragging must not turn into turning under your
+       finger. */
+    if (drehTimer) clearTimeout(drehTimer);
+    drehTimer = setTimeout(() => {
+      drehTimer = 0;
+      if (!dragging) return;
+      const t2 = dragging;
+      dragging = null;
+      drehen = t2;
+      drehStart = drehLetzt = { x: t2.x, y: t2.y };
+      el.classList.add('turning');
+    }, 500);
     ev.preventDefault();
   });
   stage.addEventListener('pointermove', ev => {
@@ -850,10 +920,22 @@ function wireDragging() {
        along with every later mouse movement; the same goes for a token,
        which would then follow the cursor around the map. buttons === 0
        is the honest answer to "is anything actually being pressed". */
-    if ((painting || dragging) && ev.buttons === 0) { end(); return; }
+    if ((painting || dragging || drehen) && ev.buttons === 0) { end(); return; }
     if (painting) { const p = stageFraction(ev); fogPaint(p.x, p.y); return; }
+    if (drehen) {
+      const p = stageFraction(ev);
+      drehLetzt = p;
+      setzeKegel(drehen, winkelZu(drehen, p));
+      const jetzt = Date.now();
+      if (jetzt - sendPending > 200) { sendPending = jetzt; pushMove(drehen); }
+      return;
+    }
     if (!dragging) return;
     const p = stageFraction(ev);
+    /* Moved for real - this is a drag, not a long press. */
+    if (drehTimer && (Math.abs(p.x - dragging.x) > 0.01 || Math.abs(p.y - dragging.y) > 0.01)) {
+      clearTimeout(drehTimer); drehTimer = 0;
+    }
     dragging.x = p.x; dragging.y = p.y;
     const el = stage.querySelector('.vtt-token[data-id="' + dragging.id + '"]');
     if (el) { el.style.left = (p.x * 100) + '%'; el.style.top = (p.y * 100) + '%'; }
@@ -868,10 +950,39 @@ function wireDragging() {
       flushFog();
       return;
     }
+    if (drehTimer) { clearTimeout(drehTimer); drehTimer = 0; }
+    stage.querySelectorAll('.vtt-token.turning').forEach(e => e.classList.remove('turning'));
+    if (drehen) {
+      const tok = drehen;
+      drehen = null;
+      stage.querySelectorAll('.vtt-token.drag').forEach(e => e.classList.remove('drag'));
+      /* Shift pressed and let go without turning: the cone comes off. That
+         is the way back for a figure that should not be looking anywhere
+         in particular. */
+      /* Compare where the pointer went DOWN with where it ended up - not
+         with the figure, which never moves while turning and would make
+         every turn look like a click. */
+      if (drehStart && (!drehLetzt || (Math.abs(drehStart.x - drehLetzt.x) < 0.012
+                                    && Math.abs(drehStart.y - drehLetzt.y) < 0.012))) {
+        tok.facing = -1;
+        renderTokens();
+      }
+      drehStart = drehLetzt = null;
+      pushMove(tok, true);
+      return;
+    }
     if (!dragging) return;
     const tok = dragging;
     dragging = null;
     stage.querySelectorAll('.vtt-token.drag').forEach(e => e.classList.remove('drag'));
+    /* A move of any length points the figure the way it went. Below that a
+       nudge would spin it around for no reason. */
+    const von = tok._von;
+    if (von) {
+      const weg = Math.hypot(tok.x - von.x, tok.y - von.y);
+      if (weg > 0.02) tok.facing = winkelZu({ x: von.x, y: von.y }, { x: tok.x, y: tok.y });
+      delete tok._von;
+    }
     pushMove(tok, true);
   };
   stage.addEventListener('pointerup', end);
@@ -890,9 +1001,38 @@ function wireDragging() {
 }
 async function pushMove(tok, final) {
   try {
-    await api('token_move', { round: roundId, token: tok.id, x: tok.x, y: tok.y });
+    const daten = { round: roundId, token: tok.id, x: tok.x, y: tok.y };
+    /* Only send the facing when this figure has one - otherwise every move
+       of an unturned marker would write a -1 that was never asked for. */
+    if (tok.facing !== undefined && tok.facing !== null) daten.facing = tok.facing;
+    await api('token_move', daten);
     if (final) await refresh(true);
   } catch (e) { setStatus(false, e.message); }
+}
+
+/* ---------------- facing ----------------
+   Which way a figure looks is worth as much at the table as where it
+   stands. It is set the way you would turn a miniature: dragging points it
+   the way it went, and holding shift turns it on the spot without moving
+   it. A shift click that does not move takes the cone away again.
+
+   The angle counts from "up", clockwise, which is what CSS rotate() wants -
+   no conversion anywhere. */
+function winkelZu(tok, p) {
+  const dx = p.x - tok.x, dy = p.y - tok.y;
+  const grad = Math.atan2(dx, -dy) * 180 / Math.PI;
+  return (grad + 360) % 360;
+}
+function setzeKegel(tok, grad) {
+  tok.facing = grad;
+  const el = $('stage').querySelector('.vtt-facing[data-facing-for="' + tok.id + '"]');
+  if (el) {
+    el.style.transform = 'translate(-50%,-50%) rotate(' + grad + 'deg)';
+    el.style.left = (tok.x * 100) + '%';
+    el.style.top = (tok.y * 100) + '%';
+  } else {
+    renderTokens();
+  }
 }
 
 /* ---------------- maps ---------------- */
@@ -1544,6 +1684,30 @@ document.addEventListener('DOMContentLoaded', function () {
     try { await api('map_delete', { round: roundId, map: map.id }); await refresh(true); }
     catch (e) { alert(e.message); }
   });
+  /* Day and night. The veil follows the slider straight away so the GM can
+     see what the table will see; the server hears about it at most every
+     200 ms while dragging, and the final value always goes out. */
+  const rg = $('dimRange');
+  if (rg) {
+    let dimPending = 0;
+    const sende = async (wert, endgueltig) => {
+      const map = activeMap();
+      if (!map) return;
+      map.dim = wert;
+      try { await api('map_dim', { round: roundId, map: map.id, dim: wert }); }
+      catch (e) { setStatus(false, e.message); }
+      if (endgueltig) await refresh(true);
+    };
+    rg.addEventListener('input', function () {
+      const wert = +this.value || 0;
+      if ($('dimVal')) $('dimVal').textContent = wert + ' %';
+      zeigeDunkelheit(wert);
+      const jetzt = Date.now();
+      if (jetzt - dimPending > 200) { dimPending = jetzt; sende(wert, false); }
+    });
+    rg.addEventListener('change', function () { sende(+this.value || 0, true); });
+  }
+
   $('gridSize').addEventListener('change', async function () {
     const map = activeMap();
     if (!map) return;

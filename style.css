@@ -802,10 +802,40 @@ table.list tr.worn > td { background: color-mix(in srgb, var(--accent) 12%, tran
   position: absolute; inset: 0; width: 100%; height: 100%;
   pointer-events: none; image-rendering: pixelated;
 }
+/* Day and night: one veil over the whole scene, above the terrain and the
+   fog but BELOW the figures - a night in which nobody can make out their
+   own piece any more helps no one. It takes no clicks, so dragging and the
+   fog brush work through it. */
+.vtt-night {
+  position: absolute; inset: 0;
+  background: #04060f;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .4s ease;
+  z-index: 0;
+}
 .vtt-stage.painting { cursor: crosshair; }
 .vtt-stage.painting .vtt-token { pointer-events: none; }
 .fog-modes { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
 .fog-modes .opt-row { text-transform: none; }
+
+/* The field of view: a wedge behind the figure, pointing the way it looks.
+   A square clipped to a triangle from its own centre - 0 degrees is up,
+   which is what the token's facing counts from, so the angle goes straight
+   into rotate() with nothing to convert.
+
+   It sits BEHIND the token and takes no clicks, so dragging still grabs
+   the figure and not the cone. */
+.vtt-facing {
+  position: absolute;
+  width: calc(150px * var(--tok-size, 1)); height: calc(150px * var(--tok-size, 1));
+  background: var(--accent);
+  opacity: .17;
+  clip-path: polygon(50% 50%, 12% 0%, 88% 0%);
+  pointer-events: none;
+  z-index: 0;
+}
+.vtt-token { z-index: 1; }
 
 /* A token is placed by its CENTRE, hence the translate - otherwise it would
    hang below and to the right of the spot you dropped it on. */
@@ -821,6 +851,9 @@ table.list tr.worn > td { background: color-mix(in srgb, var(--accent) 12%, tran
 .vtt-token img { width: 100%; height: 100%; object-fit: cover; }
 .vtt-token.mine { cursor: grab; }
 .vtt-token.drag { cursor: grabbing; box-shadow: 0 0 0 3px var(--accent), 0 4px 12px rgba(0,0,0,.6); }
+/* Turning rather than moving - a different ring, so it is clear which of
+   the two the long press has started. */
+.vtt-token.turning { cursor: alias; box-shadow: 0 0 0 3px var(--ok, #6c6), 0 4px 12px rgba(0,0,0,.6); }
 /* Ships and droids get a different outline, so a glance at the map tells
    you what is standing there even on the default tokens. */
 .vtt-token.kind-ship { border-radius: 6px; }

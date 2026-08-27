@@ -7,6 +7,7 @@
 'use strict';
 
 const PAGE_DOC_KIND = 'ship';
+const HELP_PAGE = 'ship';
 const LS_CURRENT = 'swd6_ship_current';
 const LS_SAVED = 'swd6_ships';
 

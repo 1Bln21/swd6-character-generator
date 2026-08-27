@@ -422,6 +422,8 @@ $db->exec("CREATE TABLE IF NOT EXISTS round_maps (
   fog $TXT,
   fog_cols INT DEFAULT 0,
   fog_rows INT DEFAULT 0,
+  /* How dark the scene is, 0..100 - day and night on one and the same map */
+  dim INT DEFAULT 0,
   created BIGINT
 )$SUF");
 /* A token is, at heart, a round character with x/y. char_id = 0 marks a
@@ -456,6 +458,10 @@ $db->exec("CREATE TABLE IF NOT EXISTS round_tokens (
   x REAL DEFAULT 0.5,
   y REAL DEFAULT 0.5,
   size REAL DEFAULT 1,
+  /* Where the figure is looking, in degrees, 0 = up, clockwise. -1 means
+     no facing at all - that is the default, because a marker that has not
+     been turned yet should not pretend to look anywhere. */
+  facing REAL DEFAULT -1,
   created BIGINT
 )$SUF");
 /* Background music the GM puts on. Two kinds:
@@ -586,10 +592,18 @@ if ($raCols && !in_array('yt_list', $raCols, true)) {
 /* round_maps: the fog arrived after the first table-tops existed */
 $rmCols = table_columns('round_maps');
 $rmAdd = ['fog' => "fog $TXT", 'fog_cols' => 'fog_cols INT DEFAULT 0',
-          'fog_rows' => 'fog_rows INT DEFAULT 0'];
+          'fog_rows' => 'fog_rows INT DEFAULT 0',
+          /* How dark the scene is, 0..100 - day and night on the same map */
+          'dim' => 'dim INT DEFAULT 0'];
 foreach ($rmAdd as $col => $colDef) {
   if (!$rmCols || in_array($col, $rmCols, true)) continue;
   try { $db->exec("ALTER TABLE round_maps ADD COLUMN $colDef"); }
+  catch (Exception $e) { $alterError = $e->getMessage(); }
+}
+/* round_tokens: the facing arrived after the first tables were in use */
+$rtCols = table_columns('round_tokens');
+if ($rtCols && !in_array('facing', $rtCols, true)) {
+  try { $db->exec("ALTER TABLE round_tokens ADD COLUMN facing REAL DEFAULT -1"); }
   catch (Exception $e) { $alterError = $e->getMessage(); }
 }
 $rndCols = table_columns('rounds');
@@ -1998,7 +2012,10 @@ case 'vtt_state': {
   foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $m) {
     $row = ['id' => (int)$m['id'], 'name' => (string)$m['name'],
             'url' => 'vtt/' . $m['sha'] . '.' . $m['ext'],
-            'w' => (int)$m['w'], 'h' => (int)$m['h'], 'grid' => (int)$m['grid']];
+            'w' => (int)$m['w'], 'h' => (int)$m['h'], 'grid' => (int)$m['grid'],
+                     /* 0 = broad daylight; the client lays a black veil over
+                        the terrain at this strength */
+                     'dim' => isset($m['dim']) ? (int)$m['dim'] : 0];
     if ((int)$m['id'] === $activeMap) {
       list($activeFog, $fogCols, $fogRows) = fog_read($m);
       $row['fog'] = $activeFog;
@@ -2035,6 +2052,8 @@ case 'vtt_state': {
                    /* empty url = the client draws a default token itself */
                    'url' => $t['img_sha'] ? 'vtt/' . $t['img_sha'] . '.' . $t['img_ext'] : '',
                    'x' => (float)$t['x'], 'y' => (float)$t['y'], 'size' => (float)$t['size'],
+                   /* -1 = not turned; the client then draws no cone */
+                   'facing' => isset($t['facing']) ? (float)$t['facing'] : -1,
                    'owner' => (string)$t['owner'], 'ownerId' => (int)$t['owner_id']];
     }
   }
@@ -2119,6 +2138,26 @@ case 'map_activate': {
   $db->prepare('UPDATE rounds SET active_map = ? WHERE id = ?')->execute([$mapId, $id]);
   vtt_touch($id);
   json_out(['ok' => true]);
+}
+
+/* Day and night on the same map. The GM alone decides how dark it is -
+   a player who could dim the scene for everyone would be able to blind
+   the whole table. Unlike the fog this hides nothing from anyone: it is
+   the same veil for everybody, over ground the party has already seen. */
+case 'map_dim': {
+  $user = auth();
+  $id = (int)inp('round', 0);
+  if (!round_is_gm($id, $user['id'])) fail('Only a GM can set the light', 403);
+  $mapId = (int)inp('map', 0);
+  $st = $db->prepare('SELECT 1 FROM round_maps WHERE id = ? AND round_id = ?');
+  $st->execute([$mapId, $id]);
+  if (!$st->fetch()) fail('Map not found in this round', 404);
+  $dim = (int)inp('dim', 0);
+  if ($dim < 0) $dim = 0;
+  if ($dim > 100) $dim = 100;
+  $db->prepare('UPDATE round_maps SET dim = ? WHERE id = ?')->execute([$dim, $mapId]);
+  vtt_touch($id);
+  json_out(['ok' => true, 'dim' => $dim]);
 }
 
 /* The grid belongs to the map, not to the round: one map is drawn at
@@ -2264,8 +2303,20 @@ case 'token_move': {
   if ((int)$tok['owner_id'] !== (int)$user['id'] && !round_is_gm($id, $user['id'])) {
     fail('You can only move your own tokens', 403);
   }
-  $db->prepare('UPDATE round_tokens SET x = ?, y = ? WHERE id = ?')
-     ->execute([vtt_frac(inp('x', 0.5)), vtt_frac(inp('y', 0.5)), $tokenId]);
+  /* The facing rides along with the move: dragging a figure sets where it
+     looks, and turning it on the spot is the same call without a change of
+     position. Anything outside 0..360 counts as "no facing" - that is how
+     a marker gets its arrow taken away again. */
+  $facing = inp('facing', null);
+  if ($facing === null) {
+    $db->prepare('UPDATE round_tokens SET x = ?, y = ? WHERE id = ?')
+       ->execute([vtt_frac(inp('x', 0.5)), vtt_frac(inp('y', 0.5)), $tokenId]);
+  } else {
+    $f = (float)$facing;
+    $f = ($f >= 0 && $f < 360) ? $f : -1;
+    $db->prepare('UPDATE round_tokens SET x = ?, y = ?, facing = ? WHERE id = ?')
+       ->execute([vtt_frac(inp('x', 0.5)), vtt_frac(inp('y', 0.5)), $f, $tokenId]);
+  }
   vtt_touch($id);
   json_out(['ok' => true]);
 }

@@ -8,6 +8,7 @@
    ===================================================================== */
 'use strict';
 
+const HELP_PAGE = 'dice';
 const LS_LANG = 'swd6_lang';
 let LANG = localStorage.getItem(LS_LANG) || 'en';
 const T = {
@@ -195,6 +196,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (typeof renderLegal === 'function') renderLegal();
   const am = document.getElementById('aboutModal');
   if (am && !am.classList.contains('hidden') && typeof renderAbout === 'function') renderAbout();
+  /* The help follows the language just like the credits do. */
+  const hm = document.getElementById('helpModal');
+  if (hm && !hm.classList.contains('hidden') && typeof renderHelp === 'function') renderHelp();
     }));
   const om = document.getElementById('optionsMenu'), ob = document.getElementById('btnOptions');
   if (ob) ob.addEventListener('click', e => { e.stopPropagation(); om.classList.toggle('hidden'); });

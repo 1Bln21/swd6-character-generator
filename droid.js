@@ -8,6 +8,7 @@
 'use strict';
 
 const PAGE_DOC_KIND = 'droid';
+const HELP_PAGE = 'droid';
 const LS_CURRENT = 'swd6_droid_current';
 const LS_SAVED = 'swd6_droids';
 

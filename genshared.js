@@ -129,6 +129,9 @@ function setLang(l) {
   /* carry an open credits dialog along */
   const am = document.getElementById('aboutModal');
   if (am && !am.classList.contains('hidden') && typeof renderAbout === 'function') renderAbout();
+  /* The help follows the language just like the credits do. */
+  const hm = document.getElementById('helpModal');
+  if (hm && !hm.classList.contains('hidden') && typeof renderHelp === 'function') renderHelp();
   renderAll();
 }
 

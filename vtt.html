@@ -40,6 +40,7 @@
         <label class="opt-row"><input type="radio" name="themeOpt" value="bespin"> <span data-i18n="theme_bespin">Bespin</span></label>
         <div id="legalConfig"></div>
         <div class="opt-section" data-i18n="opt_about">Info</div>
+        <button id="btnHelp" class="opt-btn" data-i18n="help_open">❓ Help</button>
         <button id="btnAbout" class="opt-btn" data-i18n="about_open">ℹ About &amp; Credits</button>
         <button id="btnAdmin" class="opt-btn hidden" data-i18n="online_admin">Administration</button>
       </div>
@@ -68,6 +69,7 @@
           <img id="mapImg" alt="" draggable="false">
           <div id="grid" class="vtt-grid hidden"></div>
           <canvas id="fog" class="vtt-fog"></canvas>
+          <div id="night" class="vtt-night"></div>
           <div id="tokens"></div>
         </div>
         <p id="stageHint" class="hint"></p>
@@ -101,7 +103,12 @@
               <label data-i18n="gm_grid">Raster (px, 0 = aus)</label>
               <input type="number" id="gridSize" min="0" max="512" value="0">
             </div>
+            <div>
+              <label><span data-i18n="gm_dim">Dunkelheit</span> <span id="dimVal">0 %</span></label>
+              <input type="range" id="dimRange" min="0" max="100" step="5" value="0">
+            </div>
           </div>
+          <p class="hint" data-i18n="gm_dim_hint"></p>
           <p>
             <button id="btnMapUpload" class="accent" data-i18n="gm_upload">Karte hochladen</button>
             <button id="btnMapDelete" data-i18n="gm_delete">Karte löschen</button>
@@ -261,6 +268,7 @@
 <script src="config.js"></script>
 <script src="vtt.js"></script>
 <script src="online.js"></script>
+<script src="help.js"></script>
 <script src="credits.js"></script>
 <script src="legal.js"></script>
 </body>

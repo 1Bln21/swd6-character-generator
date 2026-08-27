@@ -9,6 +9,7 @@
 'use strict';
 
 const PAGE_DOC_KIND = 'npc';
+const HELP_PAGE = 'npc';
 const LS_CURRENT = 'swd6_npc_current';
 const LS_SAVED   = 'swd6_npc_saved';
 

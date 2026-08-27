@@ -7,6 +7,7 @@
 /* =====================================================================
    LANGUAGES
    ===================================================================== */
+const HELP_PAGE = 'char';
 const LS_LANG = 'swd6_lang';
 /* Default language is English: the project is promoted in the English
    speaking SWD6 communities. Anyone who has switched to German once keeps
@@ -414,6 +415,9 @@ function setLang(l) {
   renderLegal();
   const am = document.getElementById('aboutModal');
   if (am && !am.classList.contains('hidden')) renderAbout();
+  /* The help follows the language just like the credits do. */
+  const hm = document.getElementById('helpModal');
+  if (hm && !hm.classList.contains('hidden') && typeof renderHelp === 'function') renderHelp();
   renderAll();
 }
 
