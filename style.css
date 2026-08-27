@@ -431,6 +431,40 @@ table.list td.num, table.list th.num { text-align: right; white-space: nowrap; }
      width - width the cards then do not have. */
   :root { --page-pad: 10px; }
 
+  /* ---- a head that leaves room for the sheet ----
+     On a 375x812 phone the header used to take 425 of 858 pixels - half the
+     screen before a single line of the character appeared. Not because
+     there is so much in it, but because everything wrapped: the toolbar
+     over four rows (154 px), the tabs over three (124 px).
+
+     So both become a single row you swipe instead of a block that wraps.
+     Nothing is hidden and nothing moves into a menu - what was reachable
+     stays reachable, it just no longer pushes the content off screen.
+     The options menu already switches to position:fixed down here, so the
+     scrolling row cannot clip it. */
+  #topbar { padding: 8px 10px; gap: 6px; }
+  .title-block h1 { font-size: 19px; letter-spacing: 2px; }
+  /* The subtitle repeats what the active nav entry already says. */
+  .subtitle { display: none; }
+
+  .page-nav, .char-manager, #tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .page-nav::-webkit-scrollbar,
+  .char-manager::-webkit-scrollbar,
+  #tabs::-webkit-scrollbar { display: none; }
+  /* Buttons must not be squeezed by the flex layout - they keep their width
+     and the row scrolls instead. */
+  .page-nav a, .char-manager > *, #tabs button { flex: 0 0 auto; }
+  .char-manager { width: 100%; padding-bottom: 2px; }
+  .char-manager select { min-width: 120px; }
+  #tabs { padding: 6px 10px 0; }
+  #tabs button { padding: 7px 12px; font-size: 13px; }
+
   /* The options menu hangs on the gear icon with position:absolute and
      right:0. When the button moves left on narrow screens, into the wrapped
      toolbar, right:0 pushes the 270-pixel card out of view - on an iPhone

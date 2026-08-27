@@ -311,6 +311,16 @@ const LS_ONLINE = 'swd6_online';
    Account and sign-in are the same for every page - only the cloud lists
    are kept apart by type. */
 const DOC_KIND = (typeof PAGE_DOC_KIND !== 'undefined') ? PAGE_DOC_KIND : 'char';
+/* Not every page that signs in also edits a document. The table top has an
+   account, rounds and administration, but no sheet - so the parts that load
+   a document into the editor have nothing to work on there.
+
+   PAGE_DOC_KIND is NOT the right signal for that: the character page never
+   sets it and lives off the 'char' fallback above, so asking for it would
+   have taken the document list away from exactly that page. What decides it
+   is whether the editor's own functions are here - online.js is loaded
+   after them on every page that has them. */
+const HAS_DOCS = (typeof migrate === 'function' && typeof renderAll === 'function');
 function tDoc(key) {
   return t(key).replace('{docs}', t('doc_plural')).replace('{doc}', t('doc_one'));
 }
@@ -376,6 +386,10 @@ function setOnlineAuth(o) {
   updateOnlineButton();
   /* Reload the group species cache (it exists on the character page only) */
   try { if (typeof cloudSpecies !== 'undefined') cloudSpecies = null; } catch (e) {}
+  /* A page that shows something different depending on the sign-in - the
+     table top and its gate - gets told, instead of only noticing on the
+     next reload. */
+  try { if (typeof window.onAuthChanged === 'function') window.onAuthChanged(); } catch (e) {}
 }
 function updateOnlineButton() {
   updateAdminButton();
@@ -594,6 +608,7 @@ async function checkPendingRoundView() {
   try {
     const data = await api('char_get', undefined, { id: p.id });
     if ((data.kind || 'char') !== DOC_KIND) return;
+    if (!HAS_DOCS) return;
     C = migrate(data.data);
     C._cloudId = null;                       // the GM is not the owner -> read-only copy
     C._rounds = data.roundApprovals || [];
@@ -834,6 +849,8 @@ async function roundsClick(el) {
           roundsMsg = t('rounds_wrong_page').replace('{kind}', t('rounds_kind_' + (data.kind || 'char')));
           break;
         }
+        if (!HAS_DOCS) { roundsMsg = t('rounds_wrong_page').replace('{kind}',
+          t('rounds_kind_' + (data.kind || 'char'))); break; }
         C = migrate(data.data);
         C._cloudId = null;                 // the GM is not the owner -> a copy
         C._rounds = data.roundApprovals || [];
@@ -1095,7 +1112,7 @@ function renderOnline() {
   }
 
   if (onlineView === 'account') {
-    const mine = onlineData.mine.map(c => `
+    const mine = (onlineData.mine || []).map(c => `
       <tr><td>${esc(c.name)}</td><td class="hint">${fmtDate(c.updated)}</td>
         <td class="nowrap">
           <button class="mini" data-oact="load" data-id="${c.id}">${t('online_load')}</button>
@@ -1112,19 +1129,25 @@ function renderOnline() {
             <a href="#" data-oact="shareRemove" data-id="${c.id}" data-user="${esc(u)}">×</a></span>`).join(' ')
           : ''}
       </td></tr>` : ''}`).join('');
-    const shared = onlineData.shared.map(c => `
+    const shared = (onlineData.shared || []).map(c => `
       <tr><td>${esc(c.name)} <span class="hint">(${t('online_from')} ${esc(c.owner)})</span></td>
         <td class="hint">${fmtDate(c.updated)}</td>
         <td><button class="mini" data-oact="load" data-id="${c.id}">${t('online_load')}</button></td></tr>`).join('');
     html += `
     <p>${t('online_logged_in_as')}: <b>${esc(ONLINE.username)}</b>
-      <button class="mini" style="float:right" data-oact="logout">${t('online_logout')}</button></p>
+      <button class="mini" style="float:right" data-oact="logout">${t('online_logout')}</button></p>`;
+    /* On the table top there is no sheet to upload or load into - the list
+       of documents would only offer buttons that cannot do anything. The
+       rounds, support, administration and account sections below it are
+       exactly what that page DOES need, so they stay. */
+    if (HAS_DOCS) html += `
     <h3>${tDoc('online_my_chars')}</h3>
     <p><button class="accent" data-oact="upload">${tDoc('online_upload')}</button></p>
     <table class="list">${mine || `<tr><td class="hint">${t('online_none')}</td></tr>`}</table>
     <h3>${t('online_shared_chars')}</h3>
     <table class="list">${shared || `<tr><td class="hint">${t('online_none')}</td></tr>`}</table>
-    <p class="hint">${t('online_readonly_hint')}</p>
+    <p class="hint">${t('online_readonly_hint')}</p>`;
+    html += `
     <p><button data-oact="openRounds">${t('rounds_open')}</button>
        <button data-oact="openSupport">${t('tk_open')}${ticketUnread > 0
          ? ` <span class="notify-badge">${ticketUnread > 99 ? '99+' : ticketUnread}</span>` : ''}</button></p>
@@ -1289,7 +1312,7 @@ async function onlineAction(el) {
             C._cloudId = res.id;
           } else throw e;
         }
-        autosave();
+        if (HAS_DOCS) autosave();
         onlineMsg = t('online_saved');
         onlineData = await api('chars', undefined, { kind: DOC_KIND });
         break;
@@ -1314,6 +1337,7 @@ async function onlineAction(el) {
       case 'load': {
         const id = +el.dataset.id;
         const data = await api('char_get', undefined, { id });
+        if (!HAS_DOCS) break;
         C = migrate(data.data);
         C._cloudId = data.readonly ? null : data.id;
         C._rounds = data.roundApprovals || [];
@@ -1326,7 +1350,7 @@ async function onlineAction(el) {
       case 'delete': {
         if (!confirm(t('online_confirm_delete_cloud').replace('{name}', el.dataset.name))) return;
         await api('char_delete', { id: +el.dataset.id });
-        if (C._cloudId === +el.dataset.id) { C._cloudId = null; autosave(); }
+        if (HAS_DOCS && C._cloudId === +el.dataset.id) { C._cloudId = null; autosave(); }
         onlineData = await api('chars', undefined, { kind: DOC_KIND });
         break;
       }
@@ -1537,10 +1561,15 @@ document.addEventListener('input', e => {
   updateAdminButton();
 })();
 
-/* Language switch: translate the online and admin UI along with it */
-const _setLangOrig = setLang;
-setLang = function (l) {
-  _setLangOrig(l);
+/* Language switch: translate the online and admin UI along with it.
+
+   Not every page has a global setLang. The table top keeps its i18n inside
+   a closure and calls its own applyLang(), so wrapping setLang blindly
+   threw a ReferenceError there - and with it the whole file, which is why
+   the sign-in button never appeared. The refresh therefore lives in a
+   function of its own; setLang is only wrapped where it exists, and pages
+   without one call relangOnline() themselves. */
+function relangOnline() {
   updateOnlineButton();
   renderOnline();
   const am = document.getElementById('adminModal');
@@ -1549,7 +1578,12 @@ setLang = function (l) {
   if (rm && !rm.classList.contains('hidden')) renderRounds();
   const sm = document.getElementById('supportModal');
   if (sm && !sm.classList.contains('hidden')) renderSupport();
-};
+}
+window.relangOnline = relangOnline;
+if (typeof setLang === 'function') {
+  const _setLangOrig = setLang;
+  setLang = function (l) { _setLangOrig(l); relangOnline(); };
+}
 
 /* Server detection at startup */
 (async function initOnline() {

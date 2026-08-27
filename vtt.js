@@ -39,9 +39,9 @@ const T = {
     nav_char: 'Charaktere', nav_droid: 'Droiden', nav_ship: 'Schiffe / Fahrzeuge',
     nav_npc: 'NPCs', nav_dice: 'Würfeln', nav_vtt: 'Spieltisch',
     gate_title: 'Spieltisch',
-    gate_nologin: 'Dafür musst du angemeldet sein. Melde dich auf einer der Generator-Seiten über den ☁-Knopf an und komm dann hierher zurück.',
+    gate_nologin: 'Dafür musst du angemeldet sein – über den ☁-Knopf oben.',
     gate_noserver: 'Für den Spieltisch wird der Server gebraucht. Diese Installation läuft ohne API.',
-    gate_norounds: 'Du bist in keiner Spielrunde. Leg auf einer Generator-Seite unter ☁ eine Runde an oder tritt mit einem Einladungscode bei.',
+    gate_norounds: 'Du bist in keiner Spielrunde. Über ☁ oben kannst du eine anlegen oder mit einem Einladungscode beitreten.',
     gm_title: 'Spielleitung', gm_map_pick: 'Karte', gm_grid: 'Raster (px, 0 = aus)',
     gm_upload: '＋ Karte hochladen', gm_delete: 'Karte löschen',
     gm_hint: 'Nur die Spielleitung kann Karten hochladen und umschalten. Große Bilder werden vor dem Hochladen verkleinert.',
@@ -97,9 +97,9 @@ const T = {
     nav_char: 'Characters', nav_droid: 'Droids', nav_ship: 'Ships / Vehicles',
     nav_npc: 'NPCs', nav_dice: 'Dice', nav_vtt: 'Table',
     gate_title: 'Table',
-    gate_nologin: 'You have to be signed in for this. Sign in on one of the generator pages with the ☁ button, then come back here.',
+    gate_nologin: 'You have to be signed in for this – use the ☁ button up top.',
     gate_noserver: 'The table needs the server. This installation runs without the API.',
-    gate_norounds: 'You are not in a game round. Create one under ☁ on a generator page, or join with an invite code.',
+    gate_norounds: 'You are not in a game round. Create one under ☁ up top, or join with an invite code.',
     gm_title: 'Game master', gm_map_pick: 'Map', gm_grid: 'Grid (px, 0 = off)',
     gm_upload: '＋ Upload map', gm_delete: 'Delete map',
     gm_hint: 'Only the GM can upload maps and switch between them. Large pictures are scaled down before upload.',
@@ -169,6 +169,7 @@ function applyLang() {
      covered by data-i18n - they have to be redrawn by hand, the same way
      genshared.js does it for the generator pages. */
   if (typeof renderLegal === 'function') renderLegal();
+  if (typeof relangOnline === 'function') relangOnline();
   const am = document.getElementById('aboutModal');
   if (am && !am.classList.contains('hidden') && typeof renderAbout === 'function') renderAbout();
 }
@@ -1441,6 +1442,17 @@ async function selectRound(id) {
   await refresh(true);
   await loadMyDocs();
 }
+
+/* online.js sits on this page too now, so signing in happens right here
+   instead of on a generator page. The gate has to hear about it: it decided
+   what to show from the session as it stood when the page loaded. Reading
+   the session again and running boot() once more is enough - polling is
+   stopped first so a second timer cannot start alongside the first. */
+window.onAuthChanged = function () {
+  try { SESSION = JSON.parse(localStorage.getItem(LS_ONLINE)) || {}; } catch (e) { SESSION = {}; }
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = 0; }
+  boot();
+};
 
 async function boot() {
   applyLang();
