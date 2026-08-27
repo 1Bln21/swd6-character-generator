@@ -210,6 +210,8 @@ Object.assign(T.de, {
   rounds_transfer: '★ übergeben',
   rounds_transfer_confirm: 'Die Runde an „{name}“ übergeben? {name} wird neuer Gründer/Eigentümer, du bleibst als GM in der Runde und kannst sie danach verlassen.',
   rounds_my_chars: 'Meine angemeldeten Charaktere',
+  rounds_table: '🎲 Spieltisch öffnen',
+  rounds_table_hint: 'Öffnet den Spieltisch mit dieser Runde.',
   rounds_assign: 'Anmelden',
   rounds_unassign: 'abmelden',
   rounds_approved: 'freigegeben',
@@ -270,6 +272,8 @@ Object.assign(T.en, {
   rounds_transfer: '★ hand over',
   rounds_transfer_confirm: 'Hand the round over to “{name}”? {name} becomes the new founder/owner; you stay in the round as a GM and can leave afterwards.',
   rounds_my_chars: 'My submitted characters',
+  rounds_table: '🎲 Open table top',
+  rounds_table_hint: 'Opens the table top with this round.',
   rounds_assign: 'Submit',
   rounds_unassign: 'withdraw',
   rounds_approved: 'approved',
@@ -665,6 +669,8 @@ function roundsBody() {
       <td>${r.role === 'gm'
             ? `<span class="badge gold">${t('rounds_role_gm')}</span>`
             : `<span class="badge">${t('rounds_role_player')}</span>`}</td>
+      <td><button class="mini" data-ract="table" data-id="${r.id}"
+                  title="${esc(t('rounds_table_hint'))}">${t('rounds_table')}</button></td>
     </tr>`).join('');
   return `
     <h3>${t('rounds_create')}</h3>
@@ -683,7 +689,9 @@ function roundDetailBody() {
   if (!d) return back + `<p class="hint">${t('online_loading')}</p>`;
   const r = d.round;
   const isGm = r.role === 'gm';
-  let html = back + `<h2>${esc(r.name)}</h2>`;
+  let html = back + `<h2>${esc(r.name)}</h2>
+    <p><button class="accent" data-ract="table" data-id="${r.id}">${t('rounds_table')}</button>
+       <span class="hint">${t('rounds_table_hint')}</span></p>`;
   if (isGm && r.inviteCode)
     html += `<p>${t('rounds_invite')}: <code class="rcode">${esc(r.inviteCode)}</code></p>
              <p class="hint">${t('rounds_invite_hint')}</p>`;
@@ -782,6 +790,18 @@ async function roundsClick(el) {
       case 'close': closeRounds(); return;
       case 'back': roundSel = null; roundDetail = null; break;
       case 'open': await openRoundDetail(+el.dataset.id); return;
+      /* The way from the round to the table. Which round the table shows is
+         its own setting, so it is written before the jump - the table reads
+         it while starting up. On the table page itself there is nothing to
+         navigate to: there the round is simply switched. */
+      case 'table': {
+        const rid = +el.dataset.id;
+        try { localStorage.setItem('swd6_vtt_round', String(rid)); } catch (e2) {}
+        closeRounds(); closeOnline();
+        if (typeof window.openTableRound === 'function') { window.openTableRound(rid); return; }
+        location.href = 'vtt.html';
+        return;
+      }
       case 'create': {
         const name = (document.getElementById('rNewName').value || '').trim();
         if (!name) { roundsMsg = t('rounds_need_name'); break; }

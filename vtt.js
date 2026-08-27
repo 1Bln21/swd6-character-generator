@@ -1448,6 +1448,21 @@ async function selectRound(id) {
    what to show from the session as it stood when the page loaded. Reading
    the session again and running boot() once more is enough - polling is
    stopped first so a second timer cannot start alongside the first. */
+/* Called from the rounds dialog when the table is already open: switching
+   beats reloading. A round that was only just created or joined is not in
+   this page's list yet - then boot() starts over and picks it up from
+   swd6_vtt_round, which the caller has already written. */
+window.openTableRound = async function (id) {
+  const sel = $('roundSel');
+  if (sel && Array.prototype.some.call(sel.options, o => +o.value === +id)) {
+    sel.value = String(id);
+    await selectRound(+id);
+    return;
+  }
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = 0; }
+  boot();
+};
+
 window.onAuthChanged = function () {
   try { SESSION = JSON.parse(localStorage.getItem(LS_ONLINE)) || {}; } catch (e) { SESSION = {}; }
   if (pollTimer) { clearInterval(pollTimer); pollTimer = 0; }
