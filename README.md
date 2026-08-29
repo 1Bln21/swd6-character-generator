@@ -128,6 +128,14 @@ Public sites in Germany need a legal notice and — especially with user account
 
 > ⚠️ **The texts are a general template without warranty and are not legal advice.** Review them before publishing.
 
+### Bug reports
+
+Almost nobody makes an account just to say that a button did nothing, so reporting needs neither: ⚙ menu → **“🐞 Report a bug”**. One field, send, done. Signed in, the report carries the user name so it can be answered through the ticket system; without an account it is anonymous. One tick sends the sheet currently open along — pictures stripped — which usually turns a vague description into a reproducible fault.
+
+The same dialog holds a switch, on by default, that reports **script errors on their own**. That is the part that matters: a visitor who hits a crash normally closes the tab and is never heard from. Sent are the message, the place in the code, the page, the version, the browser family and the language — no IP address, no full user agent, nothing that follows anybody between visits. It can be switched off in that dialog, and section 7 of the built-in privacy policy describes it.
+
+Administrators read what comes in under ☁ menu → **“🐞 Bug reports”**: crashes grouped into one row per fault with a counter, an attached sheet on request, and an export of the whole list as one JSON file.
+
 ### Security (online accounts)
 
 - Passwords: bcrypt (`password_hash`), never in plain text
@@ -151,6 +159,7 @@ Public sites in Germany need a legal notice and — especially with user account
 | `pdfdata-craft.js` | Ship and vehicle templates |
 | `pdfdata-droids.js` | Droid templates |
 | `online.js` | Online accounts client |
+| `report.js` | Bug report button and crash handler |
 | `legal.js` | Legal notice / privacy pages |
 | `config.js` | Operator configuration |
 | `api/index.php` | Complete server API (PHP + SQLite/MySQL, one file) |
@@ -198,6 +207,8 @@ Das Projekt ist die HTML-Portierung der Excel-Tabellen von **Chance Gibboney** �
 **NPCs** (`npc.html`) – erzeugt ganze **NPC-Gruppen mit kompakten Statblöcken**. Die Truppe wird **rollenweise** zusammengestellt: je Zeile eine Fraktion mit eigener Anzahl, also etwa 6 Sturmtruppen, 2 Offiziere und 3 Söldner in einer Gruppe. Dazu Spezies-Modus (nur Menschen / gemischt / eine Spezies / nur Aliens) und Erfahrungsstufe; bei „gemischt“ stellt der Mensch-Anteil Star-Wars-typisch die Mehrheit. Genauso für **Schiffe**: Anzahl je Klasse (Jäger, Space Transport, Capital), je Klasse getrennt wählbar, ob alle Schiffe baugleich sein sollen, und ein Ära-Filter für den Vorlagenpool. Mehrere Karten pro Druckseite.
 
 **Spielrunden** – Spielleiter können eine Runde eröffnen, Spieler per Einladungscode aufnehmen, deren angemeldete Charaktere ansehen und **für die Runde freigeben** – die Freigabe erscheint als Stempel auf dem Bogen (☁-Online-Fenster).
+
+**Fehler melden** – ⚙-Menü → **“🐞 Fehler melden”**: ein Feld, absenden, fertig, ohne Konto. Wer angemeldet ist, bekommt eine Antwort über das Ticket-System; ohne Konto bleibt die Meldung anonym. Ein Häkchen schickt den gerade offenen Bogen mit (ohne Bild). Im selben Dialog sitzt ein Schalter, der **Skriptfehler von selbst meldet** – denn wer auf einen Absturz stößt, macht sonst einfach den Tab zu. Übertragen werden Meldung, Stelle im Code, Seite, Version, Browser-Familie und Sprache; keine IP-Adresse, keine Kennung. Abschaltbar, und in Abschnitt 7 der eingebauten Datenschutzerklärung beschrieben. Administratoren lesen alles unter ☁-Menü → **“🐞 Fehlerberichte”**, inklusive JSON-Export.
 
 **Easteregg** – seit einigen Versionen steckt eins in der App. Wo, wird hier nicht verraten: viel Spaß beim Suchen.
 

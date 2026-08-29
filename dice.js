@@ -199,6 +199,8 @@ document.addEventListener('DOMContentLoaded', () => {
   /* The help follows the language just like the credits do. */
   const hm = document.getElementById('helpModal');
   if (hm && !hm.classList.contains('hidden') && typeof renderHelp === 'function') renderHelp();
+  const rm = document.getElementById('reportModal');
+  if (rm && !rm.classList.contains('hidden') && typeof renderReport === 'function') renderReport();
     }));
   const om = document.getElementById('optionsMenu'), ob = document.getElementById('btnOptions');
   if (ob) ob.addEventListener('click', e => { e.stopPropagation(); om.classList.toggle('hidden'); });

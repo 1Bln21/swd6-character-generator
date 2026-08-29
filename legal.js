@@ -202,15 +202,20 @@ function docPrivacy(d) {
     <p>If you create an account we process: your chosen user name, your password (stored only as a bcrypt hash, never in plain text), the time of registration, a counter for failed login attempts, your approval and administrator status and – if you enable two-factor authentication – a TOTP secret and hashes of your backup codes. Recovery and password-reset codes are likewise stored only as hashes, as are session tokens. <b>No e-mail address is required.</b> Purpose: providing the user account; legal basis Art. 6 (1) (b) GDPR.</p>
     <h4>6. Stored characters and sharing</h4>
     <p>Characters you save online contain the data you enter (name, values, descriptive texts and optionally an image). If you share a character, the user accounts you select can read it. You can revoke a share at any time.</p>
-    <h4>7. Storage period and deletion</h4>
+    <h4>7. Bug reports and feedback</h4>
+    <p>The application can report faults. Two things send data here: the “Report a bug” button in the gear menu, which sends what you type into it, and an automatic handler that reports script errors on its own so that faults nobody writes in about are still noticed.</p>
+    <p>Sent in both cases: the error message or your text, the place in the program code, the page, the version of the application, the browser family with its major version (for example “Firefox 128 / Windows”) and the set language. <b>No IP address is stored, no complete user agent, no identifier that would follow you from one visit to the next.</b> If you are signed in, your user name is attached so that an answer by ticket is possible; without an account the report is anonymous. A character sheet is only sent along if you tick that box in the dialog yourself, and pictures are removed from it beforehand.</p>
+    <p>To limit abuse of the open interface, the number of reports per sender within one hour is counted. The key for this is not your IP address but a hash of it with an installation-specific secret and the current date; it cannot be turned back into an address, does not connect one day with the next, and is deleted after two days.</p>
+    <p>Legal basis is Art. 6 (1) (f) GDPR (legitimate interest in finding and fixing faults in the application). Automatic reporting can be switched off at any time in the same dialog; the setting is stored in your browser. Reports are deleted at the latest 90 days after being dealt with, an attached sheet after seven.</p>
+    <h4>8. Storage period and deletion</h4>
     <p>Characters are stored until you delete them. Your account and all associated data will be deleted on request to ${esc(d.email)}.</p>
-    <h4>8. Encryption</h4>
+    <h4>9. Encryption</h4>
     <p>This site uses HTTPS (TLS) to protect the transmission of your data.</p>
-    <h4>9. Your rights</h4>
+    <h4>10. Your rights</h4>
     <p>You have the right to information (Art. 15 GDPR), rectification (Art. 16), erasure (Art. 17), restriction of processing (Art. 18), data portability (Art. 20) and to object (Art. 21). You also have the right to lodge a complaint with a supervisory authority (Art. 77 GDPR).</p>
-    <h4>10. No disclosure, no third countries</h4>
+    <h4>11. No disclosure, no third countries</h4>
     <p>Your data are not passed on to third parties and not transferred to countries outside the EU/EEA, apart from the technical processing by the hosting provider acting as a processor.</p>
-    <h4>11. No automated decision-making</h4>
+    <h4>12. No automated decision-making</h4>
     <p>No automated decision-making or profiling within the meaning of Art. 22 GDPR takes place.</p>`;
   return `
     <h3>Datenschutzerklärung</h3>
@@ -226,15 +231,20 @@ function docPrivacy(d) {
     <p>Legst du ein Konto an, verarbeiten wir: den von dir gewählten Benutzernamen, dein Passwort (ausschließlich als bcrypt-Hash, nie im Klartext), den Zeitpunkt der Registrierung, einen Zähler für Fehlanmeldungen, den Freigabe- und Administratorstatus sowie – bei aktivierter Zwei-Faktor-Anmeldung – einen TOTP-Schlüssel und Hashes deiner Backup-Codes. Auch Wiederherstellungs- und Zurücksetz-Codes für vergessene Passwörter werden nur als Hash gespeichert, ebenso die Sitzungstoken. <b>Eine E-Mail-Adresse wird nicht verlangt.</b> Zweck ist die Bereitstellung des Nutzerkontos; Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO.</p>
     <h4>6. Gespeicherte Charaktere und Freigaben</h4>
     <p>Online gespeicherte Charaktere enthalten die von dir eingegebenen Daten (Name, Werte, Beschreibungstexte und optional ein Bild). Gibst du einen Charakter frei, können die von dir gewählten Benutzerkonten ihn lesen. Eine Freigabe kannst du jederzeit widerrufen.</p>
-    <h4>7. Speicherdauer und Löschung</h4>
+    <h4>7. Fehlerberichte und Rückmeldungen</h4>
+    <p>Die Anwendung kann Fehler melden. Zwei Dinge senden hier Daten: der Knopf „Fehler melden“ im Zahnradmenü, der schickt, was du hineinschreibst, und eine automatische Erfassung, die Skriptfehler von selbst meldet – damit auch Fehler auffallen, über die niemand schreibt.</p>
+    <p>Übertragen werden in beiden Fällen: die Fehlermeldung bzw. dein Text, die Stelle im Programmcode, die Seite, die Version der Anwendung, die Browser-Familie mit Hauptversion (z. B. „Firefox 128 / Windows“) und die eingestellte Sprache. <b>Es wird keine IP-Adresse gespeichert, kein vollständiger User-Agent und keine Kennung, die dich über Besuche hinweg wiedererkennbar macht.</b> Bist du angemeldet, wird dein Benutzername mitgeschickt, damit eine Antwort per Ticket möglich ist; ohne Konto ist die Meldung anonym. Ein Charakterbogen wird nur mitgesendet, wenn du das im Dialog selbst ankreuzt – Bilder werden vorher entfernt.</p>
+    <p>Um Missbrauch der offenen Schnittstelle zu begrenzen, wird die Zahl der Meldungen je Absender innerhalb einer Stunde gezählt. Schlüssel dafür ist nicht deine IP-Adresse, sondern ein Hash aus ihr, einem installationsspezifischen Geheimnis und dem aktuellen Datum; er lässt sich nicht in eine Adresse zurückrechnen, verbindet einen Tag nicht mit dem nächsten und wird nach zwei Tagen gelöscht.</p>
+    <p>Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse daran, Fehler der Anwendung zu finden und zu beheben). Die automatische Meldung lässt sich im selben Dialog jederzeit abschalten; die Einstellung liegt in deinem Browser. Berichte werden spätestens 90 Tage nach ihrer Erledigung gelöscht, ein angehängter Bogen bereits nach sieben Tagen.</p>
+    <h4>8. Speicherdauer und Löschung</h4>
     <p>Charaktere werden gespeichert, bis du sie löschst. Dein Konto und alle zugehörigen Daten löschen wir auf Anfrage an ${esc(d.email)}.</p>
-    <h4>8. Verschlüsselung</h4>
+    <h4>9. Verschlüsselung</h4>
     <p>Diese Seite nutzt HTTPS (TLS), um die Übertragung deiner Daten zu schützen.</p>
-    <h4>9. Deine Rechte</h4>
+    <h4>10. Deine Rechte</h4>
     <p>Du hast das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch (Art. 21). Außerdem steht dir ein Beschwerderecht bei einer Datenschutz-Aufsichtsbehörde zu (Art. 77 DSGVO).</p>
-    <h4>10. Keine Weitergabe, keine Drittländer</h4>
+    <h4>11. Keine Weitergabe, keine Drittländer</h4>
     <p>Eine Weitergabe deiner Daten an Dritte sowie eine Übermittlung in Länder außerhalb der EU/des EWR findet nicht statt – abgesehen von der technischen Verarbeitung durch den Hosting-Anbieter als Auftragsverarbeiter.</p>
-    <h4>11. Keine automatisierte Entscheidungsfindung</h4>
+    <h4>12. Keine automatisierte Entscheidungsfindung</h4>
     <p>Eine automatisierte Entscheidungsfindung oder ein Profiling im Sinne des Art. 22 DSGVO findet nicht statt.</p>`;
 }
 

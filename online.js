@@ -245,6 +245,23 @@ Object.assign(T.de, {
   tk_status_open: 'offen', tk_status_answered: 'beantwortet', tk_status_closed: 'geschlossen',
   tk_notify_admin: '%n Ticket(s) mit neuen Nachrichten von Nutzern',
   tk_notify_user: '%n Ticket(s) mit neuen Antworten',
+
+  rep_open_btn: '🐞 Fehlerberichte',
+  rep_title: 'Fehlerberichte & Rückmeldungen',
+  rep_intro: 'Was der Fehler-Melder eingesammelt hat. Abstürze sind zusammengefasst – eine Zeile je Fehler, mit Zähler.',
+  rep_f_open: 'Offen', rep_f_done: 'Erledigt', rep_f_all: 'Alle',
+  rep_none: 'Nichts da – nichts kaputt, oder niemand hat gemeldet.',
+  rep_kind_js: 'Absturz', rep_kind_fb: 'Rückmeldung',
+  rep_col_what: 'Was', rep_col_where: 'Wo', rep_col_when: 'Wann', rep_col_n: 'Anz.',
+  rep_from: 'von', rep_anon: 'anonym',
+  rep_sheet_get: '⬇ Bogen laden', rep_sheet_none: 'Kein Bogen dabei.',
+  rep_done: 'Erledigt', rep_reopen: 'Wieder öffnen', rep_delete: 'Löschen',
+  rep_delete_confirm: 'Diesen Bericht endgültig löschen?',
+  rep_notify_admin: '%n offene(r) Fehlerbericht(e)',
+  rep_both: '%t Ticket(s) und %r Fehlerbericht(e)',
+  rep_export: '⬇ Export (JSON)',
+  rep_export_hint: 'Lädt die angezeigten Berichte samt Stack und angehängten Bögen als eine JSON-Datei – zum Weiterreichen, ohne jeden Bericht einzeln abzuschreiben.',
+  rep_export_done: '{n} Bericht(e) exportiert.',
 });
 Object.assign(T.en, {
   online_rounds: 'Game rounds',
@@ -307,6 +324,23 @@ Object.assign(T.en, {
   tk_status_open: 'open', tk_status_answered: 'answered', tk_status_closed: 'closed',
   tk_notify_admin: '%n ticket(s) with new messages from users',
   tk_notify_user: '%n ticket(s) with new replies',
+
+  rep_open_btn: '🐞 Bug reports',
+  rep_title: 'Bug reports & feedback',
+  rep_intro: 'What the reporter has collected. Crashes are grouped - one line per fault, with a counter.',
+  rep_f_open: 'Open', rep_f_done: 'Done', rep_f_all: 'All',
+  rep_none: 'Nothing here - nothing broken, or nobody reported it.',
+  rep_kind_js: 'Crash', rep_kind_fb: 'Feedback',
+  rep_col_what: 'What', rep_col_where: 'Where', rep_col_when: 'When', rep_col_n: 'No.',
+  rep_from: 'from', rep_anon: 'anonymous',
+  rep_sheet_get: '⬇ Download sheet', rep_sheet_none: 'No sheet attached.',
+  rep_done: 'Done', rep_reopen: 'Reopen', rep_delete: 'Delete',
+  rep_delete_confirm: 'Delete this report for good?',
+  rep_notify_admin: '%n open bug report(s)',
+  rep_both: '%t ticket(s) and %r bug report(s)',
+  rep_export: '⬇ Export (JSON)',
+  rep_export_hint: 'Downloads the reports shown, with stacks and any attached sheets, as one JSON file - to pass on without copying each report out by hand.',
+  rep_export_done: '{n} report(s) exported.',
 });
 
 /* ---------------- state & API ---------------- */
@@ -401,11 +435,20 @@ function updateOnlineButton() {
   if (!b) return;
   b.style.display = onlineAvailable ? 'inline-block' : 'none';
   const label = ONLINE.username ? '☁ ' + ONLINE.username : t('btn_online');
-  /* Unread tickets as a number on the button - for signed-in users only. */
-  if (ONLINE.token && ticketUnread > 0) {
+  /* Unread tickets as a number on the button - for signed-in users only.
+     Admins get the open bug reports counted in as well: two numbers side by
+     side on one small button read as one wrong number, and both mean the
+     same thing anyway - somebody is waiting. */
+  const offen = ticketUnread + reportsOpen;
+  if (ONLINE.token && offen > 0) {
     b.innerHTML = esc(label)
-      + ` <span class="notify-badge">${ticketUnread > 99 ? '99+' : ticketUnread}</span>`;
-    b.title = t(ONLINE.isAdmin ? 'tk_notify_admin' : 'tk_notify_user').replace('%n', ticketUnread);
+      + ` <span class="notify-badge">${offen > 99 ? '99+' : offen}</span>`;
+    if (reportsOpen > 0 && ticketUnread > 0)
+      b.title = t('rep_both').replace('%t', ticketUnread).replace('%r', reportsOpen);
+    else if (reportsOpen > 0)
+      b.title = t('rep_notify_admin').replace('%n', reportsOpen);
+    else
+      b.title = t(ONLINE.isAdmin ? 'tk_notify_admin' : 'tk_notify_user').replace('%n', ticketUnread);
   } else {
     b.textContent = label;
     b.removeAttribute('title');
@@ -900,6 +943,7 @@ let supportData = null, supportSel = null, supportDetail = null, supportMsg = ''
 let supportImg = '';            // pending screenshot (when creating)
 let supportReplyImg = '';       // pending screenshot (when replying)
 let ticketUnread = 0;           // unread tickets/replies (the number on the cloud button)
+let reportsOpen = 0;            // open bug reports - counted into the same number
 let lastTicketCheck = 0;        // time of the last query (throttles the polling)
 
 /* Fetch the number of unread tickets. Admins see new tickets and follow-up
@@ -913,7 +957,8 @@ async function refreshTicketStatus(force) {
   try {
     const r = await api('ticket_status');
     ticketUnread = Math.max(0, parseInt(r.unread, 10) || 0);
-  } catch (e) { ticketUnread = 0; }
+    reportsOpen = Math.max(0, parseInt(r.reportsOpen, 10) || 0);
+  } catch (e) { ticketUnread = 0; reportsOpen = 0; }
   updateOnlineButton();
 }
 
@@ -1072,6 +1117,164 @@ async function supportClick(el) {
   renderSupport();
 }
 
+/* ================= bug reports (admin view) =======================
+   The other end of report.js: what the crash handler and the report button
+   have sent in. Crashes arrive already grouped by the server - one row per
+   fault with a counter - so a fault that hit fifty people is one line to
+   read, not fifty.
+
+   Admins only, and never shown to anyone else: the list can contain a
+   sheet somebody attached. */
+let reportData = null;          // {reports, counts, status}
+let reportFilter = 'open';
+let reportSel = 0;              // which row is unfolded
+let reportMsg = '';
+
+function reportsModal() {
+  let m = document.getElementById('reportsModal');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'reportsModal';
+    m.className = 'modal-overlay no-print hidden';
+    m.innerHTML = '<div class="modal-box admin-box" id="reportsBox"></div>';
+    document.body.appendChild(m);
+    m.addEventListener('click', e => { if (e.target === m) closeReports(); });
+  }
+  return m;
+}
+async function openReports() {
+  reportMsg = ''; reportSel = 0; reportData = null;
+  reportsModal().classList.remove('hidden');
+  renderReports();
+  await loadReports();
+}
+function closeReports() {
+  reportsModal().classList.add('hidden');
+  refreshTicketStatus(true);      // what has been ticked off leaves the button
+}
+async function loadReports() {
+  try { reportData = await api('admin_reports', undefined, { status: reportFilter }); }
+  catch (e) { reportMsg = t('online_error') + e.message; }
+  renderReports();
+}
+
+function repWhen(sec) {
+  if (!sec) return '';
+  const d = new Date(sec * 1000);
+  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString().slice(0, 5);
+}
+
+function reportsBody() {
+  if (!reportData) return `<p class="hint">${t('online_loading')}</p>`;
+  const c = reportData.counts || {};
+  const tab = (v, label, n) =>
+    `<button class="${reportFilter === v ? 'accent' : ''}" data-repact="filter" data-v="${v}">${label}${
+      n === undefined ? '' : ` (${n})`}</button>`;
+  let html = `<p class="hint">${esc(t('rep_intro'))}</p>
+    <p>${tab('open', t('rep_f_open'), c.open)} ${tab('done', t('rep_f_done'), c.done)} ${tab('all', t('rep_f_all'))}
+       <button data-repact="export">${t('rep_export')}</button></p>
+    <p class="hint">${esc(t('rep_export_hint'))}</p>`;
+
+  const list = reportData.reports || [];
+  if (!list.length) return html + `<p class="hint">${t('rep_none')}</p>`;
+
+  html += `<div class="table-scroll"><table class="list">
+    <tr><th>${t('rep_col_what')}</th><th>${t('rep_col_where')}</th>
+        <th class="num">${t('rep_col_n')}</th><th>${t('rep_col_when')}</th><th></th></tr>`;
+  list.forEach(r => {
+    const auf = reportSel === r.id;
+    const wer = r.user ? `${t('rep_from')} ${esc(r.user)}` : t('rep_anon');
+    html += `<tr>
+      <td><b>${r.kind === 'fb' ? t('rep_kind_fb') : t('rep_kind_js')}</b><br>
+        <span class="hint">${esc((r.msg || '').slice(0, 160))}</span></td>
+      <td class="nowrap">${esc(r.page || '–')}<br>
+        <span class="hint">${esc(r.version || '')}</span></td>
+      <td class="num">${r.hits > 1 ? r.hits : ''}</td>
+      <td class="nowrap">${repWhen(r.updated)}<br><span class="hint">${esc(wer)}</span></td>
+      <td class="nowrap"><button class="mini" data-repact="toggle" data-id="${r.id}">${auf ? '▴' : '▾'}</button></td>
+    </tr>`;
+    if (!auf) return;
+    /* Unfolded: the whole message, the stack, and what can be done with it. */
+    html += `<tr><td colspan="5">
+      <p style="white-space:pre-wrap">${esc(r.msg || '')}</p>
+      ${r.src ? `<p class="hint"><code>${esc(r.src)}</code></p>` : ''}
+      ${r.stack ? `<pre class="rep-stack">${esc(r.stack)}</pre>` : ''}
+      <p class="hint">${esc(r.ua || '')} · ${esc(r.lang || '')} · #${r.id}</p>
+      <p>${r.hasSheet
+            ? `<button data-repact="sheet" data-id="${r.id}">${t('rep_sheet_get')}</button>`
+            : `<span class="hint">${t('rep_sheet_none')}</span>`}
+        ${r.status === 'open'
+            ? `<button data-repact="done" data-id="${r.id}">${t('rep_done')}</button>`
+            : `<button data-repact="reopen" data-id="${r.id}">${t('rep_reopen')}</button>`}
+        <button data-repact="delete" data-id="${r.id}">${t('rep_delete')}</button></p>
+    </td></tr>`;
+  });
+  return html + '</table></div>';
+}
+
+function renderReports() {
+  const box = document.getElementById('reportsBox');
+  if (!box) return;
+  box.innerHTML = `<div class="modal-head"><h2>${t('rep_title')}</h2>
+      <button class="mini" data-repact="close-win">✕</button></div>`
+    + (reportMsg ? `<p class="modal-msg">${esc(reportMsg)}</p>` : '')
+    + reportsBody();
+}
+
+async function reportsClick(el) {
+  const act = el.dataset.repact;
+  const id = +el.dataset.id || 0;
+  reportMsg = '';
+  try {
+    switch (act) {
+      case 'close-win': closeReports(); return;
+      case 'filter':
+        reportFilter = el.dataset.v; reportSel = 0;
+        await loadReports(); return;
+      case 'toggle':
+        reportSel = reportSel === id ? 0 : id;
+        renderReports(); return;
+      case 'export': {
+        const data = await api('admin_reports_export', undefined, { status: reportFilter });
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        const tag = new Date().toISOString().slice(0, 10);
+        a.download = `swd6-reports-${reportFilter}-${tag}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        reportMsg = t('rep_export_done').replace('{n}', data.count);
+        break;
+      }
+      case 'sheet': {
+        const res = await api('admin_report_sheet', undefined, { id });
+        if (!res.sheet) { reportMsg = t('rep_sheet_none'); break; }
+        const blob = new Blob([res.sheet], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'swd6-report-' + id + '.json';
+        a.click();
+        URL.revokeObjectURL(a.href);
+        return;
+      }
+      case 'done':
+      case 'reopen':
+        await api('admin_report_action', { id, act });
+        await loadReports();
+        refreshTicketStatus(true);
+        return;
+      case 'delete':
+        if (!confirm(t('rep_delete_confirm'))) return;
+        await api('admin_report_action', { id, act: 'delete' });
+        reportSel = 0;
+        await loadReports();
+        refreshTicketStatus(true);
+        return;
+    }
+  } catch (e) { reportMsg = t('online_error') + e.message; }
+  renderReports();
+}
+
 function renderOnline() {
   const box = document.getElementById('onlineBox');
   if (!box) return;
@@ -1171,7 +1374,9 @@ function renderOnline() {
     <p><button data-oact="openRounds">${t('rounds_open')}</button>
        <button data-oact="openSupport">${t('tk_open')}${ticketUnread > 0
          ? ` <span class="notify-badge">${ticketUnread > 99 ? '99+' : ticketUnread}</span>` : ''}</button></p>
-    ${ONLINE.isAdmin ? `<p><button data-oact="openAdmin">${t('online_admin_open')}</button></p>` : ''}
+    ${ONLINE.isAdmin ? `<p><button data-oact="openAdmin">${t('online_admin_open')}</button>
+       <button data-oact="openReports">${t('rep_open_btn')}${reportsOpen > 0
+         ? ` <span class="notify-badge">${reportsOpen > 99 ? '99+' : reportsOpen}</span>` : ''}</button></p>` : ''}
     <p><button data-oact="myData">${t('online_mydata')}</button>
        <span class="hint">${t('online_mydata_hint')}</span></p>
     <h3>${t('online_pw_change')}</h3>
@@ -1285,6 +1490,10 @@ async function onlineAction(el) {
       case 'openSupport':
         closeOnline();
         openSupport();
+        return;
+      case 'openReports':
+        closeOnline();
+        openReports();
         return;
       case 'myData': {
         const data = await api('my_data');
@@ -1516,6 +1725,13 @@ document.addEventListener('click', e => {
   e.preventDefault();
   supportClick(el);
 });
+/* ---- bug reports: the same, inside #reportsModal only ---- */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-repact]');
+  if (!el || !el.closest('#reportsModal')) return;
+  e.preventDefault();
+  reportsClick(el);
+});
 document.addEventListener('change', e => {
   const el = e.target;
   if (!el.closest || !el.closest('#supportModal')) return;
@@ -1598,6 +1814,8 @@ function relangOnline() {
   if (rm && !rm.classList.contains('hidden')) renderRounds();
   const sm = document.getElementById('supportModal');
   if (sm && !sm.classList.contains('hidden')) renderSupport();
+  const bm = document.getElementById('reportsModal');
+  if (bm && !bm.classList.contains('hidden')) renderReports();
 }
 window.relangOnline = relangOnline;
 if (typeof setLang === 'function') {

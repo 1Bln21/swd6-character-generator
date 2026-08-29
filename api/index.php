@@ -389,6 +389,54 @@ $db->exec("CREATE TABLE IF NOT EXISTS ticket_seen (
   PRIMARY KEY (user_id, ticket_id)
 )$SUF");
 
+/* ===================== error reports and feedback ====================
+   Tickets need an account, and almost nobody makes one just to say that a
+   button did nothing. This table is the other way round: it takes reports
+   WITHOUT a sign-in, and for crashes without anybody having to type at all.
+
+   Two kinds live in it:
+     'js' - a script error the browser caught, sent by report.js
+     'fb' - a sentence somebody typed into the report dialog
+
+   Crashes are grouped: the same fault from a hundred visitors should be one
+   line with a counter, not a hundred lines to read through. The grouping key
+   is the fingerprint (message + place in the code), together with the app
+   version - a fault that comes back in a later version is worth seeing again
+   even when the old one was already ticked off.
+
+   What is deliberately NOT in here: no IP address, no full user agent, no
+   session, nothing that follows somebody across visits. user_id is filled in
+   only when the sender was signed in anyway, so that an answer by ticket is
+   possible; anonymous reports carry a 0. */
+$db->exec("CREATE TABLE IF NOT EXISTS reports (
+  id $PK,
+  kind VARCHAR(8) DEFAULT 'js',
+  fingerprint VARCHAR(40),
+  page VARCHAR(24),
+  version VARCHAR(32),
+  msg $TXT,
+  src $STR,
+  stack $TXT,
+  ua VARCHAR(64),
+  lang VARCHAR(8),
+  sheet $TXT,
+  user_id INT DEFAULT 0,
+  hits INT DEFAULT 1,
+  status VARCHAR(12) DEFAULT 'open',
+  created BIGINT,
+  updated BIGINT
+)$SUF");
+/* Throttle for the open endpoint. The key is NOT the IP but a hash of it
+   with a per-install salt and the current date, so the rows cannot be turned
+   back into addresses and yesterday's key does not match today's. Rows older
+   than two days are thrown away on the next write. */
+$db->exec("CREATE TABLE IF NOT EXISTS report_rate (
+  client VARCHAR(64) NOT NULL,
+  n INT DEFAULT 0,
+  win BIGINT,
+  PRIMARY KEY (client)
+)$SUF");
+
 /* ===================== the table-top (mini VTT) =====================
    A round can hold several battle maps; one of them is the active one the
    players see. The image itself does NOT live in the database - only its
@@ -1133,6 +1181,74 @@ function verify_second_factor($user, $code, $secretB32 = null) {
   return false;
 }
 
+/* ---------------- error reports and feedback ---------------- */
+
+/* Pseudonym for the sender, for throttling only. Salt per installation,
+   plus the date, so the value cannot be turned back into an IP address and
+   does not connect one day with the next. */
+function report_client() {
+  $salt = setting_get('report_salt', '');
+  if ($salt === '') {
+    $salt = bin2hex(random_bytes(16));
+    setting_set('report_salt', $salt);
+  }
+  $ip = isset($_SERVER['REMOTE_ADDR']) ? (string)$_SERVER['REMOTE_ADDR'] : '';
+  return substr(hash('sha256', $salt . '|' . gmdate('Y-m-d') . '|' . $ip), 0, 64);
+}
+
+/* True when this sender may still send. Two gates: one per sender, one for
+   the whole installation - the second one catches a flood spread over many
+   addresses, which the first would wave through. */
+function report_allowed() {
+  global $db;
+  $now = time();
+  $db->prepare('DELETE FROM report_rate WHERE win < ?')->execute([$now - 172800]);
+
+  $st = $db->prepare('SELECT COUNT(*) FROM reports WHERE created > ?');
+  $st->execute([$now - 3600]);
+  if ((int)$st->fetchColumn() >= 200) return false;      // the whole site
+
+  $client = report_client();
+  $st = $db->prepare('SELECT n, win FROM report_rate WHERE client = ?');
+  $st->execute([$client]);
+  $row = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$row || (int)$row['win'] < $now - 3600) {
+    $db->prepare('DELETE FROM report_rate WHERE client = ?')->execute([$client]);
+    $db->prepare('INSERT INTO report_rate (client, n, win) VALUES (?,?,?)')
+       ->execute([$client, 1, $now]);
+    return true;
+  }
+  if ((int)$row['n'] >= 20) return false;                // this sender
+  $db->prepare('UPDATE report_rate SET n = n + 1 WHERE client = ?')->execute([$client]);
+  return true;
+}
+
+/* The table must not grow without end. Anything ticked off and older than
+   90 days goes, and beyond 2000 rows the oldest ones go too. */
+function report_trim() {
+  global $db;
+  $now = time();
+  /* An attached sheet is a debugging aid, not an archive. Once a report is
+     ticked off it has served its purpose and the sheet - the biggest and the
+     most personal thing in this table - goes a week later. */
+  $db->prepare("UPDATE reports SET sheet = NULL WHERE sheet IS NOT NULL AND status <> 'open' AND updated < ?")
+     ->execute([$now - 604800]);
+  $db->prepare("DELETE FROM reports WHERE status <> 'open' AND updated < ?")
+     ->execute([$now - 7776000]);
+  $n = (int)$db->query('SELECT COUNT(*) FROM reports')->fetchColumn();
+  if ($n <= 2000) return;
+  $keep = $db->query('SELECT id FROM reports ORDER BY updated DESC LIMIT 2000')
+             ->fetchAll(PDO::FETCH_COLUMN);
+  if ($keep) $db->exec('DELETE FROM reports WHERE id NOT IN (' .
+                       implode(',', array_map('intval', $keep)) . ')');
+}
+
+function report_cut($v, $max) {
+  $s = trim((string)$v);
+  if ($s === '') return '';
+  return function_exists('mb_substr') ? mb_substr($s, 0, $max, 'UTF-8') : substr($s, 0, $max);
+}
+
 /* ===================================================================== */
 switch ($action) {
 
@@ -1347,6 +1463,17 @@ case 'my_data': {
                             'created' => (int)$m['created'], 'hasImage' => (bool)$m['has_image']];
                   }, $ms->fetchAll(PDO::FETCH_ASSOC))];
   }
+  /* Bug reports sent while signed in. Anonymous ones carry no user_id and
+     cannot appear here - there is nothing linking them to anybody. */
+  $st = $db->prepare('SELECT kind, page, version, msg, src, ua, lang, hits, status, created
+                      FROM reports WHERE user_id = ? ORDER BY created');
+  $st->execute([$user['id']]);
+  $reports = [];
+  foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+    $r['hits'] = (int)$r['hits'];
+    $r['created'] = (int)$r['created'];
+    $reports[] = $r;
+  }
   json_out([
     'exportedAt' => time(),
     'account'    => $account,
@@ -1355,6 +1482,7 @@ case 'my_data': {
     'sharesReceived' => $sharesReceived,
     'rounds'     => $rounds,
     'tickets'    => $tickets,
+    'bugReports' => $reports,
     'note' => 'This is all data stored about your account. Password, MFA and recovery codes are stored only as irreversible hashes and are never included.',
   ]);
 }
@@ -1631,6 +1759,11 @@ case 'admin_user_action': {
       $db->prepare('DELETE FROM ticket_seen WHERE ticket_id IN (SELECT id FROM tickets WHERE user_id = ?)')->execute([$id]);
       $db->prepare('DELETE FROM ticket_seen WHERE user_id = ?')->execute([$id]);
       $db->prepare('DELETE FROM tickets WHERE user_id = ?')->execute([$id]);
+      /* Bug reports lose the name but keep the fault. The link to a person
+         is what has to go; a crash that is still in the code helps nobody
+         by disappearing along with the account that ran into it. Any sheet
+         attached to one goes, because that is the user's own content. */
+      $db->prepare('UPDATE reports SET user_id = 0, sheet = NULL WHERE user_id = ?')->execute([$id]);
       $db->prepare('DELETE FROM tokens WHERE user_id = ?')->execute([$id]);
       $db->prepare('DELETE FROM users  WHERE id = ?')->execute([$id]);
       break;
@@ -2744,11 +2877,177 @@ case 'arcade_add': {
   json_out(['ok' => true, 'scores' => $out]);
 }
 
+/* ---- error reports and feedback (no sign-in needed) ---- */
+
+/* The one open endpoint. It must never make a noise: whatever comes in, the
+   answer is 200, because the caller is a crash handler. If it were to answer
+   with an error, a broken page would start reporting the reporter. */
+case 'report': {
+  $kind = inp('kind') === 'fb' ? 'fb' : 'js';
+  $msg  = report_cut(inp('msg'), $kind === 'fb' ? 4000 : 500);
+  if ($msg === '') json_out(['ok' => true, 'stored' => false]);
+  if (!report_allowed()) json_out(['ok' => true, 'stored' => false, 'busy' => true]);
+
+  $src     = report_cut(inp('src'), 180);
+  $stack   = report_cut(inp('stack'), 3000);
+  $page    = report_cut(inp('page'), 24);
+  $version = report_cut(inp('version'), 32);
+  $ua      = report_cut(inp('ua'), 64);
+  $lang    = report_cut(inp('lang'), 8);
+
+  /* A sheet comes along only when the sender ticked the box in the dialog.
+     Kept as text exactly as it arrived - it is read by a human, not by the
+     generator, and parsing it here would only add a way to fail. */
+  $sheet = report_cut(inp('sheet'), 200000);
+
+  /* Signed in? Then the report may be answered by ticket. Not being signed
+     in is no reason to refuse it - that is the whole point of this endpoint. */
+  $uid = 0;
+  $tok = bearer_token();
+  if ($tok) {
+    $st = $db->prepare('SELECT user_id FROM tokens WHERE token_hash = ? AND expires > ?');
+    $st->execute([hash('sha256', $tok), time()]);
+    $uid = (int)$st->fetchColumn();
+  }
+
+  $now = time();
+  $fp = substr(sha1($kind . '|' . $msg . '|' . $src), 0, 40);
+
+  /* Crashes are counted, not collected. Feedback is not: two people writing
+     the same sentence are two people, and both want to be read. */
+  if ($kind === 'js') {
+    $st = $db->prepare('SELECT id FROM reports WHERE kind = ? AND fingerprint = ? AND version = ? LIMIT 1');
+    $st->execute(['js', $fp, $version]);
+    $old = (int)$st->fetchColumn();
+    if ($old) {
+      $db->prepare('UPDATE reports SET hits = hits + 1, updated = ? WHERE id = ?')
+         ->execute([$now, $old]);
+      json_out(['ok' => true, 'stored' => true, 'id' => $old]);
+    }
+  }
+  $db->prepare('INSERT INTO reports (kind, fingerprint, page, version, msg, src, stack, ua, lang, sheet, user_id, hits, status, created, updated)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+     ->execute([$kind, $fp, $page, $version, $msg, $src, $stack, $ua, $lang,
+                $sheet !== '' ? $sheet : null, $uid, 1, 'open', $now, $now]);
+  $id = last_id('reports');
+  report_trim();
+  json_out(['ok' => true, 'stored' => true, 'id' => $id]);
+}
+
+case 'admin_reports': {
+  require_admin();
+  $status = inp('status', 'open');
+  if (!in_array($status, ['open', 'done', 'all'], true)) $status = 'open';
+  $sql = 'SELECT r.id, r.kind, r.page, r.version, r.msg, r.src, r.stack, r.ua, r.lang,
+                 r.user_id, r.hits, r.status, r.created, r.updated,
+                 u.username AS username,
+                 CASE WHEN r.sheet IS NULL THEN 0 ELSE 1 END AS has_sheet
+          FROM reports r LEFT JOIN users u ON u.id = r.user_id';
+  $args = [];
+  if ($status !== 'all') { $sql .= ' WHERE r.status = ?'; $args[] = $status; }
+  $sql .= ' ORDER BY r.updated DESC LIMIT 300';
+  $st = $db->prepare($sql);
+  $st->execute($args);
+  $out = [];
+  foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+    $out[] = [
+      'id' => (int)$r['id'], 'kind' => $r['kind'], 'page' => $r['page'],
+      'version' => $r['version'], 'msg' => $r['msg'], 'src' => $r['src'],
+      'stack' => $r['stack'], 'ua' => $r['ua'], 'lang' => $r['lang'],
+      'user' => $r['username'] ? $r['username'] : '',
+      'hits' => (int)$r['hits'], 'status' => $r['status'],
+      'created' => (int)$r['created'], 'updated' => (int)$r['updated'],
+      'hasSheet' => (int)$r['has_sheet'] === 1,
+    ];
+  }
+  $counts = [];
+  foreach (['open', 'done'] as $s) {
+    $st = $db->prepare('SELECT COUNT(*) FROM reports WHERE status = ?');
+    $st->execute([$s]);
+    $counts[$s] = (int)$st->fetchColumn();
+  }
+  json_out(['reports' => $out, 'counts' => $counts, 'status' => $status]);
+}
+
+/* Everything about the shown reports in one file, sheets included, to hand
+   on for a closer look. The list above deliberately leaves the sheets out -
+   here they belong in, because carrying twenty of them over one at a time is
+   exactly the work this is meant to save. */
+case 'admin_reports_export': {
+  require_admin();
+  $status = inp('status', 'open');
+  if (!in_array($status, ['open', 'done', 'all'], true)) $status = 'open';
+  $sql = 'SELECT r.*, u.username AS username FROM reports r LEFT JOIN users u ON u.id = r.user_id';
+  $args = [];
+  if ($status !== 'all') { $sql .= ' WHERE r.status = ?'; $args[] = $status; }
+  $sql .= ' ORDER BY r.updated DESC LIMIT 500';
+  $st = $db->prepare($sql);
+  $st->execute($args);
+  $out = [];
+  foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
+    $row = [
+      'id' => (int)$r['id'], 'kind' => $r['kind'], 'status' => $r['status'],
+      'hits' => (int)$r['hits'], 'page' => $r['page'], 'version' => $r['version'],
+      'msg' => $r['msg'], 'src' => $r['src'], 'stack' => $r['stack'],
+      'ua' => $r['ua'], 'lang' => $r['lang'],
+      'user' => $r['username'] ? $r['username'] : '',
+      'created' => (int)$r['created'], 'updated' => (int)$r['updated'],
+    ];
+    /* The sheet went in as text; decoded here so the export is one JSON
+       document rather than a document with JSON quoted inside it. */
+    if ($r['sheet'] !== null && $r['sheet'] !== '') {
+      $dec = json_decode($r['sheet'], true);
+      $row['sheet'] = $dec === null ? $r['sheet'] : $dec;
+    }
+    $out[] = $row;
+  }
+  json_out(['exportedAt' => time(), 'status' => $status,
+            'count' => count($out), 'reports' => $out]);
+}
+
+/* The attached sheet on its own - it is far too big to send with the list. */
+case 'admin_report_sheet': {
+  require_admin();
+  $st = $db->prepare('SELECT sheet FROM reports WHERE id = ?');
+  $st->execute([(int)inp('id', 0)]);
+  $row = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$row) fail('Report not found', 404);
+  json_out(['sheet' => $row['sheet'] === null ? '' : $row['sheet']]);
+}
+
+case 'admin_report_action': {
+  require_admin();
+  $id = (int)inp('id', 0);
+  $act = (string)inp('act', '');
+  $st = $db->prepare('SELECT id FROM reports WHERE id = ?');
+  $st->execute([$id]);
+  if (!$st->fetchColumn()) fail('Report not found', 404);
+  switch ($act) {
+    case 'done':
+    case 'reopen':
+      $db->prepare('UPDATE reports SET status = ?, updated = ? WHERE id = ?')
+         ->execute([$act === 'done' ? 'done' : 'open', time(), $id]);
+      break;
+    case 'delete':
+      $db->prepare('DELETE FROM reports WHERE id = ?')->execute([$id]);
+      break;
+    default:
+      fail('Unknown action');
+  }
+  json_out(['ok' => true]);
+}
+
 /* Just the count - every page asks for it to badge the cloud button. */
 case 'ticket_status': {
   $user = auth();
   $admin = is_admin($user);
-  json_out(['unread' => ticket_unread_count($user, $admin), 'isAdmin' => $admin]);
+  /* Open bug reports ride along on this poll rather than getting one of
+     their own - every page asks for this every two minutes as it is. */
+  $rep = 0;
+  if ($admin)
+    $rep = (int)$db->query("SELECT COUNT(*) FROM reports WHERE status = 'open'")->fetchColumn();
+  json_out(['unread' => ticket_unread_count($user, $admin), 'isAdmin' => $admin,
+            'reportsOpen' => $rep]);
 }
 
 default:

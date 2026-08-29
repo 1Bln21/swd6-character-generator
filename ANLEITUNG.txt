@@ -199,6 +199,39 @@ Use the gear menu (⚙, top right) to switch the interface between
 German and English – including the printed character sheet. The
 choice is remembered for the next start.
 
+FEHLER MELDEN
+-------------
+Im Zahnrad-Menü (⚙) steht unter "Info" der Eintrag
+"🐞 Fehler melden". Ein Feld, absenden, fertig – ein Konto ist dafür
+nicht nötig. Bitte auf Deutsch oder Englisch schreiben; andere
+Sprachen kann der Autor nicht lesen. Wer angemeldet ist, kann eine
+Antwort über das Ticket-System (☁-Menü) bekommen; ohne Konto ist die
+Meldung anonym und kann nicht beantwortet werden. Auf einen Klick
+lässt sich der gerade geöffnete Bogen mitschicken – das hilft beim
+Nachstellen ungemein, Bilder werden vorher entfernt.
+
+Im selben Dialog sitzt der Schalter "Abstürze automatisch melden".
+Er ist an und schickt bei einem Skriptfehler die Meldung, die Stelle
+im Code, die Seite und die Version an den Server – ohne IP-Adresse
+und ohne Kennung. Wer das nicht möchte, hakt ihn ab; die Einstellung
+bleibt im Browser. Was zusammenkommt, sehen nur Administratoren im
+☁-Menü unter "🐞 Fehlerberichte".
+
+The gear menu (⚙) has "🐞 Report a bug" under "Info": one field,
+send, done - no account needed. Please write in English or German;
+the author cannot read other languages. Signed in, you can be
+answered through the ticket system (☁ menu); without an account the
+report is anonymous and cannot be answered. One tick sends the sheet
+you have open along, which helps enormously in reproducing a fault;
+pictures are stripped out first.
+
+The same dialog holds the "Report crashes automatically" switch. It
+is on, and sends the message, the place in the code, the page and the
+version on a script error - no IP address, no identifier. Untick it
+if you would rather not; the setting stays in your browser. What
+comes in is visible to administrators only, in the ☁ menu under
+"🐞 Bug reports".
+
 ÜBER & CREDITS
 --------------
 Im Zahnrad-Menü (⚙) findet sich unter "Info" der Eintrag

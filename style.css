@@ -617,6 +617,14 @@ table.sp-table td.num { text-align: right; white-space: nowrap; }
 }
 .tk-unread td { font-weight: 600; }
 
+/* Stack of a reported crash. Scrolls inside its own box: a stack trace is
+   wide and long, and it must not push the dialog around it out of shape. */
+.rep-stack {
+  max-height: 220px; overflow: auto; margin: 6px 0;
+  background: var(--card2); border: 1px solid var(--border); border-radius: 6px;
+  padding: 6px 8px; font-size: 11px; line-height: 1.4; white-space: pre;
+}
+
 /* ---------- dice page ---------- */
 .roll-pools { display: flex; flex-wrap: wrap; gap: 6px; }
 .roll-pool { background: var(--card2); border: 1px solid var(--border); border-radius: 6px;

@@ -179,6 +179,8 @@ function applyLang() {
   window.LANG = LANG;
   const hm = document.getElementById('helpModal');
   if (hm && !hm.classList.contains('hidden') && typeof renderHelp === 'function') renderHelp();
+  const rm = document.getElementById('reportModal');
+  if (rm && !rm.classList.contains('hidden') && typeof renderReport === 'function') renderReport();
   const am = document.getElementById('aboutModal');
   if (am && !am.classList.contains('hidden') && typeof renderAbout === 'function') renderAbout();
 }
