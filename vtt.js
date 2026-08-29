@@ -1376,6 +1376,43 @@ function iOffer(otherId) {
   return call.me < otherId;
 }
 
+/* ---- how much picture goes over the wire ----
+   A mesh means everybody sends their own picture to everybody else, so one
+   person with five others in the round uploads five copies. Left to itself
+   a browser happily offers 720p, which is roughly three times the data of
+   480p - and on the tiles this call actually draws, nobody can tell the
+   difference. Capping it costs quality nowhere and saves it everywhere:
+   the sender's uplink, which is the first thing to give out, and the TURN
+   server's line, which carries every stream that cannot go direct.
+
+   Two locks, because one is not enough. The constraint asks the camera for
+   480p, but a camera may hand back something larger; maxBitrate is what
+   the encoder must obey either way. */
+const VIDEO_WUNSCH = {
+  width:     { ideal: 854 },
+  height:    { ideal: 480 },
+  frameRate: { ideal: 30, max: 30 },
+};
+const VIDEO_MAX_BPS = 1200000;        // bits per second, generous for 480p
+
+async function videoDeckel(sender) {
+  if (!sender || typeof sender.getParameters !== 'function') return;
+  try {
+    const p = sender.getParameters();
+    /* Before the first negotiation the list can still be empty. Handing
+       back a different number of encodings than we were given is refused,
+       so in that case there is nothing to set yet - the call after the
+       connection comes up catches it. */
+    if (!p.encodings || !p.encodings.length) return;
+    p.encodings[0].maxBitrate = VIDEO_MAX_BPS;
+    p.encodings[0].maxFramerate = 30;
+    await sender.setParameters(p);
+  } catch (e) {
+    /* An older browser without setParameters keeps the constraint above,
+       which is the bigger half of the saving anyway. */
+  }
+}
+
 function makePeer(id, name) {
   const pc = new RTCPeerConnection({ iceServers: call.ice });
   /* Both directions are set up right away, even without a camera. The
@@ -1387,7 +1424,7 @@ function makePeer(id, name) {
   const a = call.stream && call.stream.getAudioTracks()[0];
   const v = call.stream && call.stream.getVideoTracks()[0];
   if (a) aSender.replaceTrack(a);
-  if (v) vSender.replaceTrack(v);
+  if (v) { vSender.replaceTrack(v); videoDeckel(vSender); }
 
   const entry = { pc, aSender, vSender, stream: new MediaStream(), name };
   call.peers[id] = entry;
@@ -1412,7 +1449,12 @@ function makePeer(id, name) {
   };
   pc.onconnectionstatechange = () => {
     if (pc.connectionState === 'failed' || pc.connectionState === 'closed') dropPeer(id);
-    else renderTiles();
+    else {
+      /* Set again once the connection stands: before negotiation the
+         encoding list can be empty, and then the cap has nowhere to go. */
+      if (pc.connectionState === 'connected') videoDeckel(vSender);
+      renderTiles();
+    }
   };
   return entry;
 }
@@ -1501,10 +1543,12 @@ async function toggleCam() {
     call.cam = false;
   } else {
     try {
-      const s = await navigator.mediaDevices.getUserMedia({ video: true });
+      const s = await navigator.mediaDevices.getUserMedia({ video: VIDEO_WUNSCH });
       const v = s.getVideoTracks()[0];
       call.stream.addTrack(v);
-      Object.values(call.peers).forEach(p => { try { p.vSender.replaceTrack(v); } catch (e) {} });
+      Object.values(call.peers).forEach(p => {
+        try { p.vSender.replaceTrack(v); videoDeckel(p.vSender); } catch (e) {}
+      });
       call.cam = true;
       callMsg('');
     } catch (e) { callMsg('call_nomic'); }

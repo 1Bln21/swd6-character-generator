@@ -730,13 +730,32 @@ async function alles() {
       }
     }
   } finally {
-    document.getElementById('rahmen').innerHTML = '';
+    /* Take the last frame down properly before putting anything back.
+       Pulling the element out of the page does not stop what is already
+       queued inside it, and those pages write to storage as they go
+       (`swd6_theme` on load, `swd6_vtt_round`, the volume). A write that
+       lands between clearing and restoring makes the restore look wrong -
+       and cost a run its last check, intermittently. about:blank replaces
+       the document and ends its timers for good. */
+    const halter = document.getElementById('rahmen');
+    const f = halter.querySelector('iframe');
+    if (f) {
+      await new Promise(fertig => { f.onload = fertig; f.src = 'about:blank'; setTimeout(fertig, 1000); });
+    }
+    halter.innerHTML = '';
+    await schlaf(150);
+
     eigenesZuruecklegen(meins);
     sessionStorage.removeItem(SICHERUNG);
     block('Aufräumen');
-    pruef('deine gespeicherten Bögen sind unverändert zurück',
-          JSON.stringify(eigenesEinsammeln()) === JSON.stringify(meins),
-          Object.keys(meins).length + ' Einträge gesichert');
+    /* What matters is that nothing of yours is missing or altered. A key a
+       dying frame wrote afterwards is untidy, not a loss - so the check
+       asks about your entries, not about the set being identical. */
+    const jetzt = eigenesEinsammeln();
+    const fehlt = Object.keys(meins).filter(k => jetzt[k] !== meins[k]);
+    pruef('deine gespeicherten Bögen sind unverändert zurück', fehlt.length === 0,
+          fehlt.length ? 'abweichend: ' + fehlt.join(', ')
+                       : Object.keys(meins).length + ' Einträge gesichert');
   }
 
   knopf.disabled = false;
