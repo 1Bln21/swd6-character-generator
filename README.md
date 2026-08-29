@@ -165,8 +165,42 @@ Administrators read what comes in under ☁ menu → **“🐞 Bug reports”**:
 | `api/index.php` | Complete server API (PHP + SQLite/MySQL, one file) |
 | `api/check.php` | Installation check |
 | `tools/*.py` | Scripts that regenerate the data files from the sources |
+| `tools/smoke.html` | A walk through the interface — see below |
 
 No build step, no dependencies, no framework — vanilla JS/CSS/PHP.
+
+### Checking that it still works
+
+`tools/smoke.html` walks through the interface the way somebody uses it. It
+loads each generator into a frame and plays a real session — name a
+character, pick a species, spend dice, raise a skill, buy equipment and a
+weapon, look at the sheet, export the PDF, save it, start a new one, load it
+back — and after every step asks whether anything broke. 115 checks, about
+fifteen seconds, no installation: open it from the same server the app runs
+on.
+
+```
+php -S 127.0.0.1:8735 -t .
+```
+
+then `http://127.0.0.1:8735/tools/smoke.html`.
+
+It catches the class of fault a unit test cannot see, because what is broken
+is not the code being called but that nothing calls it. Watching alongside
+the checks is `window.swd6Errors`, the list `report.js` keeps on every page,
+so a script error during a step fails that step even when the app swallowed
+it without a word.
+
+Two things it is careful about, since it runs in your own browser against
+your own installation: it takes a copy of everything the app has stored,
+runs on an empty slate and puts your sheets back afterwards (a run cut short
+is undone the next time the page is opened), and it never lets a file out —
+the PDF is built in full, but the last step is recorded instead of carried
+out, so nothing lands in your Downloads folder. Nothing is reported to the
+server either.
+
+This covers the browser side. The API is checked separately, against a local
+instance rather than from a page.
 
 ### Regenerating the game data
 

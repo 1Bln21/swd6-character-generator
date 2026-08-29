@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SWD6 – Durchlauf / Smoke test</title>
+<!--
+  =====================================================================
+  A walk through the app, the way somebody actually uses it
+  ---------------------------------------------------------------------
+  The other checks in this project look at data and at the server. This
+  one clicks. It loads each generator into a frame and plays through a
+  real journey - name a character, pick a species, spend dice, add a
+  skill, buy equipment, look at the sheet, print it, save it, load it
+  back - and asks after every step whether anything broke.
+
+  That is the class of fault a visitor would report if visitors reported
+  things: "I click and nothing happens". A unit test never sees it,
+  because the code it would call is fine; what is broken is that nothing
+  calls it.
+
+  Two things watch while the journey runs:
+
+    - window.swd6Errors, the list report.js keeps on every page. Any
+      script error during a step fails that step, even one the app
+      swallowed without showing anything.
+    - the checks themselves, which look at what the page produced.
+
+  Nothing is reported to the server: the frames are named 'swd6-smoke'
+  and report.js keeps quiet in a frame by that name. Nothing is
+  downloaded either - the anchor click a PDF export ends with is caught
+  and only inspected.
+
+  Open it from the same server the app runs on:
+      http://localhost:8735/tools/smoke.html
+  A file:// copy cannot reach into the frames and will say so.
+  =====================================================================
+-->
+<style>
+  :root {
+    --bg: #12131a; --card: #1b1d27; --border: #2e3040; --fg: #d8dae4;
+    --dim: #8a8fa3; --ok: #4caf72; --bad: #e2564a; --accent: #e8c26a;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 18px; background: var(--bg); color: var(--fg);
+    font: 14px/1.5 system-ui, "Segoe UI", sans-serif; }
+  h1 { font-size: 19px; margin: 0 0 4px; color: var(--accent); }
+  p.sub { margin: 0 0 14px; color: var(--dim); max-width: 70ch; }
+  button { background: var(--card); color: var(--fg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 7px 14px; font: inherit; cursor: pointer; }
+  button.go { background: var(--accent); color: #1a1a1a; border-color: var(--accent); font-weight: 600; }
+  button:disabled { opacity: .5; cursor: default; }
+  #bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  #summe { font-weight: 700; margin-left: auto; }
+  .lauf { background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    margin-bottom: 10px; overflow: hidden; }
+  .lauf > h2 { font-size: 14px; margin: 0; padding: 8px 12px; background: #232634;
+    border-bottom: 1px solid var(--border); display: flex; gap: 8px; }
+  .lauf > h2 .zahl { margin-left: auto; color: var(--dim); font-weight: 400; }
+  .zeile { padding: 4px 12px; display: flex; gap: 8px; border-top: 1px solid #212433; }
+  .zeile:first-of-type { border-top: 0; }
+  .zeile .mark { width: 1.4em; flex: 0 0 auto; }
+  .ok .mark { color: var(--ok); }
+  .bad { background: #2a1c1c; }
+  .bad .mark { color: var(--bad); }
+  .detail { color: var(--dim); font-size: 12px; white-space: pre-wrap;
+    padding: 0 12px 8px 34px; margin: 0; }
+  #rahmen { position: fixed; left: -9999px; top: 0; width: 1280px; height: 900px; }
+  iframe { width: 1280px; height: 900px; border: 0; }
+  .warn { background: #2a2418; border: 1px solid #6b5a2a; border-radius: 8px;
+    padding: 10px 12px; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+
+<h1>Durchlauf durch die Oberfläche</h1>
+<p class="sub">Spielt in jedem Generator eine echte Sitzung durch und prüft nach jedem
+Schritt, ob etwas gebrochen ist. Läuft gegen den Server, von dem diese Seite kommt.
+Es wird nichts an den Server gemeldet und nichts heruntergeladen.</p>
+
+<div id="bar">
+  <button class="go" id="start">Alle Durchläufe starten</button>
+  <button id="nurFehler">Nur Fehler zeigen</button>
+  <span id="summe"></span>
+</div>
+
+<div id="hinweis"></div>
+<div id="ausgabe"></div>
+<div id="rahmen"></div>
+
+<script>
+'use strict';
+
+/* ==================== the harness ==================== */
+
+let lauf = null;            // the block being written to
+let gesamtOk = 0, gesamtFehl = 0;
+
+function block(titel) {
+  const el = document.createElement('div');
+  el.className = 'lauf';
+  el.innerHTML = '<h2>' + titel + ' <span class="zahl"></span></h2>';
+  document.getElementById('ausgabe').appendChild(el);
+  lauf = { el, ok: 0, fehl: 0 };
+  return lauf;
+}
+
+function pruef(label, bedingung, detail) {
+  const zeile = document.createElement('div');
+  zeile.className = 'zeile ' + (bedingung ? 'ok' : 'bad');
+  zeile.innerHTML = '<span class="mark">' + (bedingung ? '✔' : '✘') + '</span><span></span>';
+  zeile.lastChild.textContent = label;
+  lauf.el.appendChild(zeile);
+  if (bedingung) { lauf.ok++; gesamtOk++; }
+  else {
+    lauf.fehl++; gesamtFehl++;
+    if (detail !== undefined) {
+      const p = document.createElement('p');
+      p.className = 'detail';
+      p.textContent = typeof detail === 'string' ? detail : JSON.stringify(detail);
+      lauf.el.appendChild(p);
+    }
+  }
+  lauf.el.querySelector('.zahl').textContent = lauf.ok + ' ok, ' + lauf.fehl + ' Fehler';
+  zusammen();
+  return bedingung;
+}
+
+function zusammen() {
+  const s = document.getElementById('summe');
+  s.textContent = gesamtOk + ' bestanden, ' + gesamtFehl + ' fehlgeschlagen';
+  s.style.color = gesamtFehl ? 'var(--bad)' : 'var(--ok)';
+}
+
+const schlaf = ms => new Promise(r => setTimeout(r, ms));
+
+/* Wait for a condition instead of guessing a delay. Everything here
+   renders synchronously, but a fetch to the catalogue does not, and a
+   fixed sleep is either too short on a slow machine or wasted on a fast
+   one. */
+async function warte(fn, was, ms) {
+  const ende = Date.now() + (ms || 4000);
+  for (;;) {
+    let v;
+    try { v = fn(); } catch (e) { v = false; }
+    if (v) return v;
+    if (Date.now() > ende) throw new Error('timeout: ' + (was || 'Bedingung'));
+    await schlaf(40);
+  }
+}
+
+/* Load a page into a frame and hand back its window. The frame is named,
+   which is how report.js knows to keep quiet. */
+async function seite(url) {
+  const halter = document.getElementById('rahmen');
+  halter.innerHTML = '';
+  const f = document.createElement('iframe');
+  f.name = 'swd6-smoke';
+  halter.appendChild(f);
+  await new Promise((fertig, schief) => {
+    f.onload = fertig;
+    f.onerror = () => schief(new Error('Frame konnte ' + url + ' nicht laden'));
+    f.src = url;
+  });
+  const w = f.contentWindow;
+  if (!w || !w.document) throw new Error('Kein Zugriff auf den Frame – läuft die Seite über einen Server?');
+  /* Nothing may land in the Downloads folder. Catching the anchor is NOT
+     enough: jsPDF hands its file over with dispatchEvent(new MouseEvent
+     ("click")), which walks straight past a patched .click(). So the trap
+     sits one floor down, at the constructor - save() is an own property
+     each instance gets, not something on the prototype, so it can only be
+     replaced on the instance as it is made. The document is still built
+     in full; only the last step is recorded instead of carried out. */
+  w.__pdfs = [];
+  const ns = w.jspdf || w.jsPDF;
+  const Echt = ns && (ns.jsPDF || ns);
+  if (Echt) {
+    const Falle = function () {
+      const inst = new Echt(...arguments);
+      inst.save = function (name) {
+        let seiten = 0;
+        try { seiten = inst.internal.getNumberOfPages(); } catch (e) {}
+        let bytes = 0;
+        try { bytes = inst.output('arraybuffer').byteLength; } catch (e) {}
+        w.__pdfs.push({ name, seiten, bytes });
+        return inst;
+      };
+      return inst;
+    };
+    Falle.prototype = Echt.prototype;
+    Object.keys(Echt).forEach(k => { try { Falle[k] = Echt[k]; } catch (e) {} });
+    if (ns.jsPDF) ns.jsPDF = Falle; else w.jspdf = Falle;
+  }
+  /* And an anchor with a download attribute, for everything that is not
+     a PDF - the JSON export, the data download. */
+  w.__geklickt = [];
+  const echtKlick = w.HTMLAnchorElement.prototype.click;
+  w.HTMLAnchorElement.prototype.click = function () {
+    if (this.download) { w.__geklickt.push({ name: this.download }); return; }
+    return echtKlick.apply(this, arguments);
+  };
+
+  /* Answer the questions the app asks. Applying a ship template asks
+     before overwriting, and a browser driving itself answers "no" to a
+     confirm nobody clicks - which quietly turns the step into a no-op and
+     the check after it into a lie. Say yes, and remember what was asked. */
+  w.__gefragt = [];
+  w.confirm = frage => { w.__gefragt.push(String(frage).slice(0, 120)); return true; };
+  w.alert = text => { w.__gemeldet.push(String(text).slice(0, 200)); };
+  w.__gemeldet = [];
+  w.prompt = () => null;
+  await schlaf(120);        // let the page's own start-up settle
+  return w;
+}
+
+/* Everything report.js noticed since the last look. An empty list is the
+   real assertion of every step below. */
+function fehlerVon(w) {
+  const l = (w.swd6Errors || []).slice();
+  if (w.swd6Errors) w.swd6Errors.length = 0;
+  return l;
+}
+function sauber(w, was) {
+  const f = fehlerVon(w);
+  return pruef(was + ' – ohne Skriptfehler', f.length === 0,
+               f.map(x => x.msg + '  (' + x.src + ')').join('\n'));
+}
+
+/* ---- driving the page ---- */
+
+/* The sheet being edited lives in a top-level `let C` in each page's
+   script. A top-level let is NOT a property of window, so modell(w) is
+   undefined however loaded the page is - it has to be read from inside
+   the frame's own scope. */
+const modell = w => w.eval('typeof C === "undefined" ? null : C');
+const gucke = (w, ausdruck) => { try { return w.eval(ausdruck); } catch (e) { return undefined; } };
+
+const $ = (w, sel) => w.document.querySelector(sel);
+const $$ = (w, sel) => Array.from(w.document.querySelectorAll(sel));
+
+function klick(w, sel) {
+  const el = typeof sel === 'string' ? $(w, sel) : sel;
+  if (!el) throw new Error('nicht gefunden: ' + sel);
+  el.click();
+  return el;
+}
+/* Set a bound field the way a person does: type, then leave it. Both
+   events are sent because the pages listen for different ones depending
+   on the field - text on input, numbers and dropdowns on change. */
+function tippe(w, sel, wert) {
+  const el = typeof sel === 'string' ? $(w, sel) : sel;
+  if (!el) throw new Error('nicht gefunden: ' + sel);
+  el.value = wert;
+  el.dispatchEvent(new w.Event('input', { bubbles: true }));
+  el.dispatchEvent(new w.Event('change', { bubbles: true }));
+  return el;
+}
+function haken(w, sel, an) {
+  const el = typeof sel === 'string' ? $(w, sel) : sel;
+  if (!el) throw new Error('nicht gefunden: ' + sel);
+  el.checked = an !== false;
+  el.dispatchEvent(new w.Event('change', { bubbles: true }));
+  return el;
+}
+const reiter = (w, name) => klick(w, '[data-tab="' + name + '"]');
+const txt = (w, sel) => { const e = $(w, sel); return e ? e.textContent.trim() : ''; };
+
+/* ==================== the journeys ==================== */
+
+async function laufCharakter() {
+  block('Charakterbogen (index.html)');
+  const w = await seite('../index.html');
+  sauber(w, 'Seite geladen');
+  pruef('die Anwendung ist da', modell(w) && typeof modell(w) === 'object', modell(w));
+  pruef('der Fehler-Melder hängt drin', typeof w.renderReport === 'function');
+  /* The guard that keeps this run out of the real report list. If it ever
+     stops holding, every fault provoked below lands in the list of things
+     actual visitors ran into - so it is checked first, not assumed. */
+  pruef('der Melder erkennt den Testrahmen', gucke(w, 'RP_TESTRAHMEN') === true,
+        'window.name = ' + w.name);
+  const probe = await gucke(w, 'rpSend({kind:"js",msg:"Testrahmen-Probe"})');
+  pruef('und schickt darin nichts weg', probe === false, probe);
+
+  /* ---- name and species ---- */
+  reiter(w, 'info');
+  tippe(w, '[data-bind="info.name"]', 'Testfigur Durchlauf');
+  pruef('der Name steht im Modell', modell(w).info.name === 'Testfigur Durchlauf', modell(w).info.name);
+
+  const arten = $$(w, '[data-bind="info.species"] option').map(o => o.value);
+  pruef('die Speziesliste ist gefüllt', arten.length > 300, arten.length + ' Einträge');
+  const wookiee = arten.find(v => /^Wookiee$/i.test(v)) || arten[5];
+  tippe(w, '[data-bind="info.species"]', wookiee);
+  await schlaf(80);
+  pruef('die Spezies ist übernommen', modell(w).info.species === wookiee, modell(w).info.species);
+  sauber(w, 'Spezies gewechselt');
+
+  /* ---- attributes ----
+     Not typed in: stepped in pips, three to a die. Those buttons are what
+     a player actually presses, so those are what gets pressed here. */
+  reiter(w, 'attrs');
+  const plus = $$(w, '#tab-attrs [data-act="attr"][data-dir="1"]');
+  pruef('sechs Attribute mit Steppern', plus.length >= 6, plus.length);
+  const vorherPips = modell(w).attrs.dex;
+  for (let i = 0; i < 3; i++) klick(w, '#tab-attrs [data-act="attr"][data-dir="1"][data-a="dex"]');
+  pruef('drei Pips machen einen Würfel mehr',
+        modell(w).attrs.dex === vorherPips + 3,
+        'vorher ' + vorherPips + ', jetzt ' + modell(w).attrs.dex);
+  pruef('der Pool-Banner rechnet mit', /\dD/.test(txt(w, '#tab-attrs .pool-banner')),
+        txt(w, '#tab-attrs .pool-banner'));
+  klick(w, '#tab-attrs [data-act="attr"][data-dir="-1"][data-a="dex"]');
+  pruef('und lässt sich wieder zurücknehmen',
+        modell(w).attrs.dex === vorherPips + 2, modell(w).attrs.dex);
+  sauber(w, 'Attribut gesetzt');
+
+  /* ---- a skill ---- */
+  reiter(w, 'skills');
+  const skillPlus = $$(w, '#tab-skills [data-act="skill"][data-dir="1"]');
+  if (pruef('Fertigkeiten sind aufgelistet', skillPlus.length > 50, skillPlus.length)) {
+    const key = skillPlus[0].dataset.key;
+    klick(w, skillPlus[0]);
+    pruef('die Fertigkeit ist gespeichert',
+          Object.keys(modell(w).skills).length > 0, modell(w).skills);
+    pruef('und zwar genau die angeklickte',
+          Object.prototype.hasOwnProperty.call(modell(w).skills, key),
+          key + ' vs ' + Object.keys(modell(w).skills).join(','));
+  }
+  sauber(w, 'Fertigkeit gesteigert');
+
+  /* ---- equipment out of the catalogue ----
+     Taken from the catalogue it becomes an entry of your own, so it lands
+     in customEquipment - equipment is the tick-box list of standard gear,
+     which is a different thing. */
+  reiter(w, 'equip');
+  const zufuegen = $$(w, '#tab-equip [data-act="pdfAdd"]');
+  if (pruef('der Ausrüstungskatalog ist da', zufuegen.length > 20, zufuegen.length)) {
+    klick(w, zufuegen[0]);
+    await schlaf(80);
+    const e = modell(w).customEquipment || [];
+    if (pruef('die Ausrüstung liegt im Bogen', e.length > 0, e)) {
+      pruef('sie bringt Name und Preis mit',
+            !!e[0].name && e[0].cost != null && e[0].qty === 1, e[0]);
+    }
+  }
+  sauber(w, 'Ausrüstung übernommen');
+
+  /* ---- a weapon ---- */
+  reiter(w, 'weapons');
+  const waffen = $$(w, '#tab-weapons [data-act="pdfAdd"]');
+  if (pruef('der Waffenkatalog ist da', waffen.length > 50, waffen.length)) {
+    klick(w, waffen[0]);
+    await schlaf(80);
+    const alle = (modell(w).customRanged || []).concat(modell(w).customMelee || []);
+    if (pruef('die Waffe ist eingetragen', alle.length > 0, alle.length)) {
+      pruef('sie bringt Name und Schaden mit', !!(alle[0].name && alle[0].dmg), alle[0]);
+    }
+  }
+  sauber(w, 'Waffe übernommen');
+
+  /* ---- the sheet ---- */
+  reiter(w, 'sheet');
+  await schlaf(150);
+  const bogen = $(w, '#tab-sheet');
+  pruef('der Bogen ist gefüllt', bogen && bogen.innerHTML.length > 2000,
+        bogen ? bogen.innerHTML.length + ' Zeichen' : 'kein Bogen');
+  pruef('der Name steht auf dem Bogen',
+        bogen && bogen.textContent.includes('Testfigur Durchlauf'));
+  sauber(w, 'Bogen gezeichnet');
+
+  /* ---- PDF, without anything landing in Downloads ---- */
+  klick(w, '#btnPdf');
+  await warte(() => w.__pdfs.length > 0, 'PDF-Export', 25000);
+  const pdf = w.__pdfs[0];
+  pruef('der PDF-Export erzeugt eine Datei', /\.pdf$/i.test(pdf.name || ''), pdf);
+  pruef('das PDF hat Seiten und Inhalt', pdf.seiten >= 1 && pdf.bytes > 2000, pdf);
+  pruef('der Dateiname kommt vom Bogen', /Testfigur/i.test(pdf.name), pdf.name);
+  sauber(w, 'PDF erzeugt');
+
+  /* ---- save, new, load again ---- */
+  klick(w, '#btnSave');
+  await schlaf(150);
+  const gespeichert = $$(w, '#savedCharSelect option').map(o => o.textContent);
+  pruef('der Bogen steht in der Liste',
+        gespeichert.some(n => n.includes('Testfigur Durchlauf')), gespeichert);
+  sauber(w, 'gespeichert');
+
+  klick(w, '#btnNew');
+  await schlaf(150);
+  pruef('„Neu" räumt den Bogen ab', !modell(w).info.name, modell(w).info.name);
+  pruef('und auch die gekaufte Ausrüstung',
+        (modell(w).customEquipment || []).length === 0, modell(w).customEquipment);
+
+  const opt = $$(w, '#savedCharSelect option').find(o => o.textContent.includes('Testfigur Durchlauf'));
+  if (pruef('der gespeicherte Bogen ist wählbar', !!opt, gespeichert)) {
+    tippe(w, '#savedCharSelect', opt.value);
+    klick(w, '#btnLoad');
+    await schlaf(250);
+    const m = modell(w);
+    pruef('geladen kommt derselbe Bogen zurück',
+          m.info.name === 'Testfigur Durchlauf' && m.info.species === wookiee,
+          m.info.name + ' / ' + m.info.species);
+    /* This is the one that has caught real data loss before: a sheet that
+       comes back without what was bought is worse than one that fails to
+       come back at all, because nobody notices until the game. */
+    pruef('auch die Ausrüstung ist noch da',
+          (m.customEquipment || []).length > 0, m.customEquipment);
+    pruef('auch die Waffe ist noch da',
+          (m.customRanged || []).concat(m.customMelee || []).length > 0,
+          { fern: m.customRanged, nah: m.customMelee });
+    pruef('auch die Fertigkeit ist noch da', Object.keys(m.skills || {}).length > 0, m.skills);
+  }
+  sauber(w, 'wieder geladen');
+
+  /* ---- the two dialogs from the gear menu ---- */
+  klick(w, '#btnHelp');
+  await schlaf(80);
+  pruef('die Hilfe geht auf',
+        $(w, '#helpModal') && !$(w, '#helpModal').classList.contains('hidden'));
+  pruef('die Hilfe hat Abschnitte', $$(w, '#helpBox h3').length >= 5, $$(w, '#helpBox h3').length);
+  klick(w, '#helpBox [data-help="close"]');
+
+  klick(w, '#btnReport');
+  await schlaf(80);
+  pruef('der Fehler-Melder geht auf',
+        $(w, '#reportModal') && !$(w, '#reportModal').classList.contains('hidden'));
+  pruef('der Sprachhinweis steht drin',
+        /Deutsch|German/.test(txt(w, '#reportBox')));
+  klick(w, '#reportBox [data-report="close"]');
+  sauber(w, 'Dialoge bedient');
+
+  /* ---- and the language, which redraws everything ---- */
+  const vorherSprache = gucke(w, 'LANG');
+  gucke(w, "setLang('" + (vorherSprache === 'de' ? 'en' : 'de') + "')");
+  await schlaf(200);
+  pruef('die Sprache schaltet um', gucke(w, 'LANG') !== vorherSprache, gucke(w, 'LANG'));
+  pruef('der Bogen steht danach noch', modell(w).info.name === 'Testfigur Durchlauf');
+  gucke(w, "setLang('" + vorherSprache + "')");
+  await schlaf(150);
+  sauber(w, 'Sprache umgeschaltet');
+}
+
+async function laufDroide() {
+  block('Droidenbogen (droid.html)');
+  const w = await seite('../droid.html');
+  sauber(w, 'Seite geladen');
+  pruef('die Anwendung ist da', modell(w) && typeof modell(w) === 'object', modell(w));
+
+  reiter(w, 'model');
+  tippe(w, '[data-bind="info.name"]', 'R2-Durchlauf');
+  pruef('der Name steht im Modell', modell(w).info.name === 'R2-Durchlauf', modell(w).info.name);
+
+  /* A template out of the compendia fills everything at once - but only
+     when the button is pressed. Picking one in the dropdown on its own
+     changes nothing, which is the point: it asks before overwriting. */
+  const tpl = $(w, '#tplSelect');
+  if (pruef('die Modell-Liste ist gefüllt (393 Droiden)',
+            tpl && tpl.options.length > 300, tpl ? tpl.options.length : 0)) {
+    tippe(w, tpl, tpl.options[5].value);
+    const vorher = JSON.stringify(modell(w).info);
+    pruef('die Auswahl allein überschreibt nichts',
+          JSON.stringify(modell(w).info) === vorher);
+    klick(w, '[data-act="applyTemplate"]');
+    await schlaf(300);
+    pruef('übernommen füllt sie den Bogen',
+          !!(modell(w).info.name && modell(w).info.degree), modell(w).info);
+    sauber(w, 'Vorlage übernommen');
+  }
+
+  reiter(w, 'attrs');
+  const af = $$(w, '#tab-attrs [data-act="attr"][data-dir="1"]');
+  if (pruef('sechs Attribute mit Steppern', af.length >= 6, af.length)) {
+    klick(w, af[0]);
+    sauber(w, 'Attribut gesetzt');
+  }
+
+  reiter(w, 'mods');
+  await schlaf(120);
+  pruef('der Modifikationsbereich ist gefüllt',
+        $(w, '#tab-mods').innerHTML.length > 1000);
+  sauber(w, 'Modifikationen geöffnet');
+
+  reiter(w, 'gear');
+  await schlaf(120);
+  pruef('das Credits-Konto steht im Ausrüstungsbereich',
+        /credit/i.test($(w, '#tab-gear').textContent));
+  sauber(w, 'Ausrüstung geöffnet');
+
+  reiter(w, 'sheet');
+  await schlaf(200);
+  const bogen = $(w, '#tab-sheet');
+  pruef('der Droidenbogen ist gefüllt', bogen && bogen.innerHTML.length > 1500,
+        bogen ? bogen.innerHTML.length : 0);
+  /* The template sets the designation - deliberately, unlike the ship
+     page, where the name is the ship's own and the model sits in its own
+     field. So what has to be on the sheet here is the model taken over. */
+  pruef('die Bezeichnung steht auf dem Bogen',
+        bogen.textContent.includes(modell(w).info.name), modell(w).info.name);
+  /* Written from the page's own dictionary, so it says "Widerstand phys."
+     in German and "Resist phys." in English - both are looked for. */
+  pruef('der Schadenswiderstand steht drauf',
+        /widerstand|resist/i.test(bogen.textContent));
+  sauber(w, 'Bogen gezeichnet');
+
+  klick(w, '#btnPdf');
+  await warte(() => w.__pdfs.length > 0, 'PDF-Export', 25000);
+  pruef('der PDF-Export erzeugt eine Datei', /\.pdf$/i.test(w.__pdfs[0].name || ''), w.__pdfs[0]);
+  pruef('das PDF hat Seiten und Inhalt',
+        w.__pdfs[0].seiten >= 1 && w.__pdfs[0].bytes > 2000, w.__pdfs[0]);
+  sauber(w, 'PDF erzeugt');
+}
+
+async function laufSchiff() {
+  block('Schiffsbogen (ship.html)');
+  const w = await seite('../ship.html');
+  sauber(w, 'Seite geladen');
+
+  reiter(w, 'ship');
+  tippe(w, '[data-bind="info.name"]', 'Durchlauf-Frachter');
+  pruef('der Name steht im Modell', modell(w).info.name === 'Durchlauf-Frachter', modell(w).info.name);
+
+  const tpl = $(w, '#tplSelect');
+  if (pruef('die Schiffsliste ist gefüllt (1.300 Vorlagen)',
+            tpl && tpl.options.length > 1000, tpl ? tpl.options.length : 0)) {
+    const treffer = Array.from(tpl.options).find(o => /YT-1300/i.test(o.textContent))
+                 || tpl.options[20];
+    tippe(w, tpl, treffer.value);
+    /* Picking is not applying - the button is, and it asks first. */
+    klick(w, '[data-act="applyTemplate"]');
+    await schlaf(350);
+    const i = modell(w).info;
+    pruef('die Übernahme fragt vorher nach', w.__gefragt.length > 0, w.__gefragt);
+    pruef('die Vorlage füllt die Grundwerte', !!(i.hull && i.scale && i.craft),
+          { hülle: i.hull, schilde: i.shields, klasse: i.scale, typ: i.craft });
+    pruef('der eingegebene Name bleibt stehen', i.name === 'Durchlauf-Frachter', i.name);
+    sauber(w, 'Vorlage übernommen');
+  }
+
+  reiter(w, 'weapons');
+  await schlaf(200);
+  const kat = $(w, '#wpnSelect');
+  if (pruef('der Waffenkatalog ist gefüllt', kat && kat.options.length > 50,
+            kat ? kat.options.length : 0)) {
+    const vorher = (modell(w).weapons || []).length;
+    klick(w, '[data-act="addFromCatalog"]');
+    await schlaf(250);
+    const waffen = modell(w).weapons || [];
+    if (pruef('die Waffe ist eingebaut', waffen.length > vorher, waffen.length + ' Waffen')) {
+      const neu = waffen[waffen.length - 1];
+      pruef('sie bringt ihre Werte mit',
+            !!(neu.name && neu.damage != null && neu.spaceRange), neu);
+      /* The rule that lets every catalogue entry check itself: in
+         starfighter scale the atmosphere range is the space range in
+         hundreds of metres. */
+      const raum = String(neu.spaceRange || '').split('/')[0].split('-').pop();
+      if (neu.scale === 'Starfighter' && /^\d+$/.test(raum)) {
+        const luft = String(neu.atmRange || '').split('/')[0].split('-').pop();
+        pruef('Atmosphäre = Raum × 100 m', Number(luft) === Number(raum) * 100,
+              neu.spaceRange + '  ->  ' + neu.atmRange);
+      }
+    }
+  }
+  sauber(w, 'Waffe übernommen');
+
+  reiter(w, 'mods');
+  await schlaf(150);
+  pruef('die Umbau-Werkstatt ist gefüllt', $(w, '#tab-mods').innerHTML.length > 1000);
+  sauber(w, 'Umbauten geöffnet');
+
+  reiter(w, 'sheet');
+  await schlaf(250);
+  const bogen = $(w, '#tab-sheet');
+  pruef('der Schiffsbogen ist gefüllt', bogen && bogen.innerHTML.length > 1500,
+        bogen ? bogen.innerHTML.length : 0);
+  pruef('der Name steht auf dem Bogen', bogen.textContent.includes('Durchlauf-Frachter'));
+  sauber(w, 'Bogen gezeichnet');
+
+  klick(w, '#btnPdf');
+  await warte(() => w.__pdfs.length > 0, 'PDF-Export', 25000);
+  pruef('der PDF-Export erzeugt eine Datei', /\.pdf$/i.test(w.__pdfs[0].name || ''), w.__pdfs[0]);
+  pruef('das PDF hat Seiten und Inhalt',
+        w.__pdfs[0].seiten >= 1 && w.__pdfs[0].bytes > 2000, w.__pdfs[0]);
+  sauber(w, 'PDF erzeugt');
+}
+
+async function laufNsc() {
+  block('NSC-Gruppen (npc.html)');
+  const w = await seite('../npc.html');
+  sauber(w, 'Seite geladen');
+
+  reiter(w, 'setup');
+  await schlaf(150);
+  pruef('der Einrichtungsbereich ist gefüllt', $(w, '#tab-setup').innerHTML.length > 800);
+
+  /* the one button that does the actual work */
+  const knopf = $(w, '#tab-setup [data-act="generate"]');
+  if (pruef('es gibt einen Knopf zum Erzeugen', !!knopf,
+            $$(w, '#tab-setup button').map(b => b.textContent.trim()).join(' | '))) {
+    klick(w, knopf);
+    await warte(() => (modell(w).npcs || []).length > 0, 'Gruppe erzeugen', 8000);
+    const leute = modell(w).npcs || [];
+    pruef('eine ganze Gruppe entsteht', leute.length >= 4, leute.length + ' Figuren');
+    pruef('jede Figur hat Werte und eine Rolle',
+          leute.every(n => n && n.attrs && Object.keys(n.attrs).length >= 6), leute[0]);
+    sauber(w, 'Gruppe erzeugt');
+
+    reiter(w, 'sheet');
+    await schlaf(350);
+    const bogen = $(w, '#tab-sheet');
+    pruef('die Karten sind gezeichnet',
+          bogen && bogen.querySelectorAll('.npc-card, .card').length >= leute.length,
+          bogen ? bogen.querySelectorAll('.npc-card, .card').length + ' Karten für '
+                  + leute.length + ' Figuren' : 'kein Bogen');
+    sauber(w, 'Karten gezeichnet');
+  }
+}
+
+async function laufWuerfel() {
+  block('Würfeln (dice.html)');
+  const w = await seite('../dice.html');
+  sauber(w, 'Seite geladen');
+
+  tippe(w, '#freeDice', '4');
+  tippe(w, '#freePips', '2');
+  tippe(w, '#modPips', '0');
+  klick(w, '#btnRoll');
+  await schlaf(200);
+  const erg = txt(w, '#result');
+  pruef('ein Wurf liefert ein Ergebnis', erg.length > 0, erg.slice(0, 120));
+  pruef('im Ergebnis steht eine Zahl', /\d/.test(erg), erg.slice(0, 120));
+  sauber(w, 'gewürfelt');
+
+  /* the wild die is the rule that makes this system this system */
+  haken(w, '#wildToggle', false);
+  klick(w, '#btnRoll');
+  await schlaf(200);
+  pruef('auch ohne Wild Die kommt ein Ergebnis', txt(w, '#result').length > 0);
+  haken(w, '#wildToggle', true);
+  sauber(w, 'Wild Die umgeschaltet');
+
+  /* the pools come from the sheet saved in the character journey */
+  klick(w, '#btnReload');
+  await schlaf(250);
+  pruef('die Pools des gespeicherten Bogens werden angeboten',
+        $(w, '#charPools') !== null);
+  sauber(w, 'Pools geladen');
+}
+
+async function laufTisch() {
+  block('Spieltisch (vtt.html)');
+  const w = await seite('../vtt.html');
+  sauber(w, 'Seite geladen');
+  pruef('die Übersetzung liegt auf window', typeof w.t === 'function' && typeof w.T === 'object');
+  pruef('ohne Anmeldung führt die Seite zum ☁-Knopf',
+        !!$(w, '#btnOnline') || /anmeld|sign in/i.test(w.document.body.textContent));
+
+  klick(w, '#btnHelp');
+  await schlaf(100);
+  pruef('die Hilfe geht auf', !$(w, '#helpModal').classList.contains('hidden'));
+  pruef('die Hilfe hat Abschnitte', $$(w, '#helpBox h3').length >= 5, $$(w, '#helpBox h3').length);
+  klick(w, '#helpBox [data-help="close"]');
+
+  klick(w, '#btnReport');
+  await schlaf(100);
+  pruef('der Fehler-Melder geht auf', !$(w, '#reportModal').classList.contains('hidden'));
+  klick(w, '#reportBox [data-report="close"]');
+  sauber(w, 'Dialoge bedient');
+}
+
+/* ==================== the run ==================== */
+
+const LAEUFE = [laufCharakter, laufDroide, laufSchiff, laufNsc, laufWuerfel, laufTisch];
+
+/* ---- your own sheets are none of this test's business ----
+   The frames share an origin with the app, so they share its local
+   storage: the sheets you saved, the language, the sign-in. The test both
+   reads that and writes to it - it saves a character of its own - so it
+   has to be put back exactly as it was, and the run has to start from a
+   clean slate or a leftover from last time answers the checks instead of
+   the app.
+
+   The copy also goes into sessionStorage, so that a run cut short by a
+   closed tab or a reload can still be undone the next time this page is
+   opened. */
+const SICHERUNG = 'swd6_smoke_sicherung';
+
+function eigenesEinsammeln() {
+  const o = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.indexOf('swd6') === 0) o[k] = localStorage.getItem(k);
+  }
+  return o;
+}
+function eigenesZuruecklegen(o) {
+  Object.keys(eigenesEinsammeln()).forEach(k => localStorage.removeItem(k));
+  Object.keys(o).forEach(k => localStorage.setItem(k, o[k]));
+}
+
+/* Left over from a run that never finished? Put it back before doing
+   anything else. */
+(function rettung() {
+  let alt = null;
+  try { alt = JSON.parse(sessionStorage.getItem(SICHERUNG)); } catch (e) {}
+  if (!alt) return;
+  eigenesZuruecklegen(alt);
+  sessionStorage.removeItem(SICHERUNG);
+  document.getElementById('hinweis').innerHTML =
+    '<div class="warn">Ein abgebrochener Durchlauf lag noch im Weg – deine ' +
+    'gespeicherten Bögen wurden wiederhergestellt.</div>';
+})();
+
+async function alles() {
+  const knopf = document.getElementById('start');
+  knopf.disabled = true;
+  knopf.textContent = 'läuft …';
+  document.getElementById('ausgabe').innerHTML = '';
+  gesamtOk = gesamtFehl = 0;
+  const begonnen = Date.now();
+
+  const meins = eigenesEinsammeln();
+  sessionStorage.setItem(SICHERUNG, JSON.stringify(meins));
+  try {
+    Object.keys(meins).forEach(k => localStorage.removeItem(k));
+    for (const fn of LAEUFE) {
+      try {
+        await fn();
+      } catch (e) {
+        /* A journey that falls over is one finding, not a lost run - the
+           ones after it still have something to say. */
+        pruef('Durchlauf abgebrochen', false, (e && e.message) || String(e));
+      }
+    }
+  } finally {
+    document.getElementById('rahmen').innerHTML = '';
+    eigenesZuruecklegen(meins);
+    sessionStorage.removeItem(SICHERUNG);
+    block('Aufräumen');
+    pruef('deine gespeicherten Bögen sind unverändert zurück',
+          JSON.stringify(eigenesEinsammeln()) === JSON.stringify(meins),
+          Object.keys(meins).length + ' Einträge gesichert');
+  }
+
+  knopf.disabled = false;
+  knopf.textContent = 'Alle Durchläufe starten';
+  const s = ((Date.now() - begonnen) / 1000).toFixed(1);
+  document.getElementById('summe').textContent += '  ·  ' + s + ' s';
+}
+
+document.getElementById('start').addEventListener('click', alles);
+document.getElementById('nurFehler').addEventListener('click', function () {
+  const an = document.body.classList.toggle('nur-fehler');
+  this.textContent = an ? 'Alles zeigen' : 'Nur Fehler zeigen';
+  document.querySelectorAll('.zeile.ok').forEach(z => { z.style.display = an ? 'none' : ''; });
+});
+
+if (location.protocol === 'file:') {
+  document.getElementById('hinweis').innerHTML =
+    '<div class="warn">Diese Seite muss über einen Server laufen – als <code>file://</code> ' +
+    'geöffnet darf sie nicht in die Rahmen hineinsehen. Also z. B. ' +
+    '<code>http://localhost:8735/tools/smoke.html</code>.</div>';
+  document.getElementById('start').disabled = true;
+}
+</script>
+</body>
+</html>

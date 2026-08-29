@@ -97,6 +97,13 @@ function rpUrl() {
   return u;
 }
 
+/* Inside tools/smoke.html the pages are put through their paces on purpose,
+   and the faults it provokes belong in its report, not in the list of things
+   real people ran into. So nothing leaves a frame the test named - but the
+   button and the dialog stay exactly as they are, because the test has to be
+   able to work them like anything else on the page. */
+const RP_TESTRAHMEN = (window.name === 'swd6-smoke');
+
 /* APP_VERSION is a top-level const in credits.js. Reading a const that has
    not been reached yet throws rather than being undefined, hence the catch. */
 function rpVersion() {
@@ -190,6 +197,7 @@ function rpSheet() {
    64 KB, and a sheet sent along is bigger than that on its own - the send
    would fail for exactly the reports worth the most. */
 async function rpSend(body, ueberleben) {
+  if (RP_TESTRAHMEN) return false;
   const url = rpUrl();
   if (!url) return false;
   const headers = { 'Content-Type': 'application/json' };
@@ -221,7 +229,6 @@ function rpNoise(msg, src, stack) {
    this app the file name alone says where to look. */
 function rpAuto(msg, datei, zeile, spalte, stack) {
   try {
-    if (!rpAutoOn() || rpSent >= RP_MAX_AUTO) return;
     msg = String(msg || '').slice(0, 500);
     datei = String(datei || '');
     stack = String(stack || '').slice(0, 3000);
@@ -229,6 +236,17 @@ function rpAuto(msg, datei, zeile, spalte, stack) {
     const src = datei
       ? (datei.split('/').pop() + (zeile ? ':' + zeile + (spalte ? ':' + spalte : '') : '')).slice(0, 180)
       : '';
+
+    /* Noted on the page itself before anything else is decided. Switching
+       automatic reporting off stops it being SENT, not being seen - and
+       tools/smoke.html reads this list to tell a journey that went through
+       from one that quietly threw halfway. Capped, so a loop cannot eat
+       the tab's memory. */
+    if (!window.swd6Errors) window.swd6Errors = [];
+    if (window.swd6Errors.length < 50)
+      window.swd6Errors.push({ msg, src, stack, at: Date.now() });
+
+    if (!rpAutoOn() || rpSent >= RP_MAX_AUTO) return;
     const finger = msg + '|' + src;
     if (rpSeen[finger]) return;              // the same fault twice is one fault
     rpSeen[finger] = true;

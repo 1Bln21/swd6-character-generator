@@ -232,6 +232,40 @@ if you would rather not; the setting stays in your browser. What
 comes in is visible to administrators only, in the ☁ menu under
 "🐞 Bug reports".
 
+SELBSTTEST (für Betreiber und Entwickler)
+-----------------------------------------
+Im Ordner "tools" liegt "smoke.html" – ein Durchlauf durch die
+Oberfläche. Er lädt jeden Generator in einen Rahmen und spielt eine
+echte Sitzung durch: Charakter benennen, Spezies wählen, Würfel
+verteilen, Fertigkeit steigern, Ausrüstung und Waffe kaufen, Bogen
+ansehen, PDF erzeugen, speichern, neu anfangen, wieder laden – und
+prüft nach jedem Schritt, ob etwas gebrochen ist. 115 Prüfungen in
+rund fünfzehn Sekunden.
+
+Aufrufen über denselben Server, von dem die App kommt, z. B.:
+
+  php -S 127.0.0.1:8735 -t .
+  http://127.0.0.1:8735/tools/smoke.html
+
+Als file:// geöffnet darf die Seite nicht in die Rahmen sehen und
+sagt das auch.
+
+Zwei Dinge, auf die dabei geachtet ist: Der Lauf sichert alles, was
+die App im Browser gespeichert hat, arbeitet auf leerem Stand und
+legt deine Bögen danach unverändert zurück (ein abgebrochener Lauf
+wird beim nächsten Öffnen der Seite rückgängig gemacht). Und es
+verlässt keine Datei den Browser – das PDF wird vollständig gebaut,
+nur der letzte Schritt wird notiert statt ausgeführt. An den Server
+gemeldet wird ebenfalls nichts.
+
+The "tools" folder holds "smoke.html", a walk through the interface.
+It loads each generator into a frame and plays a real session, asking
+after every step whether anything broke - 115 checks in about fifteen
+seconds. Open it from the same server the app runs on (as file:// it
+cannot look into the frames and says so). It copies whatever the app
+has stored, runs on an empty slate and puts your sheets back
+afterwards, and no file ever leaves the browser.
+
 ÜBER & CREDITS
 --------------
 Im Zahnrad-Menü (⚙) findet sich unter "Info" der Eintrag
