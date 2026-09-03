@@ -202,10 +202,19 @@ function emptyDoc() {
   };
 }
 let C = emptyDoc();
+/* Published so a tool outside this page's own scope can see the document
+   being edited - tools/smoke.html reads it to check each step of a journey.
+   A top-level `let` is not a property of window, and reading it from the
+   outside with eval() is rightly refused by the Content Security Policy.
+   Nothing is exposed here that a script of the same origin could not
+   already reach; another site cannot get at window at all. */
+window.swd6Doc = function () { return C; };
+
 function migrate(obj) {
   const base = emptyDoc();
   const m = Object.assign(base, obj);
   m.info = Object.assign(emptyDoc().info, obj.info || {});
+  m.info.portrait = cleanPortrait(m.info.portrait);
   m.points = Object.assign(emptyDoc().points, obj.points || {});
   m.overrides = Object.assign(emptyDoc().overrides, obj.overrides || {});
   m.credits = Object.assign(emptyDoc().credits, obj.credits || {});
@@ -1177,7 +1186,7 @@ function renderSheet() {
       ${sheetField(t('dr_quote'), i.quote ? '„' + i.quote + '“' : '', 8)}
     </div>
     <div class="sp-portrait">
-      ${i.portrait ? `<img src="${i.portrait}" alt="">` : `<span>${t('dr_portrait')}</span>`}
+      ${i.portrait ? `<img src="${esc(i.portrait)}" alt="">` : `<span>${t('dr_portrait')}</span>`}
     </div>
     </div>
     <div class="sp-box"><h4>${t('tab_attrs')} &amp; ${t('tab_skills')}</h4>

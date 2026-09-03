@@ -38,4 +38,10 @@ return [
   // A beta is usually not meant to be open to everyone.
   // 'register_mode'  => 'approval',
   // 'register_code'  => 'testers-only',
+
+  // While setting up, this puts the details of an unexpected fault back
+  // into the answer instead of only into the server's error log. Handy for
+  // half an hour, a reconnaissance report if left on: the message of a
+  // database error names tables, query fragments and paths.
+  // 'debug' => true,
 ];

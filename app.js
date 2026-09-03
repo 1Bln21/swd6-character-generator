@@ -992,7 +992,7 @@ function viewInfo() {
       <div style="display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap">
         <div class="portrait-drop" data-portrait-drop="1" title="${esc(t('portrait_import'))}">
           ${C.info.portrait
-            ? `<img src="${C.info.portrait}" alt="Portrait">`
+            ? `<img src="${esc(C.info.portrait)}" alt="Portrait">`
             : `<div class="portrait-empty">${t('portrait_placeholder')}</div>`}
         </div>
         <div style="flex:1; min-width:180px">
@@ -1912,7 +1912,7 @@ function renderSheet() {
     </div>
     <div class="sp-portrait">
       ${C.info.portrait
-        ? `<img src="${C.info.portrait}" alt="">`
+        ? `<img src="${esc(C.info.portrait)}" alt="">`
         : `<span>${t('portrait')}</span>`}
     </div>
     </div>
@@ -2127,10 +2127,34 @@ function importChar(file) {
   };
   rd.readAsText(file);
 }
+/* A portrait travels inside the sheet, and a sheet can come from somebody
+   else - shared in a round, or a file passed along. So only an embedded
+   picture is let through; anything else is dropped here, at the door.
+
+   Without this a crafted value could leave the src attribute it is written
+   into and run as script in whoever opens the sheet - and on this site that
+   means the sign-in token in their browser. Checked here rather than only
+   where it is drawn, because the same field also reaches the PDF export and
+   the table-top token. */
+function cleanPortrait(v) {
+  const s = String(v == null ? '' : v).trim();
+  if (!s) return '';
+  return /^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/=\s]+$/i.test(s) ? s : '';
+}
+
+/* Published so a tool outside this page's own scope can see the document
+   being edited - tools/smoke.html reads it to check each step of a journey.
+   A top-level `let` is not a property of window, and reading it from the
+   outside with eval() is rightly refused by the Content Security Policy.
+   Nothing is exposed here that a script of the same origin could not
+   already reach; another site cannot get at window at all. */
+window.swd6Doc = function () { return C; };
+
 function migrate(obj) {
   const base = emptyChar();
   const merged = Object.assign(base, obj);
   merged.info = Object.assign(emptyChar().info, obj.info || {});
+  merged.info.portrait = cleanPortrait(merged.info.portrait);
   merged.points = Object.assign(emptyChar().points, obj.points || {});
   merged.credits = Object.assign(emptyChar().credits, obj.credits || {});
   merged.overrides = Object.assign(emptyChar().overrides, obj.overrides || {});

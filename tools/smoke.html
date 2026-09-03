@@ -232,8 +232,14 @@ function sauber(w, was) {
    script. A top-level let is NOT a property of window, so modell(w) is
    undefined however loaded the page is - it has to be read from inside
    the frame's own scope. */
-const modell = w => w.eval('typeof C === "undefined" ? null : C');
-const gucke = (w, ausdruck) => { try { return w.eval(ausdruck); } catch (e) { return undefined; } };
+const modell = w => {
+  try { return typeof w.swd6Doc === 'function' ? w.swd6Doc() : null; }
+  catch (e) { return null; }
+};
+/* Reading a value out of the frame's own scope. eval() would be the short
+   way and is exactly what the Content Security Policy forbids - rightly, so
+   the pages hand out what a tool may see instead. */
+const gucke = (w, name) => { try { return w[name]; } catch (e) { return undefined; } };
 
 const $ = (w, sel) => w.document.querySelector(sel);
 const $$ = (w, sel) => Array.from(w.document.querySelectorAll(sel));
@@ -276,10 +282,12 @@ async function laufCharakter() {
   /* The guard that keeps this run out of the real report list. If it ever
      stops holding, every fault provoked below lands in the list of things
      actual visitors ran into - so it is checked first, not assumed. */
-  pruef('der Melder erkennt den Testrahmen', gucke(w, 'RP_TESTRAHMEN') === true,
-        'window.name = ' + w.name);
-  const probe = await gucke(w, 'rpSend({kind:"js",msg:"Testrahmen-Probe"})');
-  pruef('und schickt darin nichts weg', probe === false, probe);
+  /* Asked as behaviour rather than by reading the flag: what matters is
+     that nothing leaves, not which variable says so. */
+  let probe;
+  try { probe = await w.rpSend({ kind: 'js', msg: 'Testrahmen-Probe' }); }
+  catch (e) { probe = 'Fehler: ' + e.message; }
+  pruef('der Melder schickt aus dem Testrahmen nichts weg', probe === false, probe);
 
   /* ---- name and species ---- */
   reiter(w, 'info');
@@ -427,14 +435,20 @@ async function laufCharakter() {
   klick(w, '#reportBox [data-report="close"]');
   sauber(w, 'Dialoge bedient');
 
-  /* ---- and the language, which redraws everything ---- */
-  const vorherSprache = gucke(w, 'LANG');
-  gucke(w, "setLang('" + (vorherSprache === 'de' ? 'en' : 'de') + "')");
+  /* ---- and the language, which redraws everything ----
+     LANG is a top-level `let` and so not reachable from here; t() is a
+     function declaration and is. Asking it for a word tells us which
+     language is in force, which is the thing being tested anyway. */
+  const vorher = w.localStorage.getItem('swd6_lang') || 'en';
+  const wortVorher = w.t('btn_save');
+  w.setLang(vorher === 'de' ? 'en' : 'de');
   await schlaf(200);
-  pruef('die Sprache schaltet um', gucke(w, 'LANG') !== vorherSprache, gucke(w, 'LANG'));
+  pruef('die Sprache schaltet um', w.t('btn_save') !== wortVorher,
+        wortVorher + ' -> ' + w.t('btn_save'));
   pruef('der Bogen steht danach noch', modell(w).info.name === 'Testfigur Durchlauf');
-  gucke(w, "setLang('" + vorherSprache + "')");
+  w.setLang(vorher);
   await schlaf(150);
+  pruef('und wieder zurück', w.t('btn_save') === wortVorher);
   sauber(w, 'Sprache umgeschaltet');
 }
 

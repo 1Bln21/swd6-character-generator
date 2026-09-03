@@ -15,11 +15,31 @@
   # Security headers. They guard against clickjacking (the sign-in page
   # embedded in someone else's iframe), MIME sniffing, and leaking the
   # originating URL to other sites.
-  # No CSP header: the app deliberately uses inline scripts and styles and
-  # data URIs, and a strict CSP would cripple it.
   Header set X-Frame-Options "SAMEORIGIN"
   Header set X-Content-Type-Options "nosniff"
   Header set Referrer-Policy "no-referrer"
+
+  # Content Security Policy. The app has NO inline script and no on* attribute
+  # anywhere, and uses neither eval() nor new Function(), so scripts get the
+  # strict treatment: only files from this site, plus YouTube for the table's
+  # background music. Only the style attributes scattered through the
+  # generated markup need 'unsafe-inline', and a style attribute cannot run
+  # code. object-src 'none' and base-uri 'self' shut two doors that survive
+  # even when something does slip through: no plugins, and no injected <base>
+  # tag that would silently redirect every relative script URL.
+  #
+  # The same policy is repeated as a <meta http-equiv> in the pages
+  # themselves, so it still holds on hosting without Apache. frame-ancestors
+  # only works as a header and therefore lives here alone.
+  Header set Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' https://www.youtube.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src https://www.youtube.com https://www.youtube-nocookie.com"
+
+  # Once a browser has seen this, it refuses to talk to the site over plain
+  # HTTP for a year - which closes the gap between typing the address and the
+  # redirect to HTTPS, where a token can be read off the wire. Only switch it
+  # on once HTTPS actually works; while it stands, the site is unreachable
+  # without a valid certificate. Two years and "preload" would be the next
+  # step, but that is hard to undo, so it stays out.
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" "expr=%{HTTPS} == 'on'"
   # Microphone and camera are needed by the table top itself (voice and
   # video chat); embedded third parties must not get them - hence "self"
   # rather than the empty list. An empty list locks out our own page too,

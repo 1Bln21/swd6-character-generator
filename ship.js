@@ -331,10 +331,19 @@ function emptyDoc() {
   };
 }
 let C = emptyDoc();
+/* Published so a tool outside this page's own scope can see the document
+   being edited - tools/smoke.html reads it to check each step of a journey.
+   A top-level `let` is not a property of window, and reading it from the
+   outside with eval() is rightly refused by the Content Security Policy.
+   Nothing is exposed here that a script of the same origin could not
+   already reach; another site cannot get at window at all. */
+window.swd6Doc = function () { return C; };
+
 function migrate(obj) {
   const base = emptyDoc();
   const m = Object.assign(base, obj);
   m.info = Object.assign(emptyDoc().info, obj.info || {});
+  m.info.portrait = cleanPortrait(m.info.portrait);
   m.sensors = Object.assign(emptyDoc().sensors, obj.sensors || {});
   m.mods = Object.assign(emptyDoc().mods, obj.mods || {});
   if (!Array.isArray(m.weapons)) m.weapons = [];
@@ -1406,7 +1415,7 @@ function renderSheet() {
       ${sheetField(t('sh_mishap_total'), String(der.mishap), 3)}
     </div>
     <div class="sp-portrait">
-      ${i.portrait ? `<img src="${i.portrait}" alt="">` : `<span>${t('sh_portrait')}</span>`}
+      ${i.portrait ? `<img src="${esc(i.portrait)}" alt="">` : `<span>${t('sh_portrait')}</span>`}
     </div>
     </div>
     <div class="sp-box"><h4>${t('sh_stats')} – ${t('sh_effective')}</h4>

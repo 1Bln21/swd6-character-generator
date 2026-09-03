@@ -3,6 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Content Security Policy. Also set as a header in .htaccess; repeated here
+     so it holds on hosting without Apache too (nginx, static space), where
+     the .htaccess does nothing. The app has no inline script and no on*
+     attribute anywhere, so scripts need no "unsafe-inline" - only the style
+     attributes scattered through the generated markup do. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' https://www.youtube.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src https://www.youtube.com https://www.youtube-nocookie.com">
 <title>Star Wars D6 – Character Generator (2nd Edition)</title>
 <link rel="stylesheet" href="style.css">
 <script src="theme.js"></script>

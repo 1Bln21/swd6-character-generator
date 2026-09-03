@@ -467,6 +467,14 @@ function emptyDoc() {
   };
 }
 let C = emptyDoc();
+/* Published so a tool outside this page's own scope can see the document
+   being edited - tools/smoke.html reads it to check each step of a journey.
+   A top-level `let` is not a property of window, and reading it from the
+   outside with eval() is rightly refused by the Content Security Policy.
+   Nothing is exposed here that a script of the same origin could not
+   already reach; another site cannot get at window at all. */
+window.swd6Doc = function () { return C; };
+
 function migrate(obj) {
   const d = emptyDoc();
   if (obj && typeof obj === 'object') {

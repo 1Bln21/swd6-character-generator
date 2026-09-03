@@ -24,6 +24,16 @@ $CONFIG = [
     'port'   => '',       // usually leave empty
   ],
 
+  /* Show the details of an unexpected error to whoever triggered it.
+     Off by default, and it belongs off on a public site: the message of a
+     database exception carries table names, fragments of the query and the
+     paths on the server - useful while setting up, a free reconnaissance
+     report afterwards. Deliberate refusals ("Not a member of this round")
+     are unaffected and always say what they mean; this only covers faults
+     nobody planned for. Set it in api/config.local.php while installing,
+     or use api/check.php, which is built for exactly that. */
+  'debug' => false,
+
   // Default registration mode; the administrator can change it in the
   // app later ('open' | 'approval' | 'closed').
   'register_mode' => 'open',
@@ -139,13 +149,25 @@ function out_error($msg, $code = 500) {
   }
   echo json_encode(['error' => $msg], JSON_UNESCAPED_UNICODE);
 }
+/* An unexpected fault says only that it happened, plus a short mark that
+   also goes into the server's error log - so an administrator can find the
+   one line that belongs to a report ("Server error [7f3a1c02]") without the
+   detail being handed to whoever asked. With 'debug' on, everything is said
+   out loud again, which is what the setup phase needs. */
+function out_fault($vorspann, $detail) {
+  global $CONFIG;
+  if (!empty($CONFIG['debug'])) { out_error($vorspann . ': ' . $detail); return; }
+  $marke = substr(bin2hex(random_bytes(4)), 0, 8);
+  error_log('swd6 [' . $marke . '] ' . $vorspann . ': ' . $detail);
+  out_error($vorspann . ' [' . $marke . ']');
+}
 set_exception_handler(function ($e) {
-  out_error('Server error: ' . $e->getMessage());
+  out_fault('Server error', $e->getMessage());
 });
 register_shutdown_function(function () {
   $e = error_get_last();
   if ($e && in_array($e['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR], true)) {
-    out_error('PHP error: ' . $e['message'] . ' (' . basename($e['file']) . ':' . $e['line'] . ')');
+    out_fault('PHP error', $e['message'] . ' (' . basename($e['file']) . ':' . $e['line'] . ')');
   }
 });
 
@@ -233,7 +255,15 @@ try {
     $db->exec('PRAGMA foreign_keys = ON');
   }
 } catch (Exception $e) {
-  $msg = 'Database connection failed: ' . $e->getMessage();
+  /* The driver's own words name host, database and user - an invitation to
+     go looking. They stay in the server log unless 'debug' is on; the advice
+     that follows helps with setting up and gives nothing away. */
+  if (!empty($CONFIG['debug'])) {
+    $msg = 'Database connection failed: ' . $e->getMessage();
+  } else {
+    error_log('swd6 database connection failed: ' . $e->getMessage());
+    $msg = 'Database connection failed.';
+  }
   if (!$useServer) {
     /* The commonest case: the web server may not write in the data folder.
        SQLite needs write permission on the FOLDER, not just on the file. */
@@ -688,8 +718,9 @@ $required = ['id', 'username', 'pass_hash', 'totp_secret', 'totp_pending', 'totp
              'is_admin', 'recovery_hash', 'reset_hash', 'reset_expires', 'created'];
 $missing = array_values(array_diff($required, table_columns('users')));
 if ($missing) {
+  if ($alterError) error_log('swd6 could not add columns automatically: ' . $alterError);
   fail('Database schema incomplete – the table "users" is missing: ' . implode(', ', $missing)
-     . ($alterError ? ' | Could not add it automatically: ' . $alterError : '')
+     . (($alterError && !empty($CONFIG['debug'])) ? ' | Could not add it automatically: ' . $alterError : '')
      . ' | Open api/check.php in your browser for a detailed report.', 500);
 }
 

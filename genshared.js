@@ -143,6 +143,18 @@ function esc(s) {
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
+/* A portrait travels inside the sheet, and a sheet can come from somebody
+   else - shared in a round, or a file passed along. So only an embedded
+   picture is let through; anything else is dropped at the door.
+
+   Without this a crafted value could leave the src attribute it is written
+   into and run as script in whoever opens the sheet - and on this site that
+   means the sign-in token in their browser. */
+function cleanPortrait(v) {
+  const s = String(v == null ? '' : v).trim();
+  if (!s) return '';
+  return /^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+/=\s]+$/i.test(s) ? s : '';
+}
 function fmtD(p) {
   if (p == null || isNaN(p)) return '—';
   const neg = p < 0; p = Math.abs(Math.round(p));
@@ -244,7 +256,7 @@ function portraitCardHtml(title) {
       <div style="display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap">
         <div class="portrait-drop" data-portrait-drop="1" title="${esc(t('portrait_import'))}">
           ${C.info.portrait
-            ? `<img src="${C.info.portrait}" alt="Portrait">`
+            ? `<img src="${esc(C.info.portrait)}" alt="Portrait">`
             : `<div class="portrait-empty">${t('portrait_placeholder')}</div>`}
         </div>
         <div style="flex:1; min-width:180px">
