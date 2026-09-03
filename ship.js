@@ -103,6 +103,12 @@ Object.assign(T.de, {
   sh_weight: 'Gewicht (t)', sh_effect: 'Effekt',
   sh_summary: 'Zusammenfassung',
   sh_cost_mods: 'Kosten aller Umbauten', sh_cost_total: 'Preis (neu, umgebaut)',
+  sh_cost_total_used: 'Preis (gebraucht, umgebaut)',
+  sh_bought: 'Gekauft als',
+  sh_bought_new: 'Neu', sh_bought_used: 'Gebraucht',
+  sh_bought_hint: 'Bestimmt, welcher Preis als Schiffswert auf dem Bogen steht. Umbauten und Reparaturen rechnen weiterhin vom Neupreis – ein günstig gekaufter Rumpf macht die Werkstattarbeit nicht billiger.',
+  sh_used_guess: 'Das Buch nennt keinen Gebrauchtpreis. Faustregel aus den Regelwerken: rund die Hälfte, also {n} Cr.',
+  sh_used_take: 'Übernehmen',
   sh_weight_total: 'Zusatzgewicht', sh_mishap_total: 'Pannen-Modifikator (gesamt)',
   sh_mishap_hint: 'Der Pannen-Modifikator steigt mit jedem Leistungs-Umbau – der Spielleiter nutzt ihn für Zwischenfälle bei Umbauten von Amateurhand.',
   sh_effective: 'Effektive Werte nach Umbau',
@@ -240,6 +246,12 @@ Object.assign(T.en, {
   sh_weight: 'Weight (t)', sh_effect: 'Effect',
   sh_summary: 'Summary',
   sh_cost_mods: 'Cost of all modifications', sh_cost_total: 'Cost (new, modified)',
+  sh_cost_total_used: 'Cost (used, modified)',
+  sh_bought: 'Bought as',
+  sh_bought_new: 'New', sh_bought_used: 'Used',
+  sh_bought_hint: 'Decides which price counts as the ship’s value on the sheet. Modifications and repairs still reckon from the new price - a hull picked up cheap does not make the workshop cheaper.',
+  sh_used_guess: 'The book names no used price. Rule of thumb from the sourcebooks: about half, so {n} Cr.',
+  sh_used_take: 'Take it',
   sh_weight_total: 'Added weight', sh_mishap_total: 'Mishap modifier (total)',
   sh_mishap_hint: 'The mishap modifier grows with every performance modification – the GM uses it for incidents caused by amateur work.',
   sh_effective: 'Effective stats after modification',
@@ -298,7 +310,8 @@ function emptyDoc() {
       altitude: '', nav: true, hyper: 'x2', hyperBackup: 'None',
       capitalClass: 'cruiser',      // capital scale only: cruiser | stardestroyer | ssd
       hull: 12, shields: 3, maneuver: 3, space: 4, atmosphere: '',
-      costNew: 0, costUsed: 0, mishapBase: 0, portrait: '', notes: '',
+      costNew: 0, costUsed: 0, bought: 'new',   // new | used - which price counts
+      mishapBase: 0, portrait: '', notes: '',
       cargoRule: 'auto',            // auto | strict | off - see cargoStatus()
     },
     weapons: [],
@@ -517,6 +530,17 @@ function atmoDisplay(space, atmoField) {
   return a.move + '; ' + a.kph.toLocaleString('en-US') + ' km/h';
 }
 
+/* What the ship actually cost its owner. Bought used that is the used
+   price - but the modifications above are NOT reckoned against it: a hull
+   picked up cheap does not make the engine work cheaper, and tying the
+   percentages to the bargain would compound the saving with every fitting.
+   So the workshop keeps costing a share of the list price. */
+function shipPaid() {
+  const i = C.info;
+  if (i.bought === 'used' && +i.costUsed) return +i.costUsed;
+  return +i.costNew || 0;
+}
+
 function shipDerived() {
   const i = C.info, md = C.mods;
   const cost = +i.costNew || 0;
@@ -606,7 +630,7 @@ function shipDerived() {
     { modCost, mishap, weight, hull, shields, maneuver, space, hyper, wdmgPips,
       atmo, canAtmo: canEnterAtmosphere(i.atmosphere), hyperBackup,
       weightFactor: wf, weaponWeight: Math.round(weaponWeight * 10) / 10,
-      costTotal: cost + modCost },
+      costTotal: shipPaid() + modCost, boughtUsed: i.bought === 'used' && !!+i.costUsed },
     cargoStatus(weight));
 }
 
@@ -768,6 +792,81 @@ function templateCard() {
   </div>`;
 }
 let tplMsg = '';
+/* ---- reading a price out of the books ----
+   The sourcebooks write the same thing a dozen ways: with and without the
+   word "credits", with and without brackets, in millions, separated by a
+   comma, a semicolon or nothing at all - and the text recognition has here
+   and there dropped a space into the middle of a number ("270, 000").
+   Collecting a pattern per shape is a losing game; the old one asked for a
+   figure immediately followed by "(used" and so missed 88 of the entries
+   that do carry a used price, among them every "70,000 credits (Used)".
+
+   So instead: find every figure that is followed shortly after by "new" or
+   "used", and let that word decide which price it is. */
+const PREIS_PAAR = /([\d][\d,.\s]*?)\s*(million|billion)?\s*(?:credits?\s*)?[([]?\s*(?:stock\s+and\s+)?(new|used)\b/gi;
+
+function priceFromText(text) {
+  const out = { neu: 0, gebraucht: 0 };
+  if (!text) return out;
+  PREIS_PAAR.lastIndex = 0;
+  let m;
+  while ((m = PREIS_PAAR.exec(text)) !== null) {
+    const einheit = (m[2] || '').toLowerCase();
+    let roh = String(m[1]).replace(/\s/g, '');
+    /* Three entries write the fraction the German way - "3,5 million".
+       Stripping that comma like a thousands separator turns three and a
+       half million into thirty-five. A comma is a decimal point when a
+       unit follows and fewer than three digits come after it; "2,650" in
+       front of nothing keeps its old meaning. */
+    if (einheit && /^\d{1,3},\d{1,2}$/.test(roh)) roh = roh.replace(',', '.');
+    let v = parseFloat(roh.replace(/,/g, ''));
+    if (!isFinite(v) || v <= 0) continue;
+    if (einheit === 'million') v *= 1e6;
+    else if (einheit === 'billion') v *= 1e9;
+    if (v > 1e12) continue;
+    v = Math.round(v);
+    /* The first mention of each kind wins - a later one is usually a note
+       ("50,000 per container"), not a second price for the ship. */
+    if (m[3].toLowerCase() === 'new') { if (!out.neu) out.neu = v; }
+    else if (!out.gebraucht) out.gebraucht = v;
+  }
+  return out;
+}
+
+/* The leading figure of a price text that names neither new nor used -
+   "26, 500 credits", "3 Million Credits", "1.25 million".
+
+   This replaces falling back on the catalogue's own `cost` field, which was
+   worked out when the catalogue was generated and got nine of them wrong:
+   four lost their unit and read as 19 or 95 credits, three were truncated
+   (1.25 million became 1), one met the German decimal comma ("4,5 million"
+   as 45 million) and one the stray space. Checked against all 224 entries
+   that take this path: 177 come out identical, 38 have nothing readable and
+   keep the old value, and the nine that differ are all better here. */
+const PREIS_KOPF = /^\s*([\d][\d,. ]*\d|\d)\s*(million|billion)?/i;
+
+function priceLeading(text) {
+  const m = PREIS_KOPF.exec(text || '');
+  if (!m) return 0;
+  const einheit = (m[2] || '').toLowerCase();
+  let roh = String(m[1]).replace(/\s/g, '');
+  if (einheit && /^\d{1,3},\d{1,2}$/.test(roh)) roh = roh.replace(',', '.');
+  let v = parseFloat(roh.replace(/,/g, ''));
+  if (!isFinite(v) || v <= 0) return 0;
+  if (einheit === 'million') v *= 1e6;
+  else if (einheit === 'billion') v *= 1e9;
+  return v > 1e12 ? 0 : Math.round(v);
+}
+
+/* What a used one would cost where the book stays silent. Not written into
+   the sheet and never into the catalogue - only offered, so that what the
+   book says and what was reckoned stay apart. Half is the median of the 468
+   entries that do name both prices. */
+function usedSuggestion() {
+  const neu = +C.info.costNew || 0;
+  return neu ? Math.round(neu / 2) : 0;
+}
+
 function applyTemplate() {
   const sel = document.getElementById('tplSelect');
   if (!sel || !sel.value) return;
@@ -790,9 +889,21 @@ function applyTemplate() {
   i.passengers = src.passengers || '';
   i.cargo = src.cargo || '';
   i.consumables = src.consumables || '';
-  i.costNew = src.cost || 0;
-  const used = /([\d,\.]+)\s*\(used/i.exec(src.costText || '');
-  i.costUsed = used ? +used[1].replace(/,/g, '') : 0;
+  const preis = priceFromText(src.costText);
+  if (preis.neu || preis.gebraucht) {
+    /* The book names only a used price for 88 of the 1,300 entries - and
+       the catalogue keeps that figure in `cost`, which used to land in the
+       "new" field and made a bargain look like list price. Twice the used
+       price stands in instead: the books' own median for used against new
+       is exactly half, so doubling is their rule read backwards. */
+    i.costUsed = preis.gebraucht || 0;
+    i.costNew = preis.neu || (preis.gebraucht ? preis.gebraucht * 2 : 0);
+    i.bought = (!preis.neu && preis.gebraucht) ? 'used' : 'new';
+  } else {
+    i.costNew = priceLeading(src.costText) || src.cost || 0;
+    i.costUsed = 0;
+    i.bought = 'new';
+  }
   /* Some sources name several eras ("8 (Rebellion), 11 (New Republic)").
      Take the first value then, and put the original text in the notes. */
   const varied = [];
@@ -907,7 +1018,16 @@ function viewShip() {
       <div class="wide"><label>${t('sh_atmosphere')}</label>${inputT('info.atmosphere', i.atmosphere, 'style="width:100%"')}
         <div class="hint">${der.atmo ? t('sh_atmo_derived') + ' <b>' + esc(der.atmo) + '</b>' : t('sh_atmo_none_hint')}</div></div>
       <div><label>${t('sh_costnew')}</label>${inputN('info.costNew', i.costNew, 'data-rerender="1"')}</div>
-      <div><label>${t('sh_costused')}</label>${inputN('info.costUsed', i.costUsed)}</div>
+      <div><label>${t('sh_costused')}</label>${inputN('info.costUsed', i.costUsed, 'data-rerender="1" placeholder="' + (usedSuggestion() || '') + '"')}
+        ${!+i.costUsed && usedSuggestion()
+          ? `<div class="hint">${t('sh_used_guess').replace('{n}', fmtCr(usedSuggestion()))}
+             <button class="mini" data-act="useGuess">${t('sh_used_take')}</button></div>` : ''}</div>
+      <div class="wide"><label>${t('sh_bought')}</label>
+        <select data-bind="info.bought" data-rerender="1">
+          <option value="new" ${i.bought !== 'used' ? 'selected' : ''}>${t('sh_bought_new')}</option>
+          <option value="used" ${i.bought === 'used' ? 'selected' : ''}>${t('sh_bought_used')}</option>
+        </select>
+        <div class="hint">${t('sh_bought_hint')}</div></div>
       <div><label>${t('sh_mishap')}</label>${inputN('info.mishapBase', i.mishapBase, 'data-rerender="1" style="width:90px"')}</div>
     </div>
   </div>
@@ -1141,7 +1261,7 @@ function viewMods() {
   return `
   <div class="pool-banner">
     <span>${t('sh_cost_mods')}: <b>${fmtCr(der.modCost)}</b> Cr.</span>
-    <span>${t('sh_cost_total')}: <b>${fmtCr(der.costTotal)}</b> Cr.</span>
+    <span>${t(der.boughtUsed ? 'sh_cost_total_used' : 'sh_cost_total')}: <b>${fmtCr(der.costTotal)}</b> Cr.</span>
     <span>${t('sh_weight_total')}: <b>${der.weight}</b> t${der.weightFactor !== 1 ? ` <span class="hint">(${t('sh_weight_scale')} ×${der.weightFactor})</span>` : ''}${der.weaponWeight ? ` <span class="hint">· ${t('sh_weapon_weight')} ${der.weaponWeight} t</span>` : ''}</span>
     ${der.cargoBase ? `<span>${t('sh_cargo_left')}: <b class="${der.cargoOver ? 'warn' : ''}">${fmtCargo(der.cargoLeft, der.cargoUnit)}</b> / ${fmtCargo(der.cargoBase, der.cargoUnit)}${der.cargoRule === 'off' ? ' · ' + t('sh_cargo_off_short') : ''}</span>` : ''}
     <span>${t('sh_mishap_total')}: <b>${der.mishap}</b></span>
@@ -1291,7 +1411,7 @@ function renderSheet() {
         <div class="sp-stat"><span class="big">${der.space}</span><span class="lbl">Space</span></div>
         <div class="sp-stat"><span class="big">${esc(der.hyper || '–')}</span><span class="lbl">${t('sh_hyper')}</span></div>
         <div class="sp-stat"><span class="big">${esc(der.hyperBackup || '–')}</span><span class="lbl">${t('sh_hyperbackup')}</span></div>
-        <div class="sp-stat"><span class="big">${fmtCr(der.costTotal)}</span><span class="lbl">${t('sh_cost_total')}</span></div>
+        <div class="sp-stat"><span class="big">${fmtCr(der.costTotal)}</span><span class="lbl">${t(der.boughtUsed ? 'sh_cost_total_used' : 'sh_cost_total')}</span></div>
       </div>
       <div style="font-size:8pt; margin-top:3px">${t('sh_atmo_eff')}: ${der.atmo ? esc(der.atmo) : t('sh_atmo_none')}</div>
     </div>
@@ -1502,6 +1622,7 @@ function renderTab(tab) {
 function pageAction(el) {
   switch (el.dataset.act) {
     case 'applyTemplate': applyTemplate(); break;
+    case 'useGuess': C.info.costUsed = usedSuggestion(); update(); break;
     case 'addWeapon':
       if (C.weapons.length < SHIP_DATA.maxWeapons) C.weapons.push(emptyWeapon());
       wpnMsg = '';
