@@ -12,7 +12,7 @@ This project is an HTML port of the Excel workbooks by **Chance Gibboney** — s
 |---|---|
 | **Characters** | `index.html` — 374 species, all skills plus 20 advanced ones, Force powers, equipment, lightsaber workshop |
 | **Droids** | `droid.html` — degrees, 167 modifications, 393 ready-made droid templates |
-| **Ships & Vehicles** | `ship.html` — 1,300 ship/vehicle templates, modification workshop, weapons, sensors |
+| **Ships & Vehicles** | `ship.html` — 1,296 ship/vehicle templates, modification workshop, weapons, sensors |
 | **NPCs** | `npc.html` — build a group role by role (6 stormtroopers, 2 officers) or a flight class by class, with compact stat blocks |
 
 Game masters can also run **game rounds**: invite players by code, let them submit characters, and approve them for the round (the approval is stamped on the sheet). See the ☁ Online window.
@@ -39,7 +39,7 @@ Game masters can also run **game rounds**: invite players by code, let them subm
 - **393 droid templates** from the sourcebooks — apply and adjust; built-in armament comes across as weapons, a free field takes armament no catalogue lists, and skills a droid brings along that no list knows (culinary arts, home economics) are kept as skills of their own
 
 **Ships & Vehicles** (`ship.html`)
-- **1,300 templates** (958 starships + 342 vehicles) — pick one and every base stat is filled in, weapons included
+- **1,296 templates** (954 starships + 342 vehicles) — pick one and every base stat is filled in, weapons included
 - **Modification workshop**: sublight drive, maneuverability, hyperdrive, hull, shields, weapon damage — each with install difficulty, cost as a percentage of the ship, and a growing **mishap modifier**
 - Replacement drives, hyperdrives, shield generators, cargo conversions
 - Up to twelve weapons with fire arc, fire control and ranges; sensors and NPC crew skills
@@ -236,7 +236,7 @@ Das Projekt ist die HTML-Portierung der Excel-Tabellen von **Chance Gibboney** �
 
 **Droiden** (`droid.html`) – fünf Degrees mit eigenen Steigerungskosten, gemeinsamer 25D-Startpool für Attribute, Fertigkeiten *und* Modifikationen, 167 Modifikationen in 11 Kategorien, fest verdrahtete Datenbank-Fertigkeiten sowie **393 fertige Droidenmodelle** aus den Regelwerken – eingebaute Bewaffnung wird als Waffe übernommen, und ein freies Feld nimmt Waffen auf, die in keinem Katalog stehen.
 
-**Schiffe & Fahrzeuge** (`ship.html`) – **1.300 Vorlagen** (958 Raumschiffe + 342 Fahrzeuge): auswählen und alle Grundwerte samt Bewaffnung sind gefüllt. Dazu die Umbau-Werkstatt (Antrieb, Manövrierfähigkeit, Hyperantrieb, Hülle, Schilde, Waffenschaden) mit Einbau-Schwierigkeit, Kosten in Prozent des Schiffswerts und steigendem **Pannen-Modifikator**, Ersatzteile, bis zu zwölf Waffen, Sensoren und Crew-Skills. Die Bewaffnung lässt sich aus einem **Waffen-Katalog** übernehmen: 1.064 Typen aus den Schiffsbeschreibungen der Sammelbände plus die Übersicht aus *Galaxy Guide 6* mit Preis und Gewicht, filterbar nach Größenklasse. Dazu die **Werkstatt** mit den erweiterten Regeln aus *Galaxy Guide 6: Tramp Freighters*: Pannen auswürfeln für alle fünf Systeme und drei Schweregrade, Reparaturkosten-Tabelle auf den eigenen Schiffswert gerechnet, Raumhafen-Klassen mit Liegegebühren, Vorratsformel, Überholungskosten, Einbauzeiten und die Regeln für gekoppelte Waffen.
+**Schiffe & Fahrzeuge** (`ship.html`) – **1.296 Vorlagen** (954 Raumschiffe + 342 Fahrzeuge): auswählen und alle Grundwerte samt Bewaffnung sind gefüllt. Dazu die Umbau-Werkstatt (Antrieb, Manövrierfähigkeit, Hyperantrieb, Hülle, Schilde, Waffenschaden) mit Einbau-Schwierigkeit, Kosten in Prozent des Schiffswerts und steigendem **Pannen-Modifikator**, Ersatzteile, bis zu zwölf Waffen, Sensoren und Crew-Skills. Die Bewaffnung lässt sich aus einem **Waffen-Katalog** übernehmen: 1.064 Typen aus den Schiffsbeschreibungen der Sammelbände plus die Übersicht aus *Galaxy Guide 6* mit Preis und Gewicht, filterbar nach Größenklasse. Dazu die **Werkstatt** mit den erweiterten Regeln aus *Galaxy Guide 6: Tramp Freighters*: Pannen auswürfeln für alle fünf Systeme und drei Schweregrade, Reparaturkosten-Tabelle auf den eigenen Schiffswert gerechnet, Raumhafen-Klassen mit Liegegebühren, Vorratsformel, Überholungskosten, Einbauzeiten und die Regeln für gekoppelte Waffen.
 
 **NPCs** (`npc.html`) – erzeugt ganze **NPC-Gruppen mit kompakten Statblöcken**. Die Truppe wird **rollenweise** zusammengestellt: je Zeile eine Fraktion mit eigener Anzahl, also etwa 6 Sturmtruppen, 2 Offiziere und 3 Söldner in einer Gruppe. Dazu Spezies-Modus (nur Menschen / gemischt / eine Spezies / nur Aliens) und Erfahrungsstufe; bei „gemischt“ stellt der Mensch-Anteil Star-Wars-typisch die Mehrheit. Genauso für **Schiffe**: Anzahl je Klasse (Jäger, Space Transport, Capital), je Klasse getrennt wählbar, ob alle Schiffe baugleich sein sollen, und ein Ära-Filter für den Vorlagenpool. Mehrere Karten pro Druckseite.
 

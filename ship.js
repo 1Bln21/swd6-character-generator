@@ -819,6 +819,11 @@ function priceFromText(text) {
        unit follows and fewer than three digits come after it; "2,650" in
        front of nothing keeps its old meaning. */
     if (einheit && /^\d{1,3},\d{1,2}$/.test(roh)) roh = roh.replace(',', '.');
+    /* And the other way round: a dot with exactly three digits behind it
+       and NO unit is a thousands separator in the European style
+       ("150.000"), not a fraction - otherwise a freighter costs a hundred
+       and fifty credits. With a unit it stays a fraction ("1.25 million"). */
+    if (!einheit && /^\d{1,3}(\.\d{3})+$/.test(roh)) roh = roh.replace(/\./g, '');
     let v = parseFloat(roh.replace(/,/g, ''));
     if (!isFinite(v) || v <= 0) continue;
     if (einheit === 'million') v *= 1e6;
@@ -851,6 +856,7 @@ function priceLeading(text) {
   const einheit = (m[2] || '').toLowerCase();
   let roh = String(m[1]).replace(/\s/g, '');
   if (einheit && /^\d{1,3},\d{1,2}$/.test(roh)) roh = roh.replace(',', '.');
+  if (!einheit && /^\d{1,3}(\.\d{3})+$/.test(roh)) roh = roh.replace(/\./g, '');
   let v = parseFloat(roh.replace(/,/g, ''));
   if (!isFinite(v) || v <= 0) return 0;
   if (einheit === 'million') v *= 1e6;
@@ -891,7 +897,7 @@ function applyTemplate() {
   i.consumables = src.consumables || '';
   const preis = priceFromText(src.costText);
   if (preis.neu || preis.gebraucht) {
-    /* The book names only a used price for 88 of the 1,300 entries - and
+    /* The book names only a used price for 88 of the 1,296 entries - and
        the catalogue keeps that figure in `cost`, which used to land in the
        "new" field and made a bargain look like list price. Twice the used
        price stands in instead: the books' own median for used against new
