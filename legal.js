@@ -34,6 +34,15 @@ Object.assign(T.de, {
   legal_f_provider: 'Hosting-Anbieter (für die Datenschutzerklärung)',
   legal_f_provideraddr: 'Anschrift des Hosters (optional)',
   legal_required: '* Pflichtangaben für ein Impressum in Deutschland.',
+  legal_f_jurisdiction: 'Rechtsraum des Betreibers',
+  legal_j_de: 'Deutschland',
+  legal_j_eu: 'Anderes EU-/EWR-Land',
+  legal_j_other: 'Außerhalb der EU/des EWR',
+  legal_j_hint: 'Nicht dasselbe wie das Land oben – das steht in der Anschrift. Hier geht es darum, nach welchem Recht die Seite betrieben wird. Die Datenschutzerklärung stützt sich allein auf die DSGVO und gilt damit im gesamten EU-/EWR-Raum unverändert; nur das Impressum hängt am nationalen Recht.',
+  legal_j_warn_eu: 'Das Impressum wird ohne Paragraphenangabe erzeugt. Die Pflicht dazu stammt aus der E-Commerce-Richtlinie, die jedes Land eigenständig umgesetzt hat (Österreich § 5 ECG, Niederlande Art. 3:15d BW …). Prüfe, welche Angaben dein Land verlangt und unter welcher Bezeichnung.',
+  legal_j_warn_other: 'Das Impressum wird ohne Paragraphenangabe erzeugt. Außerhalb der EU gelten andere Regeln – prüfe, was dein Land für Anbieterangaben verlangt.',
+  legal_j_warn_privacy: 'Diese Datenschutzerklärung ist auf die DSGVO geschrieben. Außerhalb der EU/des EWR gilt sie nicht automatisch – Kalifornien (CCPA/CPRA), Kanada (PIPEDA) und andere verlangen Eigenes. Vor der Veröffentlichung prüfen lassen.',
+  legal_preview_only: 'Nur für dich sichtbar, nicht Teil des Dokuments:',
   legal_save: '💾 Speichern', legal_saved: 'Gespeichert ✔',
   legal_preview_i: 'Impressum ansehen', legal_preview_d: 'Datenschutz ansehen',
   legal_store_server: '✔ Angemeldet als Administrator – die Angaben werden auf dem Server gespeichert und allen Besuchern angezeigt.',
@@ -68,6 +77,15 @@ Object.assign(T.en, {
   legal_f_provider: 'Hosting provider (for the privacy policy)',
   legal_f_provideraddr: 'Address of the host (optional)',
   legal_required: '* Required for a legal notice (Impressum) in Germany.',
+  legal_f_jurisdiction: 'Legal setting of the operator',
+  legal_j_de: 'Germany',
+  legal_j_eu: 'Another EU/EEA country',
+  legal_j_other: 'Outside the EU/EEA',
+  legal_j_hint: 'Not the same as the country above - that one goes in the address. This is about the law the site is run under. The privacy policy rests on the GDPR alone and therefore holds unchanged across the EU/EEA; only the legal notice depends on national law.',
+  legal_j_warn_eu: 'The legal notice is produced without citing a statute. The duty comes from the e-commerce directive, which every country implemented for itself (Austria § 5 ECG, the Netherlands art. 3:15d BW …). Check what your country requires and under which heading.',
+  legal_j_warn_other: 'The legal notice is produced without citing a statute. Outside the EU different rules apply - check what your country requires of a service provider.',
+  legal_j_warn_privacy: 'This privacy policy is written for the GDPR. Outside the EU/EEA it does not apply automatically - California (CCPA/CPRA), Canada (PIPEDA) and others demand their own. Have it reviewed before publishing.',
+  legal_preview_only: 'Visible to you only, not part of the document:',
   legal_save: '💾 Save', legal_saved: 'Saved ✔',
   legal_preview_i: 'View legal notice', legal_preview_d: 'View privacy policy',
   legal_store_server: '✔ Signed in as administrator – the details are stored on the server and shown to all visitors.',
@@ -87,7 +105,23 @@ Object.assign(T.en, {
 /* ---------------- storage ---------------- */
 const LS_LEGAL = 'swd6_legal';
 const LEGAL_FIELDS = ['name', 'street', 'zip', 'city', 'country', 'email', 'phone',
-                      'responsible', 'vatId', 'provider', 'providerAddress'];
+                      'responsible', 'vatId', 'provider', 'providerAddress',
+                      /* Under whose law the site is run: 'de' | 'eu' | 'other'.
+                         NOT the same as the postal country above - that one is
+                         free text and says where the letters go. */
+                      'jurisdiction'];
+
+/* Which legal setting applies. Empty counts as Germany, so an installation
+   that existed before this field keeps exactly the text it had. */
+function legalWhere(d) {
+  const j = (d && d.jurisdiction) || 'de';
+  return (j === 'eu' || j === 'other') ? j : 'de';
+}
+function legalJWarn(wo) {
+  if (wo === 'de') return '';
+  return esc(t('legal_j_warn_' + wo)) + ' ' +
+         (wo === 'other' ? esc(t('legal_j_warn_privacy')) : '');
+}
 let legalServer = null;      // loaded from the server (applies to all visitors)
 let legalMsg = '';
 let legalSnippetOpen = false;
@@ -149,7 +183,22 @@ function legalAddress(d) {
   if (d.country) parts.push(esc(d.country));
   return parts.join('<br>');
 }
+/* Two versions, and the reason is a difference between two kinds of European
+   law. The privacy policy rests entirely on the GDPR, which is a REGULATION
+   and therefore applies directly in every member state - it needs no variant.
+   The duty to publish who runs a site comes from the e-commerce DIRECTIVE,
+   and a directive is turned into national law by each country separately:
+   Germany § 5 DDG, Austria § 5 ECG, the Netherlands art. 3:15d BW. There is
+   no citation that is right everywhere.
+
+   So: the German text keeps its paragraphs, and everyone else gets the same
+   substance without a citation that would be wrong for them. Naming the
+   wrong statute is worse than naming none. */
 function docImpressum(d) {
+  return legalWhere(d) === 'de' ? docImpressumDe(d) : docImpressumNeutral(d);
+}
+
+function docImpressumDe(d) {
   if (LANG === 'en') return `
     <h3>Legal Notice</h3>
     <p><b>Information pursuant to § 5 DDG (German Digital Services Act)</b></p>
@@ -185,6 +234,44 @@ function docImpressum(d) {
     <h4>Hinweis zum Fan-Projekt</h4>
     <p>Diese Anwendung ist ein nicht-kommerzielles Fan-Projekt und steht in keiner Verbindung zu Lucasfilm Ltd., The Walt Disney Company oder West End Games. „Star Wars“ und alle zugehörigen Bezeichnungen sind Marken der jeweiligen Rechteinhaber.</p>`;
 }
+
+/* Same information, no national citation. What has to be shown, and under
+   which heading, is set by the law of the country the site is run from -
+   this covers the common core: who runs it, how to reach them, who answers
+   for the content. */
+function docImpressumNeutral(d) {
+  if (LANG === 'en') return `
+    <h3>Legal Notice</h3>
+    <p><b>Information about the provider of this service</b></p>
+    <p>${legalAddress(d)}</p>
+    <p><b>Contact</b><br>E-mail: ${esc(d.email)}${d.phone ? '<br>Phone: ' + esc(d.phone) : ''}</p>
+    ${d.responsible ? `<p><b>Responsible for the content</b><br>${esc(d.responsible)}</p>` : ''}
+    ${d.vatId ? `<p><b>VAT identification number</b><br>${esc(d.vatId)}</p>` : ''}
+    <h4>Liability for content</h4>
+    <p>We are responsible for our own content on these pages under the general laws. We are not obliged to monitor third-party information transmitted or stored here, nor to investigate circumstances that point to unlawful activity. Obligations to remove or block the use of information under the general laws remain unaffected; liability in this respect is only possible from the moment a concrete infringement becomes known. We will remove such content immediately once we learn of it.</p>
+    <h4>Liability for links</h4>
+    <p>Our offer may contain links to external third-party websites over whose content we have no influence. We therefore cannot accept any liability for this third-party content. The respective provider or operator of the linked pages is always responsible for their content. The linked pages were checked for possible legal violations at the time of linking; illegal content was not recognisable. If we become aware of legal violations, we will remove such links immediately.</p>
+    <h4>Copyright</h4>
+    <p>Content and works created by the site operator on these pages are subject to copyright. Contributions by third parties are marked as such.</p>
+    <h4>Fan project notice</h4>
+    <p>This application is a non-commercial fan project and is not affiliated with Lucasfilm Ltd., The Walt Disney Company or West End Games. “Star Wars” and all related names are trademarks of their respective owners.</p>`;
+  return `
+    <h3>Impressum / Anbieterkennzeichnung</h3>
+    <p><b>Angaben zum Anbieter dieses Dienstes</b></p>
+    <p>${legalAddress(d)}</p>
+    <p><b>Kontakt</b><br>E-Mail: ${esc(d.email)}${d.phone ? '<br>Telefon: ' + esc(d.phone) : ''}</p>
+    ${d.responsible ? `<p><b>Verantwortlich für den Inhalt</b><br>${esc(d.responsible)}</p>` : ''}
+    ${d.vatId ? `<p><b>Umsatzsteuer-Identifikationsnummer</b><br>${esc(d.vatId)}</p>` : ''}
+    <h4>Haftung für Inhalte</h4>
+    <p>Für eigene Inhalte auf diesen Seiten sind wir nach den allgemeinen Gesetzen verantwortlich. Wir sind nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen. Verpflichtungen zur Entfernung oder Sperrung der Nutzung von Informationen nach den allgemeinen Gesetzen bleiben hiervon unberührt; eine Haftung ist erst ab dem Zeitpunkt der Kenntnis einer konkreten Rechtsverletzung möglich. Bei Bekanntwerden entsprechender Rechtsverletzungen entfernen wir diese Inhalte umgehend.</p>
+    <h4>Haftung für Links</h4>
+    <p>Unser Angebot enthält ggf. Links zu externen Websites Dritter, auf deren Inhalte wir keinen Einfluss haben. Deshalb können wir für diese fremden Inhalte auch keine Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber der Seiten verantwortlich. Die verlinkten Seiten wurden zum Zeitpunkt der Verlinkung auf mögliche Rechtsverstöße überprüft; rechtswidrige Inhalte waren nicht erkennbar. Bei Bekanntwerden von Rechtsverletzungen entfernen wir derartige Links umgehend.</p>
+    <h4>Urheberrecht</h4>
+    <p>Die durch den Anbieter erstellten Inhalte und Werke auf diesen Seiten unterliegen dem Urheberrecht. Beiträge Dritter sind als solche gekennzeichnet.</p>
+    <h4>Hinweis zum Fan-Projekt</h4>
+    <p>Diese Anwendung ist ein nicht-kommerzielles Fan-Projekt und steht in keiner Verbindung zu Lucasfilm Ltd., The Walt Disney Company oder West End Games. „Star Wars“ und alle zugehörigen Bezeichnungen sind Marken der jeweiligen Rechteinhaber.</p>`;
+}
+
 function docPrivacy(d) {
   const host = d.provider ? esc(d.provider) : (LANG === 'en' ? 'our hosting provider' : 'unser Hosting-Anbieter');
   const hostAddr = d.providerAddress ? ` (${esc(d.providerAddress)})` : '';
@@ -261,16 +348,33 @@ function legalDocModal() {
   }
   return m;
 }
-function openLegalDoc(which) {
+/* vorschau = the operator is looking at their own text from the settings
+   dialog. Only then is the note about the legal setting shown - a visitor
+   following the footer link must never read "this text may not fit", and
+   the note is not part of the document either way. */
+function openLegalDoc(which, vorschau) {
   const d = legalData();
   const box = legalDocModal().querySelector('#legalDocBox');
   const title = which === 'impressum' ? t('doc_impressum') : t('doc_privacy');
   let content;
   if (!d.name) content = `<p class="hint">${t('legal_no_data')}</p>`;
   else content = which === 'impressum' ? docImpressum(d) : docPrivacy(d);
+  let hinweis = '';
+  if (vorschau) {
+    const wo = legalWhere(d);
+    const schluessel = which === 'impressum'
+      ? (wo === 'de' ? '' : 'legal_j_warn_' + wo)
+      : (wo === 'other' ? 'legal_j_warn_privacy' : '');
+    if (schluessel) {
+      hinweis = `<p class="warn" style="font-size:12.5px; border:1px solid currentColor;
+                    border-radius:6px; padding:8px 10px; margin-bottom:12px">
+                   ${t('legal_preview_only')} ${t(schluessel)}</p>`;
+    }
+  }
   box.innerHTML = `
     <div class="modal-head"><h2>${title}</h2>
       <button class="mini" data-legal-close="1">✕</button></div>
+    ${hinweis}
     ${content}
     ${d.updated ? `<p class="hint" style="margin-top:14px">${t('legal_updated')}: ${new Date(d.updated * 1000).toLocaleDateString(LANG === 'de' ? 'de-DE' : 'en-US')}</p>` : ''}
     <p style="text-align:center; margin-top:12px">
@@ -343,6 +447,13 @@ function renderLegalSettings() {
       <div style="flex:1">${field('legal_f_city', 'city')}</div>
     </div>
     ${field('legal_f_country', 'country')}
+    <label class="opt-label">${t('legal_f_jurisdiction')}</label>
+    <select id="lg_jurisdiction" ${ro}>
+      ${['de', 'eu', 'other'].map(j =>
+        `<option value="${j}" ${legalWhere(d) === j ? 'selected' : ''}>${t('legal_j_' + j)}</option>`).join('')}
+    </select>
+    <p class="hint">${t('legal_j_hint')}</p>
+    <p class="warn" id="lg_j_warn" style="font-size:12.5px">${legalJWarn(legalWhere(d))}</p>
     ${field('legal_f_email', 'email', 'email')}
     ${field('legal_f_phone', 'phone')}
     ${field('legal_f_responsible', 'responsible')}
@@ -451,8 +562,8 @@ document.addEventListener('click', e => {
       openLegalSettings();
       break;
     case 'save': legalSave(); break;
-    case 'preview-impressum': openLegalDoc('impressum'); break;
-    case 'preview-datenschutz': openLegalDoc('datenschutz'); break;
+    case 'preview-impressum': openLegalDoc('impressum', true); break;
+    case 'preview-datenschutz': openLegalDoc('datenschutz', true); break;
     case 'snippet': legalSnippetOpen = !legalSnippetOpen; renderLegalSettings(); break;
   }
 });
@@ -480,6 +591,15 @@ if (legalOptionsMenu) {
     }
   });
 }
+
+/* The note under the legal-setting picker follows it at once. Only that one
+   paragraph is rewritten, not the whole form - redrawing it would read the
+   values back from storage and throw away everything typed but not saved. */
+document.addEventListener('change', e => {
+  if (!e.target || e.target.id !== 'lg_jurisdiction') return;
+  const p = document.getElementById('lg_j_warn');
+  if (p) p.innerHTML = legalJWarn(e.target.value);
+});
 
 /* ---------------- startup ---------------- */
 (async function initLegal() {

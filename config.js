@@ -32,6 +32,16 @@ const SITE_CONFIG = {
     vatId: '',
     provider: '',
     providerAddress: '',
+    /* Under whose law the site is run - NOT the postal country above.
+         'de'    Germany: the legal notice cites § 5 DDG and § 18 (2) MStV
+         'eu'    another EU/EEA country: same information, no citation,
+                 because the duty comes from a directive each country
+                 implemented for itself
+         'other' outside the EU/EEA: as 'eu', and be aware that the privacy
+                 policy is written for the GDPR and will not fit
+       Empty counts as 'de'. The privacy policy itself needs no variant
+       inside the EU/EEA: the GDPR is a regulation and applies directly. */
+    jurisdiction: '',
     urls: { impressum: '', datenschutz: '' },
   },
 

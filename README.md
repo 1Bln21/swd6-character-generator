@@ -126,7 +126,28 @@ If MFA is enabled it is still required during a reset — a code alone does not 
 
 Public sites in Germany need a legal notice and — especially with user accounts — a privacy policy. Both ship as **ready-made templates** that only need your details: ⚙ menu → **“⚖ Legal notice & privacy”**. As an administrator the details are stored server-side and apply to all visitors; without a server there is a `config.js` snippet. If you already have your own legal pages, just enter the URLs instead.
 
-> ⚠️ **The texts are a general template without warranty and are not legal advice.** Review them before publishing.
+**Hosting outside Germany?** The two documents are bound to a country to very
+different degrees, and the dialog has a **“Legal setting of the operator”**
+picker for it — Germany, another EU/EEA country, or outside the EU/EEA.
+
+The **privacy policy needs no variant inside the EU/EEA**: it rests entirely
+on the GDPR — Art. 6 (1) (b) and (f), Art. 15–21, Art. 22, Art. 77 — and the
+GDPR is a *regulation*, so it applies directly in every member state without
+national implementation. Not a single German statute is cited in it.
+
+The **legal notice is the part that is national**. Its duty comes from the
+e-commerce *directive*, and a directive is turned into law by each country
+separately: Germany § 5 DDG, Austria § 5 ECG, the Netherlands art. 3:15d BW.
+There is no citation that is right everywhere, so picking anything other than
+Germany produces the same information **without** a statute reference —
+naming the wrong one is worse than naming none. What your country requires,
+and under which heading, is worth looking up.
+
+**Outside the EU/EEA the privacy policy needs review too.** It is written for
+the GDPR; California (CCPA/CPRA), Canada (PIPEDA) and others ask for
+different things. The dialog says so when that setting is picked.
+
+> ⚠️ **The texts are a general template without warranty and are not legal advice.** Review them before publishing. Neither the author nor the tool that helped write them is a lawyer.
 
 ### Bug reports
 
