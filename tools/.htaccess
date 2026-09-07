@@ -1,0 +1,31 @@
+# The tools folder is not part of the app. smoke.html walks the whole
+# interface by itself: it opens every generator, fills sheets in, prints
+# them, and clears local storage on the way out. That is useful while
+# developing and confusing at best for a visitor who stumbles into it - so
+# on a public installation the folder stays shut.
+#
+# It was deliberately left open during the 4.0.0 beta, so a run could be
+# started straight from the live address. With the beta over it goes behind
+# this door.
+#
+# To run it on your own installation, either move this file aside for the
+# run, or let only your own address through: uncomment the Require ip line
+# (Apache 2.4) and the Allow from line (2.2) and put your address in place
+# of the example. The second block only takes effect where mod_authz_core
+# is missing, which is what Apache 2.2 looks like.
+#
+# Behind nginx an .htaccess does nothing at all. Deny the folder in the site
+# configuration there instead:
+#
+#   location ^~ /tools/ { deny all; }
+
+<IfModule mod_authz_core.c>
+  Require all denied
+  # Require ip 203.0.113.7
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+  Order deny,allow
+  Deny from all
+  # Allow from 203.0.113.7
+</IfModule>

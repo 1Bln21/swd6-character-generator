@@ -19,9 +19,9 @@ Thumbs.db
 Desktop.ini
 .DS_Store
 
-# Lokale Werkzeug-Konfiguration (Vorschau-Server o. ae.)
+# Local tooling configuration (preview server and the like)
 .claude/
 
-# Python-Zwischendateien der Extraktionsskripte
+# Python leftovers from the extraction scripts
 __pycache__/
 *.pyc

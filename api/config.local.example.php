@@ -15,9 +15,9 @@
    credentials out here that cannot happen: each installation keeps its
    own file, and an update never touches it.
 
-   Only the keys named here are replaced. 'db' is merged key by key, so
-   naming just the database name is enough when host, user and password
-   are the same.
+   Only the keys named here are replaced. A block such as 'db' or 'turn' is
+   merged key by key, so naming just the database name is enough when host,
+   user and password are the same.
 
    This file is a .php file on purpose: fetched over the web it executes
    and prints nothing. A .ini or .json next to it would be handed out as
@@ -28,7 +28,7 @@ return [
     'host' => 'localhost',
     'name' => 'beta',
     'user' => 'swd6gen',
-    'pass' => 'PASSWORT-HIER',
+    'pass' => 'PASSWORD-HERE',
   ],
 
   // Useful on a beta: keep it out of the search engines' way and make the
@@ -38,6 +38,19 @@ return [
   // A beta is usually not meant to be open to everyone.
   // 'register_mode'  => 'approval',
   // 'register_code'  => 'testers-only',
+
+  // Voice and video at the table need no server as long as both browsers
+  // can reach each other. Where they cannot, a TURN server relays the
+  // media. 'secret' is the SAME string as static-auth-secret in
+  // turnserver.conf and never reaches the browser - the API derives a
+  // password from it that expires. Empty = no voice chat offered.
+  // The README explains the quotas in turnserver.conf and what a round of
+  // six actually costs in bandwidth.
+  // 'turn' => [
+  //   'urls'   => ['turns:turn.example.de:5349?transport=udp',
+  //                'turns:turn.example.de:5349?transport=tcp'],
+  //   'secret' => 'THE-SAME-STRING-AS-IN-TURNSERVER-CONF',
+  // ],
 
   // While setting up, this puts the details of an unexpected fault back
   // into the answer instead of only into the server's error log. Handy for

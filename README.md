@@ -27,8 +27,8 @@ Game masters can also run **game rounds**: invite players by code, let them subm
 - **374 species + 9 near-human variants** with attribute limits, move, special abilities, story factors and page references — 60 from the original workbook plus 314 taken from the Alien Compendium, listed separately in the dropdown. Includes Trianii (m/f) and a builder for custom species
 - **Rules-based creation**: 18D attribute dice (species-dependent), 7D skills (max. +2D), Force skills from the attribute pool, Character Point advancement with automatic cost calculation
 - **All 90 skills**, advanced skills, specializations and custom skills
-- **91 Force powers** with prerequisites, difficulties and page references
-- **Lightsaber workshop** — crystals, colors, modifications with damage calculation
+- **131 Force powers** with prerequisites, difficulties and page references
+- **Lightsaber workshop** — crystals, colors, weapon types (double-bladed, lightwhip), modifications with damage calculation
 - **Custom species can be stored online** and then appear in the species dropdown for the whole group
 
 **Droids** (`droid.html`)
@@ -102,6 +102,114 @@ sudo certbot --apache -d your-domain.com
 ```
 
 Choose **“Redirect”** so HTTP forwards to HTTPS.
+
+### Voice and video at the table
+
+The table top carries its own voice and video chat. The browsers talk to each
+other **directly** — this server only passes the introductions along and never
+sees a picture or a word. Nothing needs configuring for that, and on a normal
+home connection it simply works.
+
+What it cannot do on its own is connect two people who both sit behind a
+router that refuses incoming connections — a mobile network on one side and a
+strict company firewall on the other is the usual pairing. For those a **TURN
+server** relays the media, and that is the one piece an operator has to
+provide. How often it is needed depends entirely on who is at the table; plan
+for it rather than hope.
+
+**Setting it up.** On the same machine, or any other:
+
+```bash
+sudo apt install coturn
+sudo certbot certonly --standalone -d turn.your-domain.com   # or reuse the site's certificate
+```
+
+In `/etc/turnserver.conf`:
+
+```
+listening-port=3478
+tls-listening-port=5349
+fingerprint
+use-auth-secret
+static-auth-secret=A-LONG-RANDOM-STRING
+realm=your-domain.com
+cert=/etc/letsencrypt/live/your-domain.com/fullchain.pem
+pkey=/etc/letsencrypt/live/your-domain.com/privkey.pem
+no-cli
+```
+
+Then in `api/config.local.php` — **not** in `api/index.php`, which is replaced
+by every update:
+
+```php
+<?php return [
+  'turn' => [
+    'urls'   => ['turns:turn.your-domain.com:5349?transport=udp',
+                 'turns:turn.your-domain.com:5349?transport=tcp'],
+    'secret' => 'A-LONG-RANDOM-STRING',   // the same string as above
+  ],
+];
+```
+
+The secret **never reaches the browser**. The API hands each participant a user
+name that expires and a password derived from the secret (coturn's REST scheme,
+`use-auth-secret`). A fixed password in the JavaScript would turn the relay into
+an open one for anyone who reads the page source. Leave `'secret'` empty and no
+voice chat is offered at all.
+
+#### How many people, and how much line
+
+Everyone sends their own picture to everyone else — there is no server mixing
+the streams — so a round of *n* people with cameras on has each person sending
+*n−1* copies. The video is capped at **480p and 1.2 Mbit/s**, plus about
+40 kbit/s of audio, so reckon with **1.25 Mbit/s per stream**:
+
+| At the table | Each person sends | Each person receives | If every connection is relayed |
+|---|---|---|---|
+| 3 | 2.5 Mbit/s | 2.5 Mbit/s | 7.5 Mbit/s through the server |
+| 4 | 3.75 Mbit/s | 3.75 Mbit/s | 15 Mbit/s |
+| 5 | 5 Mbit/s | 5 Mbit/s | 25 Mbit/s |
+| 6 | 6.25 Mbit/s | 6.25 Mbit/s | 37.5 Mbit/s |
+
+The right-hand column is the worst case and rarely the real one — most
+connections find a direct path and cost the server nothing. But it is the
+number to size the line by, because it is what a bad evening looks like.
+
+The practical ceiling is the **participants' own uplink**, not the server:
+six cameras need 6.25 Mbit/s upstream from each of them, which many domestic
+connections do not have. Cameras off costs almost nothing — audio alone is
+about 40 kbit/s per stream — so a large round with voice only is comfortable
+where the same round with video is not.
+
+#### Quotas, so one round cannot take the whole line
+
+coturn counts in **bytes** per second, the table above in bits. Add to
+`turnserver.conf`:
+
+```
+max-bps=200000          # per session: 200 kB/s = 1.6 Mbit/s, just above one stream
+user-quota=12           # allocations per participant (a round of six needs 5)
+total-quota=120         # allocations on the whole server
+bps-capacity=15000000   # 15 MB/s = 120 Mbit/s of relayed traffic in total
+```
+
+Those values carry about **four rounds of six** at once. To work out your own:
+one participant in a round of *n* holds up to *n−1* allocations, and the round
+as a whole up to *n×(n−1)*. So for twenty concurrent rounds of six:
+
+```
+user-quota=30           # comfortably above the 5 one person needs
+total-quota=700         # 20 rounds x 30 allocations, with headroom
+bps-capacity=...        # your line, in bytes per second, minus what the site needs
+```
+
+`bps-capacity` is the one to keep honest: twenty fully relayed rounds of six
+would want 750 Mbit/s, which is more line than most servers have. Setting it to
+what you actually have means calls degrade instead of taking the web site down
+with them.
+
+There is no `reload` — coturn needs `sudo systemctl restart coturn` after a
+change, and again after a certificate renewal.
 
 ### User management (administrator)
 
@@ -206,6 +314,12 @@ php -S 127.0.0.1:8735 -t .
 
 then `http://127.0.0.1:8735/tools/smoke.html`.
 
+On a public installation the folder is shut: `tools/.htaccess` denies it, so
+nobody stumbles into a page that clears local storage. PHP's own dev server
+ignores `.htaccess`, which is why the line above still works. To run the walk
+against a real Apache installation, move that file aside for the run or let
+your own address through — the file says how.
+
 It catches the class of fault a unit test cannot see, because what is broken
 is not the code being called but that nothing calls it. Watching alongside
 the checks is `window.swd6Errors`, the list `report.js` keeps on every page,
@@ -279,7 +393,11 @@ Für die Online-Funktionen den kompletten Ordner (inkl. `api/`) auf einen Webspa
 
 Der **zuerst registrierte Benutzer ist Administrator** und kann die Registrierung auf *offen*, *mit Freigabe* oder *geschlossen* stellen, Benutzer verwalten, MFA und Passwörter zurücksetzen. Impressum und Datenschutzerklärung bringt die App als ausfüllbare Vorlage mit (⚙-Menü).
 
-Alle Details stehen im englischen Teil oben – die Abschnitte *Hosting*, *User management*, *Forgotten password* und *Security* gelten unverändert.
+**Sprache und Video am Spieltisch** brauchen im Normalfall keine Einrichtung: die Browser reden direkt miteinander, der Server vermittelt nur die Vorstellung. Nur wenn beide Seiten hinter einem Router sitzen, der nichts hereinlässt – Mobilfunk auf der einen, strenge Firewall auf der anderen Seite –, muss ein **TURN-Server** die Daten weiterreichen. Dafür `coturn` installieren und den `'turn'`-Block in `api/config.local.php` füllen; das Geheimnis erreicht den Browser nie.
+
+Zur Größenordnung: jeder schickt sein Bild an jeden, es gibt keinen Server, der die Ströme mischt. Bei *n* Teilnehmern sendet also jeder *n−1* Kopien, gedeckelt auf 480p und 1,2 Mbit/s, macht rund **1,25 Mbit/s je Strom** – bei sechs Leuten 6,25 Mbit/s Upload pro Person. Der Engpass ist damit fast immer die **Leitung der Teilnehmer**, nicht der Server. Ohne Kamera kostet es fast nichts. Die Quoten für `turnserver.conf` (`max-bps`, `user-quota`, `total-quota`, `bps-capacity`) samt Rechenweg stehen im englischen Abschnitt *Voice and video at the table*.
+
+Alle weiteren Details stehen im englischen Teil oben – die Abschnitte *Hosting*, *Voice and video at the table*, *User management*, *Forgotten password* und *Security* gelten unverändert.
 
 ---
 

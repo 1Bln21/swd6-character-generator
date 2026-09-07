@@ -250,6 +250,13 @@ Aufrufen über denselben Server, von dem die App kommt, z. B.:
 Als file:// geöffnet darf die Seite nicht in die Rahmen sehen und
 sagt das auch.
 
+Auf einer öffentlichen Installation ist der Ordner zu: "tools/.htaccess"
+sperrt ihn, damit niemand versehentlich auf einer Seite landet, die den
+lokalen Speicher leert. Der PHP-Testserver oben ignoriert .htaccess, dort
+läuft der Selbsttest also weiter. Für einen Lauf gegen einen echten
+Apache die Datei kurz beiseiteschieben oder die eigene Adresse
+freischalten – in der Datei steht, wie.
+
 Zwei Dinge, auf die dabei geachtet ist: Der Lauf sichert alles, was
 die App im Browser gespeichert hat, arbeitet auf leerem Stand und
 legt deine Bögen danach unverändert zurück (ein abgebrochener Lauf
@@ -264,7 +271,9 @@ after every step whether anything broke - 115 checks in about fifteen
 seconds. Open it from the same server the app runs on (as file:// it
 cannot look into the frames and says so). It copies whatever the app
 has stored, runs on an empty slate and puts your sheets back
-afterwards, and no file ever leaves the browser.
+afterwards, and no file ever leaves the browser. On a public
+installation "tools/.htaccess" shuts the folder; PHP's own dev server
+ignores it, so the line above still works.
 
 ÜBER & CREDITS
 --------------
@@ -583,7 +592,7 @@ INHALT
 ------
 60 Spezies + 9 Near-Human-Varianten (inkl. Trianii m/w und eigener
 Spezies-Baukasten), alle Fertigkeiten der 6 Attribute, Advanced
-Skills, 91 Machtkräfte mit Voraussetzungen und Seitenangaben,
+Skills, 131 Machtkräfte mit Voraussetzungen und Seitenangaben,
 Ausrüstungs-, Rüstungs-, Waffen- und Sprengstoff-Kataloge sowie die
 komplette Lichtschwert-Werkstatt (Kristalle, Farben, Modifikationen).
 
