@@ -52,8 +52,14 @@ $CONFIG = [
   // CORS: only set this when the front end lives on another domain, e.g.
   // 'https://my-site.example' - otherwise leave it empty.
   'allow_origin' => '',
-  // limits
-  'max_chars_per_user' => 100,
+  // Limits. max_chars_per_user counts PER TYPE - 250 characters, 250 droids,
+  // 250 ships and so on - because that is how the interface presents them,
+  // one tab each. A sheet is small: measured over a well-filled account, a
+  // character averages 75 KB, a droid 51 and a ship 29, so a full tab is
+  // some 12 MB and every tab full about 60. The per-document ceiling is what
+  // actually guards the disk, and a document only gets near it by carrying
+  // a picture.
+  'max_chars_per_user' => 250,
   'max_char_bytes' => 512 * 1024,
   // Table-top (mini VTT). Maps are stored on disk under their hash and
   // served with an immutable cache header, so a generous limit costs
@@ -710,6 +716,51 @@ function req_kind() {
   global $KINDS;
   $k = (string)inp('kind', 'char');
   return in_array($k, $KINDS, true) ? $k : 'char';
+}
+
+/* One-off repair, 4.0.0.1: documents filed under the wrong type.
+   Until 4.0.0 char_save wrote name, data and time on an update but NOT the
+   type, so a row kept for ever whatever it was FIRST stored under. A row
+   created before the droid and ship generators existed was stamped 'char' by
+   the ALTER further up; writing a ship into it afterwards left it at 'char',
+   and the sheet then hid in the character tab - present in the database,
+   invisible where it was looked for, and unable to heal itself however often
+   it was uploaded again.
+
+   The sheet itself carries its type, so the two can be compared and the
+   column corrected. Deliberately narrow: only where the document names one
+   of the known types AND the column says something else. Runs once, noted in
+   the settings, and never again - a normal request pays nothing for it. */
+if (!setting_get('kind_repair_1')) {
+  try {
+    /* In blocks of fifty, because a sheet carries its picture: reading every
+       document of a large installation at once would be tens of megabytes in
+       memory for a job that runs a single time. */
+    $lesen = $db->prepare("SELECT id, COALESCE(kind,'char') AS kind, data
+                           FROM chars WHERE id > ? ORDER BY id LIMIT 50");
+    $fix = $db->prepare('UPDATE chars SET kind = ? WHERE id = ?');
+    $n = 0; $ab = 0;
+    while (true) {
+      $lesen->execute([$ab]);
+      $rows = $lesen->fetchAll(PDO::FETCH_ASSOC);
+      if (!$rows) break;
+      foreach ($rows as $r) {
+        $ab = (int)$r['id'];
+        $doc = json_decode((string)$r['data'], true);
+        if (!is_array($doc) || !isset($doc['kind'])) continue;
+        $soll = (string)$doc['kind'];
+        if (!in_array($soll, $KINDS, true) || $soll === $r['kind']) continue;
+        $fix->execute([$soll, (int)$r['id']]);
+        $n++;
+      }
+    }
+    setting_set('kind_repair_1', ['at' => time(), 'fixed' => $n]);
+    if ($n) error_log('swd6: filed ' . $n . ' document(s) under the type they carry');
+  } catch (Exception $e) {
+    /* A repair must never keep the site down. Without the note in the
+       settings it simply runs again on the next request. */
+    error_log('swd6: kind repair failed, will retry: ' . $e->getMessage());
+  }
 }
 
 /* Self-check: if something is missing, say so plainly instead of crashing later */
@@ -1621,18 +1672,37 @@ case 'char_save': {
   if (strlen($json) > $CONFIG['max_char_bytes']) fail('Character too large');
   $id = (int)inp('id', 0);
   if ($id > 0) {
-    $st = $db->prepare('SELECT user_id FROM chars WHERE id = ?');
+    $st = $db->prepare('SELECT user_id, kind FROM chars WHERE id = ?');
     $st->execute([$id]);
     $row = $st->fetch(PDO::FETCH_ASSOC);
     if (!$row) fail('Character not found', 404);
     if ((int)$row['user_id'] !== (int)$user['id']) fail('Only the owner can save this character', 403);
-    $db->prepare('UPDATE chars SET name = ?, data = ?, updated = ? WHERE id = ?')
-       ->execute([$name, $json, time(), $id]);
+    /* The type has to be written along, or a document keeps for ever the
+       type it was FIRST stored under. A row created before the droid and
+       ship generators existed got 'char' from the migration; writing a ship
+       into it afterwards left the type at 'char', and the sheet then hid in
+       the character tab - present in the database, invisible where it was
+       looked for, and unable to heal itself however often it was uploaded
+       again.
+
+       Only when the caller actually named a type, though. An older client
+       that sends none would otherwise have req_kind() answer 'char' for it
+       and re-file a ship as a character - exactly the fault, from the other
+       side. */
+    $kind = inp('kind', null) === null
+      ? (($row['kind'] !== null && $row['kind'] !== '') ? $row['kind'] : 'char')
+      : req_kind();
+    $db->prepare('UPDATE chars SET name = ?, kind = ?, data = ?, updated = ? WHERE id = ?')
+       ->execute([$name, $kind, $json, time(), $id]);
     json_out(['id' => $id]);
   }
-  $st = $db->prepare('SELECT COUNT(*) FROM chars WHERE user_id = ?');
-  $st->execute([$user['id']]);
-  if ((int)$st->fetchColumn() >= $CONFIG['max_chars_per_user']) fail('Character limit reached');
+  /* The ceiling counts per type, not per account. Counting them together
+     meant a player with many characters could silently store no more ships,
+     while the ship tab sat there looking half empty - the limit was global
+     and the interface is per tab. */
+  $st = $db->prepare("SELECT COUNT(*) FROM chars WHERE user_id = ? AND COALESCE(kind,'char') = ?");
+  $st->execute([$user['id'], req_kind()]);
+  if ((int)$st->fetchColumn() >= $CONFIG['max_chars_per_user']) fail('Document limit reached for this type');
   $db->prepare('INSERT INTO chars (user_id, name, kind, data, updated) VALUES (?,?,?,?,?)')
      ->execute([$user['id'], $name, req_kind(), $json, time()]);
   json_out(['id' => last_id('chars')]);
