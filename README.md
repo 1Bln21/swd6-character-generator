@@ -10,7 +10,7 @@ This project is an HTML port of the Excel workbooks by **Chance Gibboney** — s
 
 | | |
 |---|---|
-| **Characters** | `index.html` — 374 species, all skills plus 20 advanced ones, Force powers, equipment, lightsaber workshop |
+| **Characters** | `index.html` — 375 species, all skills plus 20 advanced ones, Force powers, equipment, lightsaber workshop |
 | **Droids** | `droid.html` — degrees, 167 modifications, 393 ready-made droid templates |
 | **Ships & Vehicles** | `ship.html` — 1,296 ship/vehicle templates, modification workshop, weapons, sensors |
 | **NPCs** | `npc.html` — build a group role by role (6 stormtroopers, 2 officers) or a flight class by class, with compact stat blocks |
@@ -24,7 +24,7 @@ Game masters can also run **game rounds**: invite players by code, let them subm
 ### Features
 
 **Characters**
-- **374 species + 9 near-human variants** with attribute limits, move, special abilities, story factors and page references — 60 from the original workbook plus 314 taken from the Alien Compendium, listed separately in the dropdown. Includes Trianii (m/f) and a builder for custom species
+- **375 species + 9 near-human variants** with attribute limits, move, special abilities, story factors and page references — 60 from the original workbook plus 315 in a second group — 314 out of the Alien Compendium and one contributed by the community. Includes Trianii (m/f) and a builder for custom species
 - **Rules-based creation**: 18D attribute dice (species-dependent), 7D skills (max. +2D), Force skills from the attribute pool, Character Point advancement with automatic cost calculation
 - **All 90 skills**, advanced skills, specializations and custom skills
 - **131 Force powers** with prerequisites, difficulties and page references
@@ -367,7 +367,7 @@ Das Projekt ist die HTML-Portierung der Excel-Tabellen von **Chance Gibboney** �
 
 ### Was drin ist
 
-**Charaktere** (`index.html`) – 374 Spezies (60 aus der Excel, 314 weitere aus dem Alien Compendium, im Dropdown getrennt aufgeführt) + 9 Near-Human-Varianten, regelkonforme Erschaffung (18D Attribute, 7D Fertigkeiten, Machtfertigkeiten aus dem Attributs-Pool, Steigerung per Charakterpunkten), alle 90 Fertigkeiten samt 20 erweiterten („(A)"), 91 Machtkräfte, Lichtschwert-Werkstatt. **Eigene Spezies lassen sich online speichern** und stehen dann der ganzen Gruppe im Dropdown zur Verfügung.
+**Charaktere** (`index.html`) – 375 Spezies (60 aus der Excel, 314 weitere aus dem Alien Compendium und eine aus der Gemeinschaft, im Dropdown getrennt aufgeführt) + 9 Near-Human-Varianten, regelkonforme Erschaffung (18D Attribute, 7D Fertigkeiten, Machtfertigkeiten aus dem Attributs-Pool, Steigerung per Charakterpunkten), alle 90 Fertigkeiten samt 20 erweiterten („(A)"), 131 Machtkräfte, Lichtschwert-Werkstatt. **Eigene Spezies lassen sich online speichern** und stehen dann der ganzen Gruppe im Dropdown zur Verfügung.
 
 **Droiden** (`droid.html`) – fünf Degrees mit eigenen Steigerungskosten, gemeinsamer 25D-Startpool für Attribute, Fertigkeiten *und* Modifikationen, 167 Modifikationen in 11 Kategorien, fest verdrahtete Datenbank-Fertigkeiten sowie **393 fertige Droidenmodelle** aus den Regelwerken – eingebaute Bewaffnung wird als Waffe übernommen, und ein freies Feld nimmt Waffen auf, die in keinem Katalog stehen.
 
