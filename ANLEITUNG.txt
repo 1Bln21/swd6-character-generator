@@ -42,9 +42,17 @@ VORLAGEN AUS DEM REGELWERK (CHARAKTERE)
 
   Was dabei gesetzt wird: die sechs Attribute, die Machtfertigkeiten
   (wo die Vorlage welche hat), die Spezies (wo sie festliegt), dazu
-  Zitat, Hintergrund, Persoenlichkeit und Ziele. Die Ausruestungszeile
-  landet als Notiz - sie ist im Buch Fliesstext, keine Katalogliste,
-  und raten waere schlechter als abschreiben.
+  Zitat, Hintergrund, Persoenlichkeit und Ziele.
+
+  Die Ausruestungszeile ist im Buch Fliesstext, aber was Zahlen traegt,
+  wandert auf seinen Reiter: ein Schadenswert in Klammern ist eine
+  Waffe ("Lichtschwert (5D)" in den Nahkampf, "Blasterpistole (4D)" in
+  den Fernkampf, "Thermaldetonator (10D)" zu den Sprengstoffen),
+  "+1D physical" ist Ruestung, "1.000 credits" ist Startgeld. Der Rest
+  - Kutte, Comlink, Medpac, eine Flasche Schnaps - bleibt Prosa und
+  steht in den Notizen. Dort einen Katalogeintrag zu raten, der bloss
+  aehnlich heisst, waere schlimmer: das schriebe erfundene Wuerfel in
+  den Bogen.
 
   Was NICHT gesetzt wird: Fertigkeitswuerfel. Das ist kein Versehen,
   sondern das Buch: eine gedruckte Vorlage nennt die Fertigkeiten, die

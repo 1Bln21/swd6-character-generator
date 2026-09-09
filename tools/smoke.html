@@ -525,6 +525,20 @@ async function laufCharakter() {
     pruef('aber ohne einen einzigen Fertigkeitswürfel zu vergeben',
           JSON.stringify(modell(w).skills || {}) === skillsVorher,
           JSON.stringify(modell(w).skills || {}).slice(0, 90));
+
+    /* Die Ausrüstungszeile ist Prosa, aber was Zahlen trägt, gehört auf
+       seinen Reiter: eine Waffe, die nur in einer Notiz steht, kann man
+       nicht würfeln. Genau das war die Rückmeldung zum Lichtschwert des
+       Failed Jedi. */
+    const m2 = modell(w);
+    pruef('die Waffe aus der Ausrüstungszeile steht bei den Waffen',
+          (m2.customRanged || []).some(x => /blaster/i.test(x.name) && /4D/.test(x.dmg)),
+          JSON.stringify(m2.customRanged || []).slice(0, 120));
+    pruef('und das Startgeld steht im Konto', m2.credits.earned === 1000,
+          m2.credits.earned);
+    pruef('der Rest bleibt Prosa in den Notizen',
+          /medpac/i.test(m2.notes) && !/\(4D\)/.test(m2.notes),
+          (m2.notes || '').slice(0, 100));
     sauber(w, 'Vorlage übernommen');
 
     /* Und der Sonderfall: eine Spezies, deren Mindestwerte über dem liegen,

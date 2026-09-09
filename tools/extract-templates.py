@@ -130,6 +130,104 @@ NOT_18D = ['Protocol Droid']
 # book does list them - but they are NOT invented as app skills.
 EXTRA_OK = ['Glider', 'Primitive Construction']
 
+# ---------------------------------------------------------------------
+# The equipment line
+# ---------------------------------------------------------------------
+# It is one sentence of prose: "Lightsaber (5D), robes, bottle of liquor,
+# 250 credits". Dropping the whole thing into a note - which is where it
+# went first - means the lightsaber never reaches the weapons tab, which
+# is exactly what a player notices.
+#
+# What CAN be read out of it is only what the book itself marks:
+#
+#   (5D)              a damage code -> a weapon
+#   (STR+1D+1)        a damage code that adds Strength -> melee
+#   (+2 energy, ...)  an armour rating -> armour
+#   1,000 credits     starting money
+#
+# Everything without one of those - robes, comlink, a bottle of liquor, a
+# YT-1300 - stays prose and stays in the note. Guessing which catalogue
+# entry "medpac" means would put invented numbers on a sheet, and a wrong
+# die is worse than a line of text.
+DMG_STR = re.compile(r'^\s*(?:STR|Strength)\s*\+\s*(\d+D(?:\+[12])?|[12])\s*$', re.I)
+DMG_DICE = re.compile(r'^\s*(\d+D(?:\+[12])?)\s*$', re.I)
+ARMOUR = re.compile(r'\+\s*(\d+D?(?:\+[12])?)\s*(physical|energy)', re.I)
+CREDITS = re.compile(r'([\d][\d,.]*)\s*credits', re.I)
+
+# A lightsaber does its damage without Strength, so the bracket looks like a
+# blaster's. It is a melee weapon all the same.
+MELEE_NAMES = re.compile(r'lightsaber|light\s*whip|sword|knife|knives|spear|saber|club|staff|axe|vibro',
+                         re.I)
+THROWN = re.compile(r'detonator|grenade|explosive', re.I)
+
+
+def split_items(text):
+    """Split the line on commas that separate items.
+
+       Not every comma does: the book writes prices as "1,000 credits", and
+       splitting there leaves an item called "1" and another called "000
+       credits" - which is how the starting money first came out as zero. A
+       comma with a digit on each side belongs to the number."""
+    teile, tiefe, start = [], 0, 0
+    for i, c in enumerate(text):
+        if c == '(':
+            tiefe += 1
+        elif c == ')':
+            tiefe = max(0, tiefe - 1)
+        elif c == ',' and tiefe == 0:
+            if i and text[i - 1].isdigit() and i + 1 < len(text) and text[i + 1].isdigit():
+                continue
+            teile.append(text[start:i])
+            start = i + 1
+    teile.append(text[start:])
+    return [t.strip(' .') for t in teile if t.strip(' .')]
+
+
+def parse_equipment(text):
+    """-> (weapons, armour, credits, what is left as prose)."""
+    waffen, panzer, geld, rest = [], [], 0, []
+    for stueck in split_items(text):
+        m = re.match(r'^(.*?)\s*\(([^)]*)\)\s*(.*)$', stueck)
+        klammer = m.group(2) if m else ''
+        name = (m.group(1) + ' ' + m.group(3)).strip() if m else stueck
+
+        if klammer:
+            ms = DMG_STR.match(klammer)
+            md = DMG_DICE.match(klammer)
+            if ms or md:
+                schaden = ('STR+' + ms.group(1)) if ms else md.group(1)
+                art = ('thrown' if THROWN.search(name)
+                       else 'melee' if (ms or MELEE_NAMES.search(name))
+                       else 'ranged')
+                waffen.append({'name': name, 'dmg': schaden, 'kind': art})
+                continue
+            if ARMOUR.search(klammer):
+                werte = {a[1].lower(): a[0] for a in ARMOUR.findall(klammer)}
+                panzer.append({'name': name,
+                               'phys': werte.get('physical', ''),
+                               'energy': werte.get('energy', ''),
+                               'note': klammer})
+                continue
+
+        # "Sword (damage code is Strength+1D+1)" - the same thing said in words.
+        m2 = re.search(r'damage code is\s+(?:STR|Strength)\s*\+\s*(\d+D(?:\+[12])?)',
+                       stueck, re.I)
+        if m2:
+            waffen.append({'name': re.sub(r'\s*\(.*', '', stueck).strip(),
+                           'dmg': 'STR+' + m2.group(1), 'kind': 'melee'})
+            continue
+
+        mc = CREDITS.search(stueck)
+        if mc and not re.search(r'owed|debt', stueck, re.I) and not geld:
+            geld = int(re.sub(r'[^\d]', '', mc.group(1)))
+            uebrig = CREDITS.sub('', stueck).strip(' ,.')
+            if uebrig:
+                rest.append(uebrig)
+            continue
+
+        rest.append(stueck)
+    return waffen, panzer, geld, rest
+
 
 def fmt_pips(n):
     return '%dD' % (n // 3) if n % 3 == 0 else '%dD+%d' % (n // 3, n % 3)
@@ -338,9 +436,16 @@ def parse(pdf, repo_root):
         m_spec = re.search(r'Gender/Species:[ \t]*[^/\n]*?/[ \t]*([A-Za-z][A-Za-z \'-]*)',
                            lay)
 
+        ausruestung = text.get('Equipment', '')
+        waffen, panzer, geld, restgut = parse_equipment(ausruestung)
+
         vorlagen.append({
             'name': clean(m_type.group(1)) if m_type else kopf.title(),
             'species': clean(m_spec.group(1)) if m_spec else '',
+            'weapons': waffen,
+            'armor': panzer,
+            'credits': geld,
+            'gear': restgut,
             'attrs': attrs,
             'force': force,
             'skills': gefunden,
@@ -390,6 +495,20 @@ def main():
         leer = [v['name'] for v in vorlagen if not v[feld]]
         if leer:
             print('No %s: %s' % (feld, ', '.join(leer)))
+
+    print('\n--- what came out of the equipment line ---')
+    print('%-26s %5s  %-46s %s' % ('Template', 'creds', 'weapons / armour', 'left as prose'))
+    for v in vorlagen:
+        teile = ['%s %s%s' % (w['name'], w['dmg'],
+                              '' if w['kind'] == 'ranged' else ' [' + w['kind'] + ']')
+                 for w in v['weapons']]
+        teile += ['%s +%s/%s' % (a['name'], a['phys'] or '-', a['energy'] or '-')
+                  for a in v['armor']]
+        print('%-26s %5d  %-46s %s'
+              % (v['name'][:26], v['credits'], '; '.join(teile)[:46],
+                 ', '.join(v['gear'])[:40]))
+    ohne = [v['name'] for v in vorlagen if not v['weapons'] and v['equipment']]
+    print('\nNo weapon in the line: %s' % (', '.join(ohne) or '-'))
 
     if meldungen:
         print('\nFor review:')

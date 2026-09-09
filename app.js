@@ -87,6 +87,8 @@ de: {
   tpl_skills_hint: 'Diese Fertigkeiten nennt die Vorlage. Sie tragen im Buch keine Würfel – hier gehören deine 7D hin.',
   tpl_extra_skills: 'Nicht im Standardkatalog',
   tpl_equipment: 'Ausrüstung', tpl_connection: 'Verbindung zu anderen Charakteren',
+  tpl_from_template: 'aus der Vorlage',
+  tpl_taken: 'Waffen, Rüstung und Startgeld sind in die jeweiligen Reiter übernommen.',
   char_name: 'Charaktername', player_name: 'Spielername', occupation: 'Beruf / Template',
   species: 'Spezies', nh_variant: 'Near-Human-Variante', nh_choose: '– Variante wählen –',
   gender: 'Geschlecht', force_sensitive: 'Macht-sensitiv', home_planet: 'Heimatplanet',
@@ -279,6 +281,8 @@ en: {
   tpl_skills_hint: 'These are the skills the template names. They carry no dice in the book either - this is where your 7D belong.',
   tpl_extra_skills: 'Not in the standard list',
   tpl_equipment: 'Equipment', tpl_connection: 'Connection with other characters',
+  tpl_from_template: 'from the template',
+  tpl_taken: 'Weapons, armour and starting money have been put on their own tabs.',
   char_name: 'Character Name', player_name: 'Player Name', occupation: 'Occupation / Template',
   species: 'Species', nh_variant: 'Near-Human Variant', nh_choose: '– choose variant –',
   gender: 'Gender', force_sensitive: 'Force Sensitive', home_planet: 'Home Planet',
@@ -1063,7 +1067,9 @@ function templateSkillBox() {
     <h2>${t('tpl_applied')}: ${esc(tpl.name)}</h2>
     <p class="hint">${t('tpl_skills_hint')}</p>
     ${gruppen}${frei}
-    ${tpl.equipment ? `<h3>${t('tpl_equipment')}</h3><p>${esc(tpl.equipment)}</p>` : ''}
+    ${tpl.equipment ? `<h3>${t('tpl_equipment')}</h3><p>${esc(tpl.equipment)}</p>
+      ${((tpl.weapons || []).length || (tpl.armor || []).length || tpl.credits)
+        ? `<p class="hint">${t('tpl_taken')}</p>` : ''}` : ''}
     ${tpl.connection ? `<h3>${t('tpl_connection')}</h3><p class="hint">${esc(tpl.connection)}</p>` : ''}
     <p class="hint" style="margin-top:8px">${t('source')}: ${esc(tpl.book)}</p>
   </div>`;
@@ -1115,13 +1121,41 @@ function applyCharTemplate() {
   if (tpl.personality) C.info.personality = tpl.personality;
   if (tpl.objectives) C.info.objectives = tpl.objectives;
 
-  /* The equipment line is prose ("Blaster pistol (4D), Rebel uniform,
-     medpac, 1,000 credits"), not catalogue entries. Guessing which
-     catalogue item each phrase means would put wrong dice on the sheet, so
-     it goes in as the note it is and the player picks the pieces. */
-  if (tpl.equipment) {
-    const zeile = t('tpl_equipment') + ': ' + tpl.equipment;
-    if (!C.notes.includes(tpl.equipment)) {
+  /* The equipment line is prose, but the book marks the part that has
+     numbers in it: a damage code in brackets is a weapon, "+1D physical" is
+     armour, "1,000 credits" is money. Those go where they belong - a
+     lightsaber that shows up only in a note is a lightsaber the player
+     cannot roll with.
+
+     The rest stays prose. "medpac", "vacuum suit", "a collection of shiny
+     objects" have no numbers to take, and picking a catalogue entry that
+     merely sounds similar would put invented dice on the sheet. */
+  (tpl.weapons || []).forEach(w => {
+    if (w.kind === 'melee') {
+      if (C.customMelee.some(x => x.name === w.name)) return;
+      C.customMelee.push({ name: w.name, dmg: w.dmg, diff: '', cost: 0,
+                           note: t('tpl_from_template') });
+    } else if (w.kind === 'thrown') {
+      if (C.customExplosives.some(x => x.name === w.name)) return;
+      C.customExplosives.push({ name: w.name, dmg: w.dmg, cost: 0, qty: 1,
+                                note: t('tpl_from_template') });
+    } else {
+      if (C.customRanged.some(x => x.name === w.name)) return;
+      C.customRanged.push({ name: w.name, skill: /bowcaster/i.test(w.name) ? 'Bowcaster' : 'Blaster',
+                            dmg: w.dmg, ranges: '', ammo: '', cost: 0 });
+    }
+  });
+  (tpl.armor || []).forEach(a => {
+    if (C.customArmor.some(x => x.name === a.name)) return;
+    C.customArmor.push({ name: a.name, phys: a.phys, energy: a.energy, loc: '',
+                         dexPen: '', cost: 0, note: a.note, active: true });
+  });
+  if (tpl.credits) C.credits.earned = tpl.credits;
+
+  const restGut = (tpl.gear || []).join(', ');
+  if (restGut) {
+    const zeile = t('tpl_equipment') + ': ' + restGut;
+    if (!C.notes.includes(restGut)) {
       C.notes = C.notes ? C.notes.trim() + '\n' + zeile : zeile;
     }
   }

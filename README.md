@@ -24,7 +24,7 @@ Game masters can also run **game rounds**: invite players by code, let them subm
 ### Features
 
 **Characters**
-- **26 character templates from the rulebook** - Brash Pilot, Smuggler, Wookiee, Failed Jedi and the rest. Pick one and the 18D of attributes are filled in as the book prints them; the 7D of skill dice stay yours, and the template shows which skills it names
+- **26 character templates from the rulebook** - Brash Pilot, Smuggler, Wookiee, Failed Jedi and the rest. Pick one and the 18D of attributes are filled in as the book prints them; the 7D of skill dice stay yours, and the template shows which skills it names. Weapons, armour and starting money out of the equipment line land on their own tabs - anything the book gives a number to
 - **375 species + 9 near-human variants** with attribute limits, move, special abilities, story factors and page references — 60 from the original workbook plus 315 in a second group — 314 out of the Alien Compendium and one contributed by the community. Includes Trianii (m/f) and a builder for custom species
 - **Rules-based creation**: 18D attribute dice (species-dependent), 7D skills (max. +2D), Force skills from the attribute pool, Character Point advancement with automatic cost calculation
 - **All 90 skills**, advanced skills, specializations and custom skills
