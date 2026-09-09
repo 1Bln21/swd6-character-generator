@@ -77,6 +77,16 @@ de: {
   weapon: 'Waffe', color: 'Farbe', max_short: 'Max.',
   /* info tab */
   personal_data: 'Persönliche Daten',
+  tpl_heading: 'Vorlage aus dem Regelwerk',
+  tpl_hint: 'Die gedruckten Charaktervorlagen: auswählen, übernehmen, spielen. Die 18D Attribute sind darin schon verteilt – die 7D Fertigkeitswürfel bleiben bei dir.',
+  tpl_search: 'Suche', tpl_pick: 'Vorlage', tpl_apply: '↓ Übernehmen',
+  tpl_count: '{n} Vorlagen zur Auswahl',
+  tpl_overwrite: 'Vorlage „{name}" übernehmen? Attribute, Machtfertigkeiten und die Texte zu Hintergrund, Persönlichkeit, Zielen und Zitat werden dabei überschrieben.',
+  tpl_applied: 'Vorlage', tpl_applied_ok: 'Vorlage „{name}" übernommen.',
+  tpl_applied_clamped: 'Vorlage „{name}" übernommen. Achtung: {attrs} liegt bei dieser Spezies unter dem Mindestwert und wurde angehoben – der Attributs-Pool stimmt dadurch nicht mehr.',
+  tpl_skills_hint: 'Diese Fertigkeiten nennt die Vorlage. Sie tragen im Buch keine Würfel – hier gehören deine 7D hin.',
+  tpl_extra_skills: 'Nicht im Standardkatalog',
+  tpl_equipment: 'Ausrüstung', tpl_connection: 'Verbindung zu anderen Charakteren',
   char_name: 'Charaktername', player_name: 'Spielername', occupation: 'Beruf / Template',
   species: 'Spezies', nh_variant: 'Near-Human-Variante', nh_choose: '– Variante wählen –',
   gender: 'Geschlecht', force_sensitive: 'Macht-sensitiv', home_planet: 'Heimatplanet',
@@ -259,6 +269,16 @@ en: {
   weapon: 'Weapon', color: 'Color', max_short: 'Max.',
   /* info tab */
   personal_data: 'Personal Data',
+  tpl_heading: 'Template from the rulebook',
+  tpl_hint: 'The printed character templates: pick one, apply, play. The 18D of attributes are already distributed in it - the 7D of skill dice stay with you.',
+  tpl_search: 'Search', tpl_pick: 'Template', tpl_apply: '↓ Apply',
+  tpl_count: '{n} templates to choose from',
+  tpl_overwrite: 'Apply the "{name}" template? Attributes, Force skills and the background, personality, objectives and quote texts will be overwritten.',
+  tpl_applied: 'Template', tpl_applied_ok: 'Template "{name}" applied.',
+  tpl_applied_clamped: 'Template "{name}" applied. Note: {attrs} sits below this species\' minimum and was raised to it - so the attribute pool no longer adds up.',
+  tpl_skills_hint: 'These are the skills the template names. They carry no dice in the book either - this is where your 7D belong.',
+  tpl_extra_skills: 'Not in the standard list',
+  tpl_equipment: 'Equipment', tpl_connection: 'Connection with other characters',
   char_name: 'Character Name', player_name: 'Player Name', occupation: 'Occupation / Template',
   species: 'Species', nh_variant: 'Near-Human Variant', nh_choose: '– choose variant –',
   gender: 'Gender', force_sensitive: 'Force Sensitive', home_planet: 'Home Planet',
@@ -489,7 +509,7 @@ function emptyChar() {
   return {
     version: 1,
     info: {
-      name: '', player: '', occupation: '', species: 'Human', nearHuman: '',
+      name: '', player: '', occupation: '', template: '', species: 'Human', nearHuman: '',
       gender: 'Male', forceSensitive: false, planet: '', age: '', height: '',
       weight: '', quote: '', description: '', history: '', personality: '', objectives: '',
       raceNotes: '', portrait: '',
@@ -965,6 +985,161 @@ function rotatePortrait(dir) {
 }
 
 /* ---------------- tab: character ---------------- */
+/* ---------------- character templates from the rulebook ----------------
+   The printed templates are how the books expect a player to start: pick
+   "Brash Pilot", copy the sheet, play. Every other generator here already
+   had templates - ships, droids, NPC groups - and the character page, of
+   all of them, had none.
+
+   What a template does and does not do follows the book exactly. The
+   attributes are fully distributed, so applying one fills the attribute
+   pool and leaves nothing over; the printed sheet spends all 18D. The
+   SKILLS are only named, never rated - the 7D of skill dice stay with the
+   player, which is why applying a template does not touch a single skill
+   value. The named skills are shown as a suggestion instead.
+
+   Nothing here is locked afterwards. Lowering an attribute hands the pips
+   straight back to the pool, because the pool is worked out from what is
+   in the sheet rather than remembered separately. */
+let charTplFilter = '';
+let charTplMsg = '';
+
+function charTemplates() {
+  return (typeof PDF_TEMPLATES !== 'undefined') ? PDF_TEMPLATES : [];
+}
+function charTemplateByName(name) {
+  return charTemplates().find(x => x.name === name) || null;
+}
+
+function templateCard() {
+  const list = charTemplates();
+  if (!list.length) return '';
+  const f = charTplFilter.trim().toLowerCase();
+  const hits = list.filter(x => !f
+    || x.name.toLowerCase().includes(f)
+    || (x.species || '').toLowerCase().includes(f));
+  const opts = hits.map(x =>
+    `<option ${C.info.template === x.name ? 'selected' : ''} value="${esc(x.name)}">`
+    + `${esc(x.name)}${x.species ? ' · ' + esc(x.species) : ''}</option>`).join('');
+  return `
+  <div class="card">
+    <h2>${t('tpl_heading')}</h2>
+    <p class="hint">${t('tpl_hint')}</p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end">
+      <div style="flex:0 0 180px">
+        <label>${t('tpl_search')}</label>
+        <input type="text" id="charTplSearch" value="${esc(charTplFilter)}" placeholder="Brash Pilot, Wookiee …">
+      </div>
+      <div style="flex:1; min-width:220px">
+        <label>${t('tpl_pick')}</label>
+        <select id="charTplSelect" size="1">${opts}</select>
+      </div>
+      <div><button class="accent" data-act="applyCharTemplate">${t('tpl_apply')}</button></div>
+    </div>
+    <p class="hint">${t('tpl_count').replace('{n}', hits.length)}</p>
+    ${charTplMsg ? `<p class="ok" style="margin-top:8px">${esc(charTplMsg)}</p>` : ''}
+  </div>`;
+}
+
+/* The skills a template names, shown after it has been applied. They carry
+   no dice in the book either - this is where to spend the 7D, not what has
+   already been spent. */
+function templateSkillBox() {
+  const tpl = charTemplateByName(C.info.template);
+  if (!tpl) return '';
+  const gruppen = ATTRS.map(a => {
+    const liste = (tpl.skills && tpl.skills[a.key]) || [];
+    if (!liste.length) return '';
+    return `<p><b>${esc(a.name)}:</b> `
+      + liste.map(n => `<span class="badge gold">${esc(skillName(n))}</span>`).join(' ')
+      + '</p>';
+  }).join('');
+  const frei = (tpl.extraSkills || []).length
+    ? `<p><b>${t('tpl_extra_skills')}:</b> `
+      + tpl.extraSkills.map(n => `<span class="badge gold">${esc(n)}</span>`).join(' ') + '</p>'
+    : '';
+  return `
+  <div class="card">
+    <h2>${t('tpl_applied')}: ${esc(tpl.name)}</h2>
+    <p class="hint">${t('tpl_skills_hint')}</p>
+    ${gruppen}${frei}
+    ${tpl.equipment ? `<h3>${t('tpl_equipment')}</h3><p>${esc(tpl.equipment)}</p>` : ''}
+    ${tpl.connection ? `<h3>${t('tpl_connection')}</h3><p class="hint">${esc(tpl.connection)}</p>` : ''}
+    <p class="hint" style="margin-top:8px">${t('source')}: ${esc(tpl.book)}</p>
+  </div>`;
+}
+
+function applyCharTemplate() {
+  const sel = document.getElementById('charTplSelect');
+  if (!sel || !sel.value) return;
+  const tpl = charTemplateByName(sel.value);
+  if (!tpl) return;
+  if (!confirm(t('tpl_overwrite').replace('{name}', tpl.name))) return;
+
+  /* The species first: every attribute is stored as the distance above the
+     species minimum, so the minimum has to be the right one before the
+     values are worked out. */
+  if (tpl.species) {
+    /* The workbook this app grew out of spells it "Wookie"; the book says
+       "Wookiee". Renaming the species in data.js is not a fix - that exact
+       string sits in every character ever saved, and changing it would cut
+       those sheets off from their own species. So the template looks the
+       other spelling up instead. */
+    const ANDERS = { wookiee: 'Wookie' };
+    const gesucht = ANDERS[tpl.species.toLowerCase()] || tpl.species;
+    const bekannt = DATA.species.concat(extraSpecies())
+      .find(s => s.name.toLowerCase() === gesucht.toLowerCase());
+    if (bekannt) C.info.species = bekannt.name;
+  }
+  applySpeciesBonusSkills();
+
+  const zuKlein = [];
+  ATTRS.forEach(a => {
+    const soll = (tpl.attrs && tpl.attrs[a.key]) || 0;
+    const min = attrMin(a.key);
+    if (soll < min) zuKlein.push(a.name);
+    C.attrs[a.key] = Math.max(0, soll - min);
+    C.attrsCP[a.key] = 0;
+  });
+  FORCE.forEach(f => {
+    C.force[f.key] = (tpl.force && tpl.force[f.key]) || 0;
+    C.forceCP[f.key] = 0;
+  });
+
+  C.info.template = tpl.name;
+  C.info.occupation = tpl.name;
+  C.info.forceSensitive = !!tpl.forceSensitive;
+  if (tpl.forcePoints) C.points.fpCurrent = tpl.forcePoints;
+  if (tpl.quote) C.info.quote = tpl.quote;
+  if (tpl.background) C.info.history = tpl.background;
+  if (tpl.personality) C.info.personality = tpl.personality;
+  if (tpl.objectives) C.info.objectives = tpl.objectives;
+
+  /* The equipment line is prose ("Blaster pistol (4D), Rebel uniform,
+     medpac, 1,000 credits"), not catalogue entries. Guessing which
+     catalogue item each phrase means would put wrong dice on the sheet, so
+     it goes in as the note it is and the player picks the pieces. */
+  if (tpl.equipment) {
+    const zeile = t('tpl_equipment') + ': ' + tpl.equipment;
+    if (!C.notes.includes(tpl.equipment)) {
+      C.notes = C.notes ? C.notes.trim() + '\n' + zeile : zeile;
+    }
+  }
+  /* Two templates name a skill the app has no entry for (the Ewok's glider
+     and primitive construction). They are added as the character's own
+     skills rather than dropped or invented into the standard list. */
+  (tpl.extraSkills || []).forEach(n => {
+    if (!C.extraSkills.some(e => e.name === n)) {
+      C.extraSkills.push({ name: n, attr: 'kno', spec: null, adv: false });
+    }
+  });
+
+  charTplMsg = zuKlein.length
+    ? t('tpl_applied_clamped').replace('{name}', tpl.name).replace('{attrs}', zuKlein.join(', '))
+    : t('tpl_applied_ok').replace('{name}', tpl.name);
+  update();
+}
+
 function viewInfo() {
   const sp = speciesData();
   ensureCloudSpecies();
@@ -1067,6 +1242,7 @@ function viewInfo() {
   return `
   <div class="grid2">
     <div>
+      ${templateCard()}
       <div class="card">
         <h2>${t('personal_data')}</h2>
         <div class="formgrid">
@@ -1102,6 +1278,7 @@ function viewInfo() {
     </div>
     <div>
       ${portraitCard}
+      ${templateSkillBox()}
       ${speciesBox}
       ${customBox}
       ${cloudBox}
@@ -2363,6 +2540,7 @@ content.addEventListener('click', e => {
     case 'portraitRotR': rotatePortrait(1); break;
     case 'pdfAdd': pdfAdd(el.dataset.kind, +el.dataset.i); break;
     case 'speciesSaveCloud': saveSpeciesCloud(); break;
+    case 'applyCharTemplate': applyCharTemplate(); break;
     case 'speciesUse': applyCloudSpecies(+el.dataset.id); break;
     case 'speciesDelete': deleteSpeciesCloud(+el.dataset.id, el.dataset.name || ''); break;
     case 'print': {
@@ -2442,6 +2620,14 @@ content.addEventListener('change', e => {
 
 content.addEventListener('input', e => {
   const el = e.target;
+  if (el.id === 'charTplSearch') {
+    charTplFilter = el.value;
+    const pos = el.selectionStart;
+    update();
+    const again = document.getElementById('charTplSearch');
+    if (again) { again.focus(); again.setSelectionRange(pos, pos); }
+    return;
+  }
   if (el.dataset.pdfsearch != null) {
     pdfFilter[el.dataset.pdfsearch] = el.value;
     const pos = el.selectionStart;

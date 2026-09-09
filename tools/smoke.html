@@ -296,7 +296,9 @@ async function laufCharakter() {
 
   const arten = $$(w, '[data-bind="info.species"] option').map(o => o.value);
   pruef('die Speziesliste ist gefüllt', arten.length > 300, arten.length + ' Einträge');
-  const wookiee = arten.find(v => /^Wookiee$/i.test(v)) || arten[5];
+  /* Der Excel-Bestand schreibt "Wookie", das Buch "Wookiee" - beides
+     zulassen, sonst fällt der Lauf still auf irgendeine Spezies zurück. */
+  const wookiee = arten.find(v => /^Wookiee?$/i.test(v)) || arten[5];
   tippe(w, '[data-bind="info.species"]', wookiee);
   await schlaf(80);
   pruef('die Spezies ist übernommen', modell(w).info.species === wookiee, modell(w).info.species);
@@ -450,6 +452,124 @@ async function laufCharakter() {
   await schlaf(150);
   pruef('und wieder zurück', w.t('btn_save') === wortVorher);
   sauber(w, 'Sprache umgeschaltet');
+
+  /* ---- a template from the rulebook ----
+     Last on purpose: applying one overwrites attributes, species and the
+     background texts, so everything checked above has had its turn. The
+     point of the check is the arithmetic - a printed template spends all
+     18D, so after applying, the pool has to read exactly nothing left. */
+  reiter(w, 'info');
+  const tplAuswahl = w.document.getElementById('charTplSelect');
+  if (pruef('die Vorlagenliste ist da', !!tplAuswahl && tplAuswahl.options.length > 20,
+            tplAuswahl ? tplAuswahl.options.length + ' Einträge' : 'keine Liste')) {
+    const namen = [...tplAuswahl.options].map(o => o.value);
+    pruef('mit den Vorlagen aus dem Buch',
+          namen.includes('Brash Pilot') && namen.includes('Wookiee'),
+          namen.slice(0, 3).join(', '));
+
+    /* Vor dem Übernehmen festhalten: weiter oben im Lauf wurde bereits eine
+       Fertigkeit gesteigert, "alles auf null" wäre also der falsche Maßstab.
+       Geprüft wird, dass die Vorlage daran NICHTS ändert. */
+    const skillsVorher = JSON.stringify(modell(w).skills || {});
+
+    /* Erst auf eine Spezies ohne hohe Mindestwerte stellen. Die Vorlagen im
+       Buch sind für den Normalfall gerechnet; steht eine Spezies daneben,
+       deren Minimum über einem Vorlagenwert liegt, hebt die App den Wert an
+       und sagt das auch - das ist der Sonderfall weiter unten, nicht der
+       Maßstab für die Pool-Rechnung. */
+    tippe(w, '[data-bind="info.species"]', 'Human');
+    await schlaf(120);
+
+    /* Der Speziewechsel zeichnet die Karte neu, die Auswahlliste von oben
+       hängt danach nicht mehr im Dokument. Frisch holen, sonst setzt man den
+       Wert auf einer Leiche und übernimmt irgendeine andere Vorlage. */
+    w.confirm = () => true;
+    const tplJetzt = w.document.getElementById('charTplSelect');
+    tplJetzt.value = 'Brash Pilot';
+    klick(w, '[data-act="applyCharTemplate"]');
+    await schlaf(250);
+
+    const m = modell(w);
+    pruef('die Vorlage ist übernommen', m.info.template === 'Brash Pilot', m.info.template);
+    pruef('und steht im Feld Beruf', m.info.occupation === 'Brash Pilot', m.info.occupation);
+
+    /* 18D = 54 Pips, verteilt auf Speziesminimum + Attribute + Machtfertigkeiten. */
+    const sp = w.speciesData();
+    const minSum = sp.min.reduce((a, b) => a + (+b || 0), 0);
+    const verteilt = minSum
+      + ['dex', 'kno', 'mec', 'per', 'str', 'tec'].reduce((s, k) => s + (m.attrs[k] || 0), 0)
+      + ['control', 'sense', 'alter'].reduce((s, k) => s + (m.force[k] || 0), 0);
+    pruef('die Attribute füllen den Pool genau aus',
+          verteilt === 54 + (sp.offset || 0),
+          verteilt + ' von ' + (54 + (sp.offset || 0)) + ' Pips');
+
+    reiter(w, 'attrs');
+    await schlaf(120);
+    pruef('und der Banner sagt nichts übrig',
+          /:\s*0D/.test(txt(w, '#tab-attrs .pool-banner')),
+          txt(w, '#tab-attrs .pool-banner').replace(/\s+/g, ' ').slice(0, 90));
+
+    /* Der Punkt, auf den der User bestanden hat: verbraucht ja, aber nicht
+       eingefroren - wer senkt, bekommt die Pips zurück. */
+    klick(w, '#tab-attrs [data-act="attr"][data-dir="-1"][data-a="dex"]');
+    await schlaf(120);
+    pruef('senken gibt die Pips wieder frei',
+          /:\s*1\s*Pip|:\s*0D\+1/.test(txt(w, '#tab-attrs .pool-banner'))
+          || !/:\s*0D\s*✔/.test(txt(w, '#tab-attrs .pool-banner')),
+          txt(w, '#tab-attrs .pool-banner').replace(/\s+/g, ' ').slice(0, 90));
+
+    reiter(w, 'info');
+    await schlaf(120);
+    pruef('die genannten Fertigkeiten stehen daneben',
+          /Blaster/i.test(txt(w, '#tab-info')) && /Astrogation/i.test(txt(w, '#tab-info')));
+    pruef('aber ohne einen einzigen Fertigkeitswürfel zu vergeben',
+          JSON.stringify(modell(w).skills || {}) === skillsVorher,
+          JSON.stringify(modell(w).skills || {}).slice(0, 90));
+    sauber(w, 'Vorlage übernommen');
+
+    /* Und der Sonderfall: eine Spezies, deren Mindestwerte über dem liegen,
+       was die Vorlage vorsieht. Dann MUSS die App das sagen, statt still
+       einen Bogen auszugeben, dessen Pool nicht mehr aufgeht.
+
+       Das Paar wird nicht geraten, sondern gesucht: welche Spezies und
+       welche Vorlage sich beißen, hängt an beiden Datenbeständen und würde
+       sich sonst beim nächsten Katalogumbau still verabschieden.
+
+       DATA und PDF_TEMPLATES sind Top-Level-const und vom Elternfenster aus
+       deshalb NICHT zu sehen - genau die Falle, die den Durchlauf schon
+       einmal gekostet hat. charTemplates() und speciesData() sind
+       Funktionsdeklarationen und damit erreichbar; die Mindestwerte kommen
+       also über die eingestellte Spezies statt aus der Liste. */
+    const schluessel = ['dex', 'kno', 'mec', 'per', 'str', 'tec'];
+    const arten2 = $$(w, '[data-bind="info.species"] option')
+      .map(o => o.value).filter(v => v && !v.startsWith('cloud:'));
+    const kandidaten = arten2.filter(v =>
+      /^(Wookiee?|Cerean|Gamorrean|Trandoshan|Barabel|Hutt|Whiphid|Herglic)$/i.test(v));
+    const alleTpl = w.charTemplates();
+    let paar = null;
+    for (const art of kandidaten) {
+      tippe(w, '[data-bind="info.species"]', art);
+      await schlaf(90);
+      const min = w.speciesData().min;
+      const v = alleTpl.find(x =>
+        schluessel.some((k, n) => (x.attrs[k] || 0) < (+min[n] || 0)));
+      if (v) { paar = { art, vorlage: v.name }; break; }
+    }
+    if (paar) {
+      tippe(w, '[data-bind="info.species"]', paar.art);
+      await schlaf(120);
+      const tplAuswahl2 = w.document.getElementById('charTplSelect');
+      tplAuswahl2.value = paar.vorlage;
+      klick(w, '[data-act="applyCharTemplate"]');
+      await schlaf(250);
+      const meldung = txt(w, '#tab-info');
+      pruef('eine zu starke Spezies wird gemeldet, nicht verschwiegen',
+            /unter dem Mindestwert|below this species/i.test(meldung),
+            paar.art + ' + ' + paar.vorlage + ': '
+            + meldung.replace(/\s+/g, ' ').slice(0, 110));
+      sauber(w, 'Vorlage gegen starke Spezies');
+    }
+  }
 }
 
 async function laufDroide() {

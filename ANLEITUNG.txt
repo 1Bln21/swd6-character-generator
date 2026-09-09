@@ -34,6 +34,34 @@ REGELSTAND: R&E UND REUP
   Stelle. Ein Umschalten ist nicht noetig, weil sich keine Rechenregel
   zwischen den Buechern unterscheidet.
 
+VORLAGEN AUS DEM REGELWERK (CHARAKTERE)
+  Ganz oben auf dem Charakter-Tab steht "Vorlage aus dem
+  Regelwerk": die 26 gedruckten Charaktervorlagen aus REUP - Brash
+  Pilot, Schmuggler, Wookiee, Failed Jedi, Kid und so weiter.
+  Auswaehlen, "Uebernehmen" druecken, fertig.
+
+  Was dabei gesetzt wird: die sechs Attribute, die Machtfertigkeiten
+  (wo die Vorlage welche hat), die Spezies (wo sie festliegt), dazu
+  Zitat, Hintergrund, Persoenlichkeit und Ziele. Die Ausruestungszeile
+  landet als Notiz - sie ist im Buch Fliesstext, keine Katalogliste,
+  und raten waere schlechter als abschreiben.
+
+  Was NICHT gesetzt wird: Fertigkeitswuerfel. Das ist kein Versehen,
+  sondern das Buch: eine gedruckte Vorlage nennt die Fertigkeiten, die
+  zur Figur passen, verteilt aber keine Wuerfel darauf. Die 7D bleiben
+  beim Spieler. Rechts steht deshalb nach dem Uebernehmen eine Liste
+  der genannten Fertigkeiten - dorthin gehoeren die 7D.
+
+  Die 18D Attributwuerfel sind in der Vorlage vollstaendig verteilt,
+  der Pool zeigt danach also "Uebrig: 0D". Eingefroren ist nichts: wer
+  einen Attributwert senkt, bekommt die Pips sofort zurueck und kann
+  sie woanders ausgeben.
+
+  Steht eine Spezies daneben, deren Mindestwert ueber einem Wert der
+  Vorlage liegt, hebt die App den Wert auf das Minimum an und sagt es
+  dazu - der Pool geht dann nicht mehr genau auf, was so gewollt ist:
+  lieber ein sichtbarer Hinweis als ein still falscher Bogen.
+
 SPEZIES
   Das Dropdown auf dem Charakter-Tab fuehrt zuerst die 60 Spezies aus
   der Excel-Vorlage, darunter unter "Weitere Spezies aus den
