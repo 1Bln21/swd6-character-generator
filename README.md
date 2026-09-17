@@ -37,6 +37,7 @@ Game masters can also run **game rounds**: invite players by code, let them subm
 - Shared **25D starting pool** for attributes, skills *and* modifications
 - **167 modifications** in 11 categories (processors, sensors, armor, weapons, medical …)
 - Hard-wired **database skills**
+- **Purchase price, new or used** - 30 of the 393 droids name a used price in the books, 13 of them only a used one. Pick which you paid; where the book stays silent, half is offered as a suggestion
 - **393 droid templates** from the sourcebooks — apply and adjust; built-in armament comes across as weapons, a free field takes armament no catalogue lists, and skills a droid brings along that no list knows (culinary arts, home economics) are kept as skills of their own
 
 **Ships & Vehicles** (`ship.html`)

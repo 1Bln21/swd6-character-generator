@@ -33,6 +33,11 @@ Object.assign(T.de, {
   dr_degree: 'Degree (Klasse)', dr_manufacturer: 'Hersteller',
   dr_locomotion: 'Fortbewegung', dr_scale: 'Größenklasse', dr_move: 'Move (m)',
   dr_matrix: 'Persönlichkeits-Matrix', dr_height: 'Höhe (m)', dr_weight: 'Gewicht (kg)',
+  dr_costnew: 'Preis (neu)', dr_costused: 'Preis (gebraucht)',
+  dr_bought: 'Gekauft als', dr_bought_new: 'Neu', dr_bought_used: 'Gebraucht',
+  dr_bought_hint: 'Bestimmt, welcher Preis als Droidenwert auf dem Bogen steht. Was der Droide danach kauft, läuft weiter über die Credits.',
+  dr_used_guess: 'Das Buch nennt keinen Gebrauchtpreis. Die Hälfte wäre {n}.', dr_used_take: 'Übernehmen',
+  dr_cost_total: 'Preis', dr_cost_total_used: 'Preis (gebraucht)',
   dr_matrix_hint: 'Steht in keiner Quelle und wird nicht aus der Vorlage übernommen – bitte selbst wählen und vom Spielleiter absegnen lassen. Ein Lastenheber ist „Simple“, ein Taktik- oder Protokolldroide deutlich mehr.',
   dr_quote: 'Zitat', dr_fp: 'Machtpunkte',
   dr_desc: 'Beschreibung', dr_history: 'Kurze Geschichte',
@@ -109,6 +114,11 @@ Object.assign(T.en, {
   dr_degree: 'Degree', dr_manufacturer: 'Manufacturer',
   dr_locomotion: 'Locomotion', dr_scale: 'Scale', dr_move: 'Move (m)',
   dr_matrix: 'Personality Matrix', dr_height: 'Height (m)', dr_weight: 'Weight (kg)',
+  dr_costnew: 'Cost (new)', dr_costused: 'Cost (used)',
+  dr_bought: 'Bought as', dr_bought_new: 'New', dr_bought_used: 'Used',
+  dr_bought_hint: 'Decides which price counts as the droid\'s value on the sheet. What the droid buys afterwards still runs through its credits.',
+  dr_used_guess: 'The book names no used price. Half would be {n}.', dr_used_take: 'Take it',
+  dr_cost_total: 'Cost', dr_cost_total_used: 'Cost (used)',
   dr_matrix_hint: 'Not given in any source and not taken from the template – pick it yourself and have your GM approve it. A load lifter is “Simple”, a tactical or protocol droid clearly more.',
   dr_quote: 'A Quote', dr_fp: 'Force Points',
   dr_desc: 'Physical Description', dr_history: 'Short History',
@@ -183,6 +193,7 @@ function emptyDoc() {
       name: '', player: '', degree: 'First Degree', manufacturer: '',
       locomotion: 'Legs (2)', scale: 'Character', move: 10,
       matrix: 'Simple', height: '', weight: '', quote: '', forcePoints: 1,
+      costNew: 0, costUsed: 0, bought: 'new',
       description: '', history: '', personality: '', objectives: '',
       portrait: '', notes: '',
       dbSkill1: 'None', dbLevel1: 'None', dbSkill2: 'None', dbLevel2: 'None',
@@ -737,11 +748,49 @@ function applyDroidTemplate() {
   });
   if ((src.equipped || []).length) notes.push(t('dr_tpl_equip_note') + '\n- ' + src.equipped.join('\n- '));
   if (src.source) notes.push('Quelle: ' + src.source);
-  if (src.costText) notes.push('Cost: ' + src.costText + (src.avail ? ' · Availability: ' + src.avail : ''));
+  /* The price out of the book. Until now it only went into the notes, so a
+     droid had no purchase price at all - the sheet showed a line of text
+     where the ship sheet shows a figure. 30 of the 393 droids name a used
+     price, 17 of them both, which is exactly the case the ship page already
+     handles.
+
+     Where the book names ONLY a used price, that figure used to land in the
+     catalogue's `cost` field and would have been read as the list price. It
+     fills the used field instead, "bought as" starts on used, and the new
+     price is set to twice it - the median of used against new across the
+     entries naming both, the same ratio the ship page uses. */
+  if (src.costText) {
+    const preis = priceFromText(src.costText);
+    if (preis.neu || preis.gebraucht) {
+      i.costNew = preis.neu || (preis.gebraucht ? preis.gebraucht * 2 : 0);
+      i.costUsed = preis.gebraucht || 0;
+      i.bought = (!preis.neu && preis.gebraucht) ? 'used' : 'new';
+    } else {
+      i.costNew = priceLeading(src.costText) || +src.cost || 0;
+      i.costUsed = 0;
+      i.bought = 'new';
+    }
+    /* The availability stays a note - it is a letter code, not a number. */
+    if (src.avail) notes.push('Availability: ' + src.avail);
+  }
   i.notes = notes.join('\n\n');
   tplMsg = t('dr_template_applied');
   update('model');
 }
+/* What a used one would cost where the book stays silent - half, the same
+   median the ship page uses. Only offered, never written into the catalogue. */
+function droidUsedSuggestion() {
+  const neu = +C.info.costNew || 0;
+  return neu ? Math.round(neu / 2) : 0;
+}
+
+/* What the droid actually cost its owner. */
+function droidPaid() {
+  const i = C.info;
+  if (i.bought === 'used' && +i.costUsed) return +i.costUsed;
+  return +i.costNew || 0;
+}
+
 function dicePipsD(s) {
   const m = /(\d+)\s*D\s*(?:\+\s*(\d+))?/.exec(String(s || ''));
   return m ? (+m[1]) * 3 + (+(m[2] || 0)) : 0;
@@ -879,6 +928,17 @@ function viewModel() {
           <div><label>${t('dr_height')}</label>${inputT('info.height', i.height)}</div>
           <div><label>${t('dr_weight')}</label>${inputT('info.weight', i.weight)}</div>
           <div><label>${t('dr_fp')}</label>${inputN('info.forcePoints', i.forcePoints, 'style="width:80px"')}</div>
+          <div><label>${t('dr_costnew')}</label>${inputN('info.costNew', i.costNew, 'data-rerender="1"')}</div>
+          <div><label>${t('dr_costused')}</label>${inputN('info.costUsed', i.costUsed, 'data-rerender="1" placeholder="' + (droidUsedSuggestion() || '') + '"')}
+            ${!+i.costUsed && droidUsedSuggestion()
+              ? `<div class="hint">${t('dr_used_guess').replace('{n}', fmtCr(droidUsedSuggestion()))}
+                 <button class="mini" data-act="useGuess">${t('dr_used_take')}</button></div>` : ''}</div>
+          <div class="wide"><label>${t('dr_bought')}</label>
+            <select data-bind="info.bought" data-rerender="1">
+              <option value="new" ${i.bought !== 'used' ? 'selected' : ''}>${t('dr_bought_new')}</option>
+              <option value="used" ${i.bought === 'used' ? 'selected' : ''}>${t('dr_bought_used')}</option>
+            </select>
+            <div class="hint">${t('dr_bought_hint')}</div></div>
           <div class="wide"><label>${t('dr_quote')}</label>${inputT('info.quote', i.quote, 'style="width:100%"')}</div>
         </div>
       </div>
@@ -1179,6 +1239,7 @@ function renderSheet() {
       ${sheetField(t('dr_height'), i.height ? i.height + ' m' : '', 2)}
       ${sheetField(t('dr_weight'), i.weight ? i.weight + ' kg' : '', 2)}
       ${sheetField(t('dr_fp'), String(i.forcePoints || 0), 2)}
+      ${droidPaid() ? sheetField(t(i.bought === 'used' && +i.costUsed ? 'dr_cost_total_used' : 'dr_cost_total'), fmtCr(droidPaid()), 4) : ''}
       ${sheetField('CP', String(cpLeft()), 2)}
       ${sheetField(t('dr_resist_p'), fmtD(res.physTotal), 2)}
       ${sheetField(t('dr_resist_e'), fmtD(res.enerTotal), 2)}
@@ -1250,6 +1311,7 @@ function pageAction(el) {
   const dir = +el.dataset.dir || 0;
   switch (el.dataset.act) {
     case 'applyTemplate': applyDroidTemplate(); break;
+    case 'useGuess': C.info.costUsed = droidUsedSuggestion(); update(); break;
     case 'addCustomWeapon': addCustomDroidWeapon(); break;
     case 'pdfAdd': pdfAddDroid(el.dataset.kind, +el.dataset.i); break;
     case 'delCustomGear': C[el.dataset.list].splice(+el.dataset.idx, 1); update(); break;

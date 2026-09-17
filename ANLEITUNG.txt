@@ -82,6 +82,22 @@ SPEZIES
   18D). Beim Import werden die Werte umgerechnet, damit die neuen
   Spezies genauso stark sind wie die bisherigen.
 
+PREIS EINES DROIDEN
+  Die Modelldaten fuehren "Preis (neu)" und "Preis (gebraucht)" sowie
+  "Gekauft als". Welcher der beiden gilt, steht danach auf dem Bogen.
+
+  30 der 393 Droiden nennen im Buch einen Gebrauchtpreis, 13 davon NUR
+  einen gebrauchten - der landete frueher als Listenpreis im Bogen. Beim
+  Uebernehmen einer Vorlage fuellt er jetzt das Gebrauchtfeld, "Gekauft
+  als" steht auf gebraucht, und als Neupreis wird das Doppelte gesetzt.
+  Das ist nicht geraten: ueber alle Eintraege, die beide Preise nennen,
+  liegt der Gebrauchtpreis im Mittel bei der Haelfte.
+
+  Wo das Buch keinen Gebrauchtpreis nennt, steht die Haelfte als
+  Vorschlag in grau daneben, mit einem Knopf zum Uebernehmen. Sie wird
+  erst beim Druecken in den Bogen geschrieben - was im Buch steht und was
+  gerechnet wurde, bleibt so auseinander.
+
 WAFFEN FUER SCHIFFE
   Der Reiter "Waffen" bietet oben einen Katalog: 978 Waffentypen,
   gesammelt aus den Schiffsbeschreibungen der Sammelbaende, sowie die

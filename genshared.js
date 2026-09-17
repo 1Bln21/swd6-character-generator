@@ -492,3 +492,83 @@ function initPage(defaultTab) {
 if (typeof skillName !== 'function') {
   window.skillName = function (en) { return en; };
 }
+
+/* =====================================================================
+   Prices out of the books - shared by the ship and the droid page
+   ---------------------------------------------------------------------
+   Lived in ship.js until droids got a purchase price of their own. Both
+   catalogues are written by the same hands in the same dozen shapes, so
+   one reader serves both; a second copy would drift.
+   ===================================================================== */
+/* ---- reading a price out of the books ----
+   The sourcebooks write the same thing a dozen ways: with and without the
+   word "credits", with and without brackets, in millions, separated by a
+   comma, a semicolon or nothing at all - and the text recognition has here
+   and there dropped a space into the middle of a number ("270, 000").
+   Collecting a pattern per shape is a losing game; the old one asked for a
+   figure immediately followed by "(used" and so missed 88 of the entries
+   that do carry a used price, among them every "70,000 credits (Used)".
+
+   So instead: find every figure that is followed shortly after by "new" or
+   "used", and let that word decide which price it is. */
+const PREIS_PAAR = /([\d][\d,.\s]*?)\s*(million|billion)?\s*(?:credits?\s*)?[([]?\s*(?:stock\s+and\s+)?(new|used)\b/gi;
+
+function priceFromText(text) {
+  const out = { neu: 0, gebraucht: 0 };
+  if (!text) return out;
+  PREIS_PAAR.lastIndex = 0;
+  let m;
+  while ((m = PREIS_PAAR.exec(text)) !== null) {
+    const einheit = (m[2] || '').toLowerCase();
+    let roh = String(m[1]).replace(/\s/g, '');
+    /* Three entries write the fraction the German way - "3,5 million".
+       Stripping that comma like a thousands separator turns three and a
+       half million into thirty-five. A comma is a decimal point when a
+       unit follows and fewer than three digits come after it; "2,650" in
+       front of nothing keeps its old meaning. */
+    if (einheit && /^\d{1,3},\d{1,2}$/.test(roh)) roh = roh.replace(',', '.');
+    /* And the other way round: a dot with exactly three digits behind it
+       and NO unit is a thousands separator in the European style
+       ("150.000"), not a fraction - otherwise a freighter costs a hundred
+       and fifty credits. With a unit it stays a fraction ("1.25 million"). */
+    if (!einheit && /^\d{1,3}(\.\d{3})+$/.test(roh)) roh = roh.replace(/\./g, '');
+    let v = parseFloat(roh.replace(/,/g, ''));
+    if (!isFinite(v) || v <= 0) continue;
+    if (einheit === 'million') v *= 1e6;
+    else if (einheit === 'billion') v *= 1e9;
+    if (v > 1e12) continue;
+    v = Math.round(v);
+    /* The first mention of each kind wins - a later one is usually a note
+       ("50,000 per container"), not a second price for the ship. */
+    if (m[3].toLowerCase() === 'new') { if (!out.neu) out.neu = v; }
+    else if (!out.gebraucht) out.gebraucht = v;
+  }
+  return out;
+}
+
+/* The leading figure of a price text that names neither new nor used -
+   "26, 500 credits", "3 Million Credits", "1.25 million".
+
+   This replaces falling back on the catalogue's own `cost` field, which was
+   worked out when the catalogue was generated and got nine of them wrong:
+   four lost their unit and read as 19 or 95 credits, three were truncated
+   (1.25 million became 1), one met the German decimal comma ("4,5 million"
+   as 45 million) and one the stray space. Checked against all 224 entries
+   that take this path: 177 come out identical, 38 have nothing readable and
+   keep the old value, and the nine that differ are all better here. */
+const PREIS_KOPF = /^\s*([\d][\d,. ]*\d|\d)\s*(million|billion)?/i;
+
+function priceLeading(text) {
+  const m = PREIS_KOPF.exec(text || '');
+  if (!m) return 0;
+  const einheit = (m[2] || '').toLowerCase();
+  let roh = String(m[1]).replace(/\s/g, '');
+  if (einheit && /^\d{1,3},\d{1,2}$/.test(roh)) roh = roh.replace(',', '.');
+  if (!einheit && /^\d{1,3}(\.\d{3})+$/.test(roh)) roh = roh.replace(/\./g, '');
+  let v = parseFloat(roh.replace(/,/g, ''));
+  if (!isFinite(v) || v <= 0) return 0;
+  if (einheit === 'million') v *= 1e6;
+  else if (einheit === 'billion') v *= 1e9;
+  return v > 1e12 ? 0 : Math.round(v);
+}
+

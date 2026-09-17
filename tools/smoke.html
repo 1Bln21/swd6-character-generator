@@ -626,6 +626,31 @@ async function laufDroide() {
     pruef('übernommen füllt sie den Bogen',
           !!(modell(w).info.name && modell(w).info.degree), modell(w).info);
     sauber(w, 'Vorlage übernommen');
+
+    /* Der Preis. 30 der 393 Droiden nennen einen Gebrauchtpreis, 13 davon
+       NUR einen - der landete frueher als Listenpreis auf dem Bogen. Wie
+       beim Schiff gilt: nur gebraucht genannt heisst gebraucht gekauft, und
+       der Neupreis ist das Doppelte (der Median ueber alle Eintraege, die
+       beide Preise nennen). */
+    const nurGebraucht = w.droidTemplates().filter(x => {
+      const pr = w.priceFromText(x.costText || '');
+      return pr.gebraucht && !pr.neu;
+    });
+    if (pruef('es gibt Droiden mit reinem Gebrauchtpreis', nurGebraucht.length > 0,
+              nurGebraucht.length + ' Eintraege')) {
+      tippe(w, '#tplSearch', nurGebraucht[0].name);
+      await schlaf(300);
+      const tpl2 = $(w, '#tplSelect');
+      tippe(w, tpl2, tpl2.options[0].value);
+      klick(w, '[data-act="applyTemplate"]');
+      await schlaf(300);
+      const i2 = modell(w).info;
+      pruef('der Gebrauchtpreis steht im Gebrauchtfeld', +i2.costUsed > 0, i2.costUsed);
+      pruef('und "gekauft als" steht auf gebraucht', i2.bought === 'used', i2.bought);
+      pruef('der Neupreis ist das Doppelte', +i2.costNew === 2 * +i2.costUsed,
+            i2.costNew + ' / ' + i2.costUsed);
+      sauber(w, 'Droidenpreis übernommen');
+    }
   }
 
   reiter(w, 'attrs');
