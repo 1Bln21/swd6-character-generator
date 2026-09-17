@@ -1330,8 +1330,8 @@ function viewMods() {
       ${t('sh_shields')}: <span class="dice">${fmtD(der.shields)}</span> &nbsp;
       ${t('sh_maneuver')}: <span class="dice">${fmtD(der.maneuver)}</span> &nbsp;
       ${t('sh_space')}: <span class="dice">${der.space}</span> &nbsp;
-      ${t('sh_hyper')}: <span class="dice">${esc(der.hyper || 'None')}</span> &nbsp;
-      ${t('sh_hyperbackup')}: <span class="dice">${esc(der.hyperBackup || t('sh_atmo_none'))}</span>
+      ${t('sh_hyper')}: <span class="dice">${esc(der.hyper && der.hyper !== 'None' ? der.hyper : t('none_one'))}</span> &nbsp;
+      ${t('sh_hyperbackup')}: <span class="dice">${esc(der.hyperBackup || t('none_one'))}</span>
       ${der.wdmgPips ? ` &nbsp; ${t('sh_mod_wdmg')}: <span class="dice">+${fmtD(der.wdmgPips)}</span>` : ''}
       <br>${t('sh_atmo_eff')}: <span class="dice">${der.atmo ? esc(der.atmo) : t('sh_atmo_none')}</span>
     </p>
