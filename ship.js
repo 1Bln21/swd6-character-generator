@@ -103,6 +103,7 @@ Object.assign(T.de, {
   sh_weight: 'Gewicht (t)', sh_effect: 'Effekt',
   sh_summary: 'Zusammenfassung',
   sh_cost_mods: 'Kosten aller Umbauten', sh_cost_total: 'Preis (neu, umgebaut)',
+  sh_nocost_warn: '– kein Neupreis eingetragen, deshalb 0',
   sh_cost_total_used: 'Preis (gebraucht, umgebaut)',
   sh_bought: 'Gekauft als',
   sh_bought_new: 'Neu', sh_bought_used: 'Gebraucht',
@@ -246,6 +247,7 @@ Object.assign(T.en, {
   sh_weight: 'Weight (t)', sh_effect: 'Effect',
   sh_summary: 'Summary',
   sh_cost_mods: 'Cost of all modifications', sh_cost_total: 'Cost (new, modified)',
+  sh_nocost_warn: '– no new price entered, so 0',
   sh_cost_total_used: 'Cost (used, modified)',
   sh_bought: 'Bought as',
   sh_bought_new: 'New', sh_bought_used: 'Used',
@@ -559,9 +561,15 @@ function shipDerived() {
     ['hyper', hyperImproveList()], ['hull', hullShieldList(SHIP_DATA.hullMods)],
     ['shield', hullShieldList(SHIP_DATA.shieldMods)], ['wdmg', SHIP_DATA.weaponDmgMods],
   ];
+  /* Whether any percentage modification is chosen at all. They are priced
+     as a share of the NEW price, and 359 of the 954 ships in the catalogue
+     carry no price - "Not available for sale", or the book simply never
+     names one. A share of nothing is nothing, so the workshop quietly
+     reported every refit on those ships as free. It says so now instead. */
+  let pctChosen = false;
   for (const [key, list] of pct) {
     const sel = pctMod(list, md[key]);
-    if (sel) { modCost += cost * sel.costPct; mishap += sel.mishap; }
+    if (sel) { modCost += cost * sel.costPct; mishap += sel.mishap; pctChosen = true; }
   }
   /* The big systems scale with the ship's scale - weight AND price
      (fighters cheaper and lighter, capital by multiplier, see
@@ -637,7 +645,7 @@ function shipDerived() {
     : (i.hyperBackup && i.hyperBackup !== 'None' ? i.hyperBackup : '');
   return Object.assign(
     { modCost, mishap, weight, hull, shields, maneuver, space, hyper, wdmgPips,
-      atmo, canAtmo: canEnterAtmosphere(i.atmosphere), hyperBackup,
+      atmo, canAtmo: canEnterAtmosphere(i.atmosphere), hyperBackup, pctChosen,
       weightFactor: wf, weaponWeight: Math.round(weaponWeight * 10) / 10,
       costTotal: shipPaid() + modCost, boughtUsed: i.bought === 'used' && !!+i.costUsed },
     cargoStatus(weight));
@@ -1203,7 +1211,7 @@ function viewMods() {
   };
   return `
   <div class="pool-banner">
-    <span>${t('sh_cost_mods')}: <b>${fmtCr(der.modCost)}</b> Cr.</span>
+    <span>${t('sh_cost_mods')}: <b>${fmtCr(der.modCost)}</b> Cr.${(der.pctChosen && !(+C.info.costNew)) ? ` <b class="warn">${t('sh_nocost_warn')}</b>` : ''}</span>
     <span>${t(der.boughtUsed ? 'sh_cost_total_used' : 'sh_cost_total')}: <b>${fmtCr(der.costTotal)}</b> Cr.</span>
     <span>${t('sh_weight_total')}: <b>${der.weight}</b> t${der.weightFactor !== 1 ? ` <span class="hint">(${t('sh_weight_scale')} ×${der.weightFactor})</span>` : ''}${der.weaponWeight ? ` <span class="hint">· ${t('sh_weapon_weight')} ${der.weaponWeight} t</span>` : ''}</span>
     ${der.cargoBase ? `<span>${t('sh_cargo_left')}: <b class="${der.cargoOver ? 'warn' : ''}">${fmtCargo(der.cargoLeft, der.cargoUnit)}</b> / ${fmtCargo(der.cargoBase, der.cargoUnit)}${der.cargoRule === 'off' ? ' · ' + t('sh_cargo_off_short') : ''}</span>` : ''}

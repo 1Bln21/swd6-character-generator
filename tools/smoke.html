@@ -720,6 +720,32 @@ async function laufSchiff() {
           { hülle: i.hull, schilde: i.shields, klasse: i.scale, typ: i.craft });
     pruef('der eingegebene Name bleibt stehen', i.name === 'Durchlauf-Frachter', i.name);
     sauber(w, 'Vorlage übernommen');
+
+    /* Umbauten kosten einen Anteil des Neupreises. 359 der 954 Schiffe
+       haben gar keinen - dann kam als Preis still eine Null heraus, und ein
+       Sternenzerstoerer liess sich umsonst aufruesten. Die Null bleibt, aber
+       sie sagt jetzt, warum sie da steht. */
+    const merkPreis = modell(w).info.costNew;
+    modell(w).info.costNew = 0;
+    w.update();
+    await schlaf(150);
+    reiter(w, 'mods');
+    await schlaf(150);
+    const antrieb = $(w, '[data-bind="mods.drive"]');
+    if (antrieb && antrieb.options.length > 2) {
+      tippe(w, antrieb, antrieb.options[2].value);
+      await schlaf(200);
+      const zeile = txt(w, '#tab-mods .pool-banner');
+      pruef('ohne Neupreis sagt die Werkstatt, warum sie 0 rechnet',
+            /kein Neupreis|no new price/i.test(zeile), zeile.slice(0, 90));
+      modell(w).info.costNew = merkPreis || 100000;
+      w.update();
+      await schlaf(200);
+      const zeile2 = txt(w, '#tab-mods .pool-banner');
+      pruef('mit Neupreis rechnet sie wieder und schweigt',
+            !/kein Neupreis|no new price/i.test(zeile2), zeile2.slice(0, 90));
+      sauber(w, 'Umbaukosten ohne Preis');
+    }
   }
 
   reiter(w, 'weapons');

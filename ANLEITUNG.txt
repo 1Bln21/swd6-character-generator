@@ -151,6 +151,18 @@ ERSATZSYSTEME VS. UMBAUTEN
   Beim Hyperantrieb sind beide Angaben Multiplikatoren; kleiner ist
   schneller, deshalb gilt immer der bessere der beiden Werte.
 
+UMBAUKOSTEN OHNE NEUPREIS
+  Die prozentualen Umbauten kosten einen Anteil des NEUPREISES. 359 der
+  954 Schiffe im Katalog haben aber gar keinen - im Buch steht dort "Not
+  available for sale" oder schlicht nichts. Ein Anteil von nichts ist
+  nichts, die Werkstatt meldete dort also stillschweigend 0 Credits fuer
+  jeden Umbau.
+
+  Die Null bleibt - erfunden wird kein Preis -, aber sie sagt jetzt,
+  warum sie dasteht: "kein Neupreis eingetragen, deshalb 0". Wer mit
+  Kosten rechnen will, traegt oben auf dem Reiter "Schiff" einen
+  Neupreis ein; danach rechnet die Werkstatt normal.
+
 ATMOSPHAERENGESCHWINDIGKEIT
   Die Atmosphaerengeschwindigkeit wird seit 2.4.3 aus dem Space-Wert
   berechnet - nach der Tabelle "Ships in an Atmosphere" aus dem
