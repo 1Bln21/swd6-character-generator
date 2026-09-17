@@ -108,7 +108,7 @@ Object.assign(T.de, {
   sh_bought: 'Gekauft als',
   sh_bought_new: 'Neu', sh_bought_used: 'Gebraucht',
   sh_bought_hint: 'Bestimmt, welcher Preis als Schiffswert auf dem Bogen steht. Umbauten und Reparaturen rechnen weiterhin vom Neupreis – ein günstig gekaufter Rumpf macht die Werkstattarbeit nicht billiger.',
-  sh_used_guess: 'Das Buch nennt keinen Gebrauchtpreis. Faustregel aus den Regelwerken: rund die Hälfte, also {n} Cr.',
+  sh_used_guess: 'Das Buch nennt keinen Gebrauchtpreis. Angesetzt sind {p} % des Neupreises, also {n} Cr.',
   sh_used_take: 'Übernehmen',
   sh_weight_total: 'Zusatzgewicht', sh_mishap_total: 'Pannen-Modifikator (gesamt)',
   sh_mishap_hint: 'Der Pannen-Modifikator steigt mit jedem Leistungs-Umbau – der Spielleiter nutzt ihn für Zwischenfälle bei Umbauten von Amateurhand.',
@@ -252,7 +252,7 @@ Object.assign(T.en, {
   sh_bought: 'Bought as',
   sh_bought_new: 'New', sh_bought_used: 'Used',
   sh_bought_hint: 'Decides which price counts as the ship’s value on the sheet. Modifications and repairs still reckon from the new price - a hull picked up cheap does not make the workshop cheaper.',
-  sh_used_guess: 'The book names no used price. Rule of thumb from the sourcebooks: about half, so {n} Cr.',
+  sh_used_guess: 'The book names no used price. Reckoned at {p}% of the new price, so {n} Cr.',
   sh_used_take: 'Take it',
   sh_weight_total: 'Added weight', sh_mishap_total: 'Mishap modifier (total)',
   sh_mishap_hint: 'The mishap modifier grows with every performance modification – the GM uses it for incidents caused by amateur work.',
@@ -813,9 +813,21 @@ let tplMsg = '';
    the sheet and never into the catalogue - only offered, so that what the
    book says and what was reckoned stay apart. Half is the median of the 468
    entries that do name both prices. */
+/* 45 percent, set by the operator. The measurement over the 324 ships that
+   name both prices gives a median of 47.5 and a mean of 47.4, so this sits
+   just under what the books do on average - which is the sensible side to
+   err on for a figure the player may have to haggle over.
+
+   Droids keep the half: their own 17 pairs come out at a median of 50.
+
+   It stays a suggestion and is never written into the catalogue. The spread
+   is far too wide to call it a rule - the quartiles run from 38 to 57 per
+   cent and the extremes from 2 to 92. */
+const USED_SHARE = 0.45;
+
 function usedSuggestion() {
   const neu = +C.info.costNew || 0;
-  return neu ? Math.round(neu / 2) : 0;
+  return neu ? Math.round(neu * USED_SHARE) : 0;
 }
 
 function applyTemplate() {
@@ -971,7 +983,7 @@ function viewShip() {
       <div><label>${t('sh_costnew')}</label>${inputN('info.costNew', i.costNew, 'data-rerender="1"')}</div>
       <div><label>${t('sh_costused')}</label>${inputN('info.costUsed', i.costUsed, 'data-rerender="1" placeholder="' + (usedSuggestion() || '') + '"')}
         ${!+i.costUsed && usedSuggestion()
-          ? `<div class="hint">${t('sh_used_guess').replace('{n}', fmtCr(usedSuggestion()))}
+          ? `<div class="hint">${t('sh_used_guess').replace('{p}', Math.round(USED_SHARE * 100)).replace('{n}', fmtCr(usedSuggestion()))}
              <button class="mini" data-act="useGuess">${t('sh_used_take')}</button></div>` : ''}</div>
       <div class="wide"><label>${t('sh_bought')}</label>
         <select data-bind="info.bought" data-rerender="1">
