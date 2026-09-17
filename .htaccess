@@ -1,0 +1,57 @@
+# Make browsers revalidate the app files instead of serving them straight
+# from cache, so an update is picked up immediately - otherwise the browser
+# still shows the old version after an update (a stale version number in the
+# credits, say) although the new file is already on the server.
+#
+# "no-cache" does not mean "do not store": the browser may keep the file, it
+# just has to check before using it. If nothing changed the server answers
+# 304 (not retransmitted), so it costs almost nothing.
+
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html|js|css)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+
+  # Security headers. They guard against clickjacking (the sign-in page
+  # embedded in someone else's iframe), MIME sniffing, and leaking the
+  # originating URL to other sites.
+  Header set X-Frame-Options "SAMEORIGIN"
+  Header set X-Content-Type-Options "nosniff"
+  Header set Referrer-Policy "no-referrer"
+
+  # Content Security Policy. The app has NO inline script and no on* attribute
+  # anywhere, and uses neither eval() nor new Function(), so scripts get the
+  # strict treatment: only files from this site, plus YouTube for the table's
+  # background music. Only the style attributes scattered through the
+  # generated markup need 'unsafe-inline', and a style attribute cannot run
+  # code. object-src 'none' and base-uri 'self' shut two doors that survive
+  # even when something does slip through: no plugins, and no injected <base>
+  # tag that would silently redirect every relative script URL.
+  #
+  # The same policy is repeated as a <meta http-equiv> in the pages
+  # themselves, so it still holds on hosting without Apache. frame-ancestors
+  # only works as a header and therefore lives here alone.
+  Header set Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'self'; script-src 'self' https://www.youtube.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src https://www.youtube.com https://www.youtube-nocookie.com"
+
+  # Once a browser has seen this, it refuses to talk to the site over plain
+  # HTTP for a year - which closes the gap between typing the address and the
+  # redirect to HTTPS, where a token can be read off the wire. Only switch it
+  # on once HTTPS actually works; while it stands, the site is unreachable
+  # without a valid certificate. Two years and "preload" would be the next
+  # step, but that is hard to undo, so it stays out.
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains" "expr=%{HTTPS} == 'on'"
+  # Microphone and camera are needed by the table top itself (voice and
+  # video chat); embedded third parties must not get them - hence "self"
+  # rather than the empty list. An empty list locks out our own page too,
+  # which leaves the call tile black.
+  Header set Permissions-Policy "geolocation=(), microphone=(self), camera=(self), display-capture=(self)"
+</IfModule>
+
+# The rulebook catalogs are large (pdfdata-craft.js alone is about 1.5 MB).
+# Being plain text they compress very well - gzip cuts them to roughly a
+# fifth. Without this block Apache would send them uncompressed.
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/plain
+  AddOutputFilterByType DEFLATE application/javascript text/javascript
+  AddOutputFilterByType DEFLATE application/json image/svg+xml
+</IfModule>
