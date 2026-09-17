@@ -304,6 +304,21 @@ async function laufCharakter() {
   pruef('die Spezies ist übernommen', modell(w).info.species === wookiee, modell(w).info.species);
   sauber(w, 'Spezies gewechselt');
 
+  /* ---- the Force tab only for the Force-sensitive ----
+     REUP: only Force-sensitive characters can learn Force skills and powers,
+     so for everybody else the tab is hidden - and has to come back the moment
+     the switch is turned on. */
+  const machtKnopf = () => w.document.querySelector('#tabs button[data-tab="force"]');
+  const machtSichtbar = () => !!machtKnopf() && w.getComputedStyle(machtKnopf()).display !== 'none';
+  pruef('ohne Macht-Sensitivität kein Macht-Reiter', !machtSichtbar());
+  tippe(w, '[data-bind="info.forceSensitive"]', 'true');
+  await schlaf(120);
+  pruef('mit Macht-Sensitivität ist er da', machtSichtbar());
+  tippe(w, '[data-bind="info.forceSensitive"]', 'false');
+  await schlaf(120);
+  pruef('und verschwindet wieder, solange nichts darin steht', !machtSichtbar());
+  sauber(w, 'Macht-Sensitivität umgeschaltet');
+
   /* ---- attributes ----
      Not typed in: stepped in pips, three to a die. Those buttons are what
      a player actually presses, so those are what gets pressed here. */

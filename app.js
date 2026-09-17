@@ -148,6 +148,8 @@ de: {
   /* Force tab */
   the_force: 'Die Macht',
   not_sensitive: 'Dieser Charakter ist nicht Macht-sensitiv.',
+  force_not_sensitive_warn: 'Dieser Charakter ist nicht Macht-sensitiv, hat aber Machtfertigkeiten oder -kräfte.',
+  force_not_sensitive_fix: 'Laut REUP können nur Macht-sensitive Charaktere Machtfertigkeiten und -kräfte lernen. Entweder auf dem Tab „Charakter" Macht-sensitiv auf „Ja" stellen, oder die Würfel und Kräfte hier entfernen – solange sie da sind, zählen sie im Attributs-Pool mit, deshalb bleibt dieser Reiter sichtbar.',
   not_sensitive_hint: 'Stelle auf dem Tab „Charakter“ die Option <b>Macht-sensitiv</b> auf „Ja“, um Machtfertigkeiten und -kräfte zu wählen.',
   powers_learnable: 'Kräfte lernbar', learned: 'Gelernt',
   override_powers: 'Override zusätzl. Kräfte:',
@@ -342,6 +344,8 @@ en: {
   /* Force tab */
   the_force: 'The Force',
   not_sensitive: 'This character is not Force sensitive.',
+  force_not_sensitive_warn: 'This character is not Force-sensitive but has Force skills or powers.',
+  force_not_sensitive_fix: 'By REUP, only Force-sensitive characters can learn Force skills and powers. Either set Force Sensitive to "Yes" on the "Character" tab, or remove the dice and powers here - as long as they exist they count against the attribute pool, which is why this tab stays visible.',
   not_sensitive_hint: 'Set <b>Force Sensitive</b> to "Yes" on the "Character" tab to choose Force skills and powers.',
   powers_learnable: 'Powers learnable', learned: 'Learned',
   override_powers: 'Override extra powers:',
@@ -883,7 +887,41 @@ function buildRollProfile() {
 }
 function update(tab) {
   autosave();
+  syncForceTab();
   renderTab(tab || activeTab);
+}
+
+function showTab(name) {
+  activeTab = name;
+  document.querySelectorAll('#tabs button').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.tab').forEach(tb =>
+    tb.classList.toggle('active', tb.id === 'tab-' + name));
+  renderTab(name);
+}
+
+/* ---------------- the Force tab only where it means something ----------
+   REUP, "Force Training": "Only Force-sensitive characters can learn Force
+   skills and powers." For everybody else the tab held nothing but a note
+   saying so - a tab every smuggler and bounty hunter had to walk past.
+
+   It is hidden only while there is NOTHING in it, though, not merely while
+   the switch says "no". A character who has Force dice and is then set to
+   not Force-sensitive - by hand, or an older sheet - still spends those pips
+   out of the attribute pool. Hiding the tab then would leave dice counted
+   that nobody can see or take back, so the tab stays and says what is
+   wrong instead. */
+function forceTabNeeded() {
+  return !!C.info.forceSensitive || C.powers.length > 0
+    || FORCE.some(f => forceTotal(f.key) > 0);
+}
+function syncForceTab() {
+  const btn = document.querySelector('#tabs button[data-tab="force"]');
+  if (!btn) return;
+  const needed = forceTabNeeded();
+  btn.classList.toggle('hidden', !needed);
+  // Standing on the tab as it disappears would leave an empty page.
+  if (!needed && activeTab === 'force') showTab('info');
 }
 function renderTab(tab) {
   const el = document.getElementById('tab-' + tab);
@@ -900,7 +938,7 @@ function renderTab(tab) {
     case 'sheet': renderSheet(); break;
   }
 }
-function renderAll() { renderTab(activeTab); refreshSavedList(); }
+function renderAll() { syncForceTab(); renderTab(activeTab); refreshSavedList(); }
 
 function inputT(path, val, extra) {
   return `<input type="text" autocomplete="off" data-bind="${path}" value="${esc(val)}" ${extra || ''}>`;
@@ -1620,11 +1658,19 @@ function viewSkills() {
 
 /* ---------------- tab: the Force ---------------- */
 function viewForce() {
-  if (!C.info.forceSensitive && !C.powers.length && !FORCE.some(f => forceTotal(f.key) > 0)) {
+  if (!forceTabNeeded()) {
     return `<div class="card"><h2>${t('the_force')}</h2>
       <p>${t('not_sensitive')}</p>
       <p class="hint">${t('not_sensitive_hint')}</p></div>`;
   }
+  /* Force dice or powers on a character who is not Force-sensitive: against
+     the rules, and the reason the tab is still showing. Say so plainly
+     rather than let it look like an oversight of the app. */
+  const regelwidrig = !C.info.forceSensitive
+    ? `<div class="card" style="border-color:var(--danger, #c0392b)">
+         <p><b>${t('force_not_sensitive_warn')}</b></p>
+         <p class="hint">${t('force_not_sensitive_fix')}</p></div>`
+    : '';
   const dice = FORCE.map(f =>
     `<span style="margin-right:24px">${f.name}: <span class="dice">${fmtD(forceTotal(f.key))}</span></span>`).join('');
   const left = powersLeft();
@@ -1659,6 +1705,7 @@ function viewForce() {
   }).join('');
 
   return `
+  ${regelwidrig}
   <div class="pool-banner ${left < 0 ? 'neg' : ''}">
     ${dice}
     <span>${t('powers_learnable')}: <b>${powersAllowed()}</b></span>
@@ -2426,10 +2473,7 @@ function onSpeciesChanged() {
 document.getElementById('tabs').addEventListener('click', e => {
   const btn = e.target.closest('button[data-tab]');
   if (!btn) return;
-  activeTab = btn.dataset.tab;
-  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('active', b === btn));
-  document.querySelectorAll('.tab').forEach(tb => tb.classList.toggle('active', tb.id === 'tab-' + activeTab));
-  renderTab(activeTab);
+  showTab(btn.dataset.tab);
 });
 
 const content = document.getElementById('content');
