@@ -1176,6 +1176,31 @@ function round_purge($roundId) {
   $db->prepare('DELETE FROM rounds WHERE id = ?')->execute([$roundId]);
   foreach ($dateien as $f) vtt_delete_unused($f['sha'], $f['ext']);
 }
+/* One map out of a round, with the tokens standing on it and every file
+   that leaves unused - the map picture and the tokens' portraits.
+
+   Until 4.0.0.4.2 the tokens' rows were deleted without looking at their
+   pictures first, so a portrait token on a deleted map left its file on
+   disk with nothing pointing at it. That happened whenever a GM deleted a
+   map by hand, and when a co-GM's account was deleted. */
+function map_remove($roundId, $mapId) {
+  global $db;
+  $st = $db->prepare('SELECT sha, ext FROM round_maps WHERE id = ? AND round_id = ?');
+  $st->execute([$mapId, $roundId]);
+  $map = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$map) return false;
+  $st = $db->prepare("SELECT img_sha AS sha, img_ext AS ext FROM round_tokens
+                      WHERE round_id = ? AND map_id = ? AND COALESCE(img_sha, '') <> ''");
+  $st->execute([$roundId, $mapId]);
+  $dateien = $st->fetchAll(PDO::FETCH_ASSOC);
+  $dateien[] = $map;
+  $db->prepare('DELETE FROM round_tokens WHERE round_id = ? AND map_id = ?')->execute([$roundId, $mapId]);
+  $db->prepare('DELETE FROM round_maps WHERE id = ? AND round_id = ?')->execute([$mapId, $roundId]);
+  $db->prepare('UPDATE rounds SET active_map = 0 WHERE id = ? AND active_map = ?')->execute([$roundId, $mapId]);
+  foreach ($dateien as $f) vtt_delete_unused($f['sha'], $f['ext']);
+  vtt_touch($roundId);
+  return true;
+}
 /* ---- ticket notifications ----
    "New to me" means: a message from the other side is younger than the
    moment I last opened the ticket. For admins that counts messages from
@@ -2042,15 +2067,9 @@ case 'admin_user_action': {
          They go like a GM deleting them by hand: the tokens standing on a
          map go with it, and the round stops showing or playing it. Rows
          from before 4.0.0.4.1 carry no uploader and cannot be found here. */
-      $st = $db->prepare('SELECT id, round_id, sha, ext FROM round_maps WHERE uploader_id = ?');
+      $st = $db->prepare('SELECT id, round_id FROM round_maps WHERE uploader_id = ?');
       $st->execute([$id]);
-      foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $m) {
-        $db->prepare('DELETE FROM round_tokens WHERE round_id = ? AND map_id = ?')->execute([$m['round_id'], $m['id']]);
-        $db->prepare('DELETE FROM round_maps WHERE id = ?')->execute([$m['id']]);
-        $db->prepare('UPDATE rounds SET active_map = 0 WHERE id = ? AND active_map = ?')->execute([$m['round_id'], $m['id']]);
-        vtt_delete_unused($m['sha'], $m['ext']);
-        vtt_touch($m['round_id']);
-      }
+      foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $m) map_remove($m['round_id'], $m['id']);
       $st = $db->prepare('SELECT id, round_id, sha, ext FROM round_audio WHERE uploader_id = ?');
       $st->execute([$id]);
       foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $a) {
@@ -2086,16 +2105,15 @@ case 'admin_user_action': {
       $db->prepare('DELETE FROM ticket_seen WHERE ticket_id IN (SELECT id FROM tickets WHERE user_id = ?)')->execute([$id]);
       $db->prepare('DELETE FROM ticket_seen WHERE user_id = ?')->execute([$id]);
       $db->prepare('DELETE FROM tickets WHERE user_id = ?')->execute([$id]);
-      /* Bug reports. What the user WROTE goes: a feedback report is their
-         own text and may say anything about them. An automatic crash report
-         is technical - the error message, the place in the code, the
-         browser family - so it loses the link to the person and any
-         attached sheet and stays. (An error message CAN quote a value from
-         the page now and then; the privacy policy says so rather than
-         promising it never does.) a crash that is still in the code helps
-         nobody by disappearing along with the account that ran into it. */
-      $db->prepare("DELETE FROM reports WHERE user_id = ? AND kind = 'fb'")->execute([$id]);
-      $db->prepare('UPDATE reports SET user_id = 0, sheet = NULL WHERE user_id = ?')->execute([$id]);
+      /* Every bug report sent from this account goes, crash reports
+         included. Until 4.0.0.4.2 a crash report only lost the link to the
+         person and stayed - but an error message can quote a value that
+         was on the page, and nothing here can tell reliably whether it
+         did. Deleting is the only answer that holds. A crash that is still
+         in the code will be reported again by the next person who hits it.
+         Reports sent without signing in carry no user_id and are not
+         touched - nothing links them to anybody. */
+      $db->prepare('DELETE FROM reports WHERE user_id = ?')->execute([$id]);
       $db->prepare('DELETE FROM tokens WHERE user_id = ?')->execute([$id]);
       $db->prepare('DELETE FROM users  WHERE id = ?')->execute([$id]);
       break;
@@ -2681,16 +2699,7 @@ case 'map_delete': {
   $user = auth();
   $id = (int)inp('round', 0);
   if (!round_is_gm($id, $user['id'])) fail('Only a GM can delete maps', 403);
-  $mapId = (int)inp('map', 0);
-  $st = $db->prepare('SELECT sha, ext FROM round_maps WHERE id = ? AND round_id = ?');
-  $st->execute([$mapId, $id]);
-  $map = $st->fetch(PDO::FETCH_ASSOC);
-  if (!$map) fail('Map not found in this round', 404);
-  $db->prepare('DELETE FROM round_tokens WHERE round_id = ? AND map_id = ?')->execute([$id, $mapId]);
-  $db->prepare('DELETE FROM round_maps WHERE id = ? AND round_id = ?')->execute([$mapId, $id]);
-  $db->prepare('UPDATE rounds SET active_map = 0 WHERE id = ? AND active_map = ?')->execute([$id, $mapId]);
-  vtt_delete_unused($map['sha'], $map['ext']);
-  vtt_touch($id);
+  if (!map_remove($id, (int)inp('map', 0))) fail('Map not found in this round', 404);
   json_out(['ok' => true]);
 }
 

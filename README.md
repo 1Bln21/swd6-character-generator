@@ -253,7 +253,7 @@ window: a ZIP with the data as JSON and the maps, portraits and music they
 uploaded, each under the path the JSON names. Deleting an account removes the
 rounds it led, table top and uploaded files included, and in other people's
 rounds its tokens, dice log entries, call data and whatever it uploaded as a
-co-GM. (Uploads from before 4.0.0.4.1 do not record who made them; they count
+co-GM, and every bug report sent from it - automatic ones included. (Uploads from before 4.0.0.4.1 do not record who made them; they count
 as the round owner's.)
 
 **Hosting outside Germany?** The two documents are bound to a country to very
