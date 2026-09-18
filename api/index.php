@@ -508,6 +508,8 @@ $db->exec("CREATE TABLE IF NOT EXISTS round_maps (
   fog_rows INT DEFAULT 0,
   /* How dark the scene is, 0..100 - day and night on one and the same map */
   dim INT DEFAULT 0,
+  /* Who uploaded it - see the note at the ALTER further down */
+  uploader_id INT DEFAULT 0,
   created BIGINT
 )$SUF");
 /* A token is, at heart, a round character with x/y. char_id = 0 marks a
@@ -572,6 +574,7 @@ $db->exec("CREATE TABLE IF NOT EXISTS round_audio (
   yt_id VARCHAR(24) DEFAULT '',
   yt_list VARCHAR(64) DEFAULT '',
   bytes INT DEFAULT 0,
+  uploader_id INT DEFAULT 0,
   created BIGINT
 )$SUF");
 
@@ -682,6 +685,18 @@ $rmAdd = ['fog' => "fog $TXT", 'fog_cols' => 'fog_cols INT DEFAULT 0',
 foreach ($rmAdd as $col => $colDef) {
   if (!$rmCols || in_array($col, $rmCols, true)) continue;
   try { $db->exec("ALTER TABLE round_maps ADD COLUMN $colDef"); }
+  catch (Exception $e) { $alterError = $e->getMessage(); }
+}
+/* Who uploaded a map or a track. Until 4.0.0.4.1 this was inferred from
+   rounds.gm_id - but any GM of a round may upload, co-GMs included, and a
+   round can be handed over. The founder then got the co-GM's uploads in
+   their data export and the co-GM got nothing, and deleting the co-GM's
+   account left their uploads behind. Rows from before carry 0: who put
+   them there is not recorded anywhere and cannot be worked out afterwards;
+   they stay attributed to the round's owner, marked as such. */
+foreach (['round_maps' => $rmCols, 'round_audio' => $raCols] as $tab => $cols) {
+  if (!$cols || in_array('uploader_id', $cols, true)) continue;
+  try { $db->exec("ALTER TABLE $tab ADD COLUMN uploader_id INT DEFAULT 0"); }
   catch (Exception $e) { $alterError = $e->getMessage(); }
 }
 /* round_tokens: the facing arrived after the first tables were in use */
@@ -1661,27 +1676,36 @@ case 'my_data': {
             'created' => (int)$r['created']];
   }, $st->fetchAll(PDO::FETCH_ASSOC));
 
-  /* Uploads: only the GM can put maps and music into a round, so what sits
-     in the rounds this user leads is what this user uploaded. Given as paths
-     on this server rather than embedded - thirty maps of six megabytes each
-     do not belong in a JSON file, and the paths can be opened as they are. */
-  $st = $db->prepare('SELECT r.name AS round, m.name, m.w, m.h, m.bytes, m.sha, m.ext, m.created
+  /* Uploads: maps and music this user put into a round, as GM or co-GM.
+     Rows from before 4.0.0.4.1 do not record who uploaded them; those are
+     given to the round's owner, as before, and say so. Given as paths on
+     this server rather than embedded - thirty maps of six megabytes each do
+     not belong in a JSON file. The download in the browser packs the files
+     into a ZIP next to this JSON, under the same paths. */
+  $herkunft = function ($r) {
+    return (int)$r['uploader_id'] > 0 ? 'you' : 'unknown (before 4.0.0.4.1) - attributed to the round owner';
+  };
+  $st = $db->prepare('SELECT r.name AS round, m.name, m.w, m.h, m.bytes, m.sha, m.ext, m.uploader_id, m.created
                       FROM round_maps m JOIN rounds r ON r.id = m.round_id
-                      WHERE r.gm_id = ? ORDER BY r.name, m.id');
-  $st->execute([$user['id']]);
-  $maps = array_map(function ($r) use ($vttPfad) {
+                      WHERE m.uploader_id = ? OR (COALESCE(m.uploader_id, 0) = 0 AND r.gm_id = ?)
+                      ORDER BY r.name, m.id');
+  $st->execute([$user['id'], $user['id']]);
+  $maps = array_map(function ($r) use ($vttPfad, $herkunft) {
     return ['round' => $r['round'], 'name' => $r['name'], 'width' => (int)$r['w'], 'height' => (int)$r['h'],
-            'bytes' => (int)$r['bytes'], 'file' => $vttPfad($r['sha'], $r['ext']), 'created' => (int)$r['created']];
+            'bytes' => (int)$r['bytes'], 'file' => $vttPfad($r['sha'], $r['ext']),
+            'uploadedBy' => $herkunft($r), 'created' => (int)$r['created']];
   }, $st->fetchAll(PDO::FETCH_ASSOC));
-  $st = $db->prepare('SELECT r.name AS round, a.kind, a.name, a.bytes, a.sha, a.ext, a.yt_id, a.yt_list, a.created
+  $st = $db->prepare('SELECT r.name AS round, a.kind, a.name, a.bytes, a.sha, a.ext, a.yt_id, a.yt_list,
+                             a.uploader_id, a.created
                       FROM round_audio a JOIN rounds r ON r.id = a.round_id
-                      WHERE r.gm_id = ? ORDER BY r.name, a.id');
-  $st->execute([$user['id']]);
-  $music = array_map(function ($r) use ($vttPfad) {
+                      WHERE a.uploader_id = ? OR (COALESCE(a.uploader_id, 0) = 0 AND r.gm_id = ?)
+                      ORDER BY r.name, a.id');
+  $st->execute([$user['id'], $user['id']]);
+  $music = array_map(function ($r) use ($vttPfad, $herkunft) {
     return ['round' => $r['round'], 'kind' => $r['kind'], 'name' => $r['name'], 'bytes' => (int)$r['bytes'],
             'file' => $r['kind'] === 'file' ? $vttPfad($r['sha'], $r['ext']) : null,
             'youtubeVideo' => $r['yt_id'] ?: null, 'youtubePlaylist' => $r['yt_list'] ?: null,
-            'created' => (int)$r['created']];
+            'uploadedBy' => $herkunft($r), 'created' => (int)$r['created']];
   }, $st->fetchAll(PDO::FETCH_ASSOC));
 
   /* Voice and video: presence in a call, and connection offers the user's
@@ -1724,7 +1748,9 @@ case 'my_data': {
             . 'your password and your recovery, reset and backup codes (stored only as irreversible hashes), '
             . 'the secret behind two-factor authentication (stored, because codes cannot be checked without it, '
             . 'but never handed out) and your session tokens (listed by expiry only). Uploaded pictures and music '
-            . 'are given as paths on this server (api/vtt/...) instead of being embedded. Bug reports sent '
+            . 'are given as paths on this server (api/vtt/...); the download from the Online window is a ZIP '
+            . 'that holds these files under the same paths. Maps and music uploaded before version 4.0.0.4.1 '
+            . 'do not record who uploaded them and are listed for the owner of the round. Bug reports sent '
             . 'without being signed in carry no name and cannot be linked to you, so they do not appear here.',
   ]);
 }
@@ -2012,6 +2038,28 @@ case 'admin_user_action': {
       $st = $db->prepare('SELECT id FROM rounds WHERE gm_id = ?');
       $st->execute([$id]);
       foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $rid) round_purge($rid);
+      /* Maps and music the user uploaded as co-GM of someone else's round.
+         They go like a GM deleting them by hand: the tokens standing on a
+         map go with it, and the round stops showing or playing it. Rows
+         from before 4.0.0.4.1 carry no uploader and cannot be found here. */
+      $st = $db->prepare('SELECT id, round_id, sha, ext FROM round_maps WHERE uploader_id = ?');
+      $st->execute([$id]);
+      foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $m) {
+        $db->prepare('DELETE FROM round_tokens WHERE round_id = ? AND map_id = ?')->execute([$m['round_id'], $m['id']]);
+        $db->prepare('DELETE FROM round_maps WHERE id = ?')->execute([$m['id']]);
+        $db->prepare('UPDATE rounds SET active_map = 0 WHERE id = ? AND active_map = ?')->execute([$m['round_id'], $m['id']]);
+        vtt_delete_unused($m['sha'], $m['ext']);
+        vtt_touch($m['round_id']);
+      }
+      $st = $db->prepare('SELECT id, round_id, sha, ext FROM round_audio WHERE uploader_id = ?');
+      $st->execute([$id]);
+      foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $a) {
+        $db->prepare('DELETE FROM round_audio WHERE id = ?')->execute([$a['id']]);
+        $db->prepare('UPDATE rounds SET audio_id = 0, audio_play = 0 WHERE id = ? AND audio_id = ?')
+           ->execute([$a['round_id'], $a['id']]);
+        if ($a['sha']) vtt_delete_unused($a['sha'], $a['ext']);
+        vtt_touch($a['round_id']);
+      }
       /* What the user left in OTHER people's rounds: their tokens (which may
          carry their portrait), their entries in the dice log, and call
          presence and signalling. The rounds themselves belong to someone
@@ -2040,9 +2088,11 @@ case 'admin_user_action': {
       $db->prepare('DELETE FROM tickets WHERE user_id = ?')->execute([$id]);
       /* Bug reports. What the user WROTE goes: a feedback report is their
          own text and may say anything about them. An automatic crash report
-         holds nothing they typed - the error message, the place in the
-         code, the browser family - so it loses only the link to the person
-         and any attached sheet; a crash that is still in the code helps
+         is technical - the error message, the place in the code, the
+         browser family - so it loses the link to the person and any
+         attached sheet and stays. (An error message CAN quote a value from
+         the page now and then; the privacy policy says so rather than
+         promising it never does.) a crash that is still in the code helps
          nobody by disappearing along with the account that ran into it. */
       $db->prepare("DELETE FROM reports WHERE user_id = ? AND kind = 'fb'")->execute([$id]);
       $db->prepare('UPDATE reports SET user_id = 0, sheet = NULL WHERE user_id = ?')->execute([$id]);
@@ -2524,9 +2574,9 @@ case 'map_add': {
   $name = mb_substr(trim((string)inp('name', '')), 0, 120);
   if ($name === '') $name = 'Map';
   $grid = max(0, min(512, (int)inp('grid', 0)));
-  $st = $db->prepare('INSERT INTO round_maps (round_id, name, sha, ext, w, h, bytes, grid, created)
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
-  $st->execute([$id, $name, $sha, $ext, $w, $h, $bytes, $grid, time()]);
+  $st = $db->prepare('INSERT INTO round_maps (round_id, name, sha, ext, w, h, bytes, grid, uploader_id, created)
+                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  $st->execute([$id, $name, $sha, $ext, $w, $h, $bytes, $grid, (int)$user['id'], time()]);
   $mapId = (int)last_id('round_maps');
   /* The first map a round gets is shown at once - otherwise the GM uploads
      one and stares at an empty table wondering what went wrong. */
@@ -2787,15 +2837,15 @@ case 'audio_add': {
     elseif (preg_match('#^[A-Za-z0-9_-]{11}$#', $yt)) $vid = $yt;
     if ($vid === '' && $list === '') fail('That does not look like a YouTube link');
     if ($name === '') $name = $list !== '' ? 'YouTube-Playlist' : 'YouTube';
-    $st = $db->prepare('INSERT INTO round_audio (round_id, kind, name, yt_id, yt_list, created)
-                        VALUES (?, ?, ?, ?, ?, ?)');
-    $st->execute([$id, 'yt', $name, $vid, $list, time()]);
+    $st = $db->prepare('INSERT INTO round_audio (round_id, kind, name, yt_id, yt_list, uploader_id, created)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)');
+    $st->execute([$id, 'yt', $name, $vid, $list, (int)$user['id'], time()]);
   } else {
     list($sha, $ext, $bytes) = vtt_store_audio(inp('file', ''), $CONFIG['max_audio_bytes']);
     if ($name === '') $name = 'Track';
-    $st = $db->prepare('INSERT INTO round_audio (round_id, kind, name, sha, ext, bytes, created)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)');
-    $st->execute([$id, 'file', $name, $sha, $ext, $bytes, time()]);
+    $st = $db->prepare('INSERT INTO round_audio (round_id, kind, name, sha, ext, bytes, uploader_id, created)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+    $st->execute([$id, 'file', $name, $sha, $ext, $bytes, (int)$user['id'], time()]);
   }
   vtt_touch($id);
   json_out(['ok' => true, 'id' => (int)last_id('round_audio')]);

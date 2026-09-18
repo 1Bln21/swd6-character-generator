@@ -247,7 +247,12 @@
               <input type="range" id="auVol" min="0" max="100" value="60"></div>
           </div>
           <audio id="auEl" preload="none"></audio>
+          <div id="auYtConsent" class="au-yt-consent hidden">
+            <p data-i18n="au_yt_consent"></p>
+            <p><button id="btnYtAllow" class="accent" data-i18n="au_yt_allow">YouTube-Inhalte aktivieren</button></p>
+          </div>
           <div id="auYtBox" class="au-yt hidden"></div>
+          <p id="auYtRevokeRow" class="hidden"><button id="btnYtRevoke" class="mini" data-i18n="au_yt_revoke">YouTube wieder sperren</button></p>
           <p class="hint" data-i18n="au_hint"></p>
         </div>
 

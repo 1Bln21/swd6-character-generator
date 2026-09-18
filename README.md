@@ -240,16 +240,21 @@ Public sites in Germany need a legal notice and — especially with user account
 **What the privacy policy describes is what the software does** - including the
 table top: uploaded maps, portraits and music, the dice log, and voice and video,
 where the participants' devices learn each other's IP addresses. Two things
-there reach a third party, and the policy names both: music from YouTube, and the
-STUN server a browser asks when a call starts. By default that is Google's
+there reach a third party, and the policy names both: music from YouTube - which
+each participant has to allow in their own browser before anything is loaded
+from youtube.com - and the STUN server a browser asks when a call starts. By
+default that is Google's
 (`stun.l.google.com`). **If you set your own** in the `turn` block of
 `api/config.local.php` (`'stun' => ['stun:turn.your-domain.com:3478']`), Google
 drops out of the call entirely - adjust section 7 and 12 of the policy to match.
 
-Any signed-in user can download everything stored about them as JSON from the
-Online window. Deleting an account removes the rounds it led, table top and
-uploaded files included, and its tokens, dice log entries and call data in other
-people's rounds.
+Any signed-in user can download everything stored about them from the Online
+window: a ZIP with the data as JSON and the maps, portraits and music they
+uploaded, each under the path the JSON names. Deleting an account removes the
+rounds it led, table top and uploaded files included, and in other people's
+rounds its tokens, dice log entries, call data and whatever it uploaded as a
+co-GM. (Uploads from before 4.0.0.4.1 do not record who made them; they count
+as the round owner's.)
 
 **Hosting outside Germany?** The two documents are bound to a country to very
 different degrees, and the dialog has a **“Legal setting of the operator”**

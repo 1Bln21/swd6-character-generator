@@ -60,6 +60,8 @@ const T = {
     au_none: 'Keine Musik.', au_playing: 'Läuft: ', au_paused: 'Pausiert: ',
     au_hint: 'Die Spielleitung bestimmt, was läuft; die Lautstärke stellt jeder für sich. Browser lassen Ton erst nach einem Klick zu – dafür ist der Knopf da.',
     au_yt_note: 'YouTube-Stücke spielt jeder Browser direkt bei YouTube ab. Der kleine Player muss sichtbar bleiben, das verlangen die YouTube-Bedingungen.',
+    au_yt_consent: 'Die Spielleitung spielt Musik von YouTube. Um sie zu hören, muss dein Browser den Player von youtube.com laden. Dabei erhält Google (USA) deine IP-Adresse und kann Cookies setzen. Ohne deine Freigabe wird nichts von YouTube geladen – der Rest des Spieltischs funktioniert trotzdem. Die Freigabe gilt für diesen Browser und lässt sich jederzeit widerrufen.',
+    au_yt_allow: 'YouTube-Inhalte aktivieren', au_yt_revoke: 'YouTube wieder sperren',
     au_bad_yt: 'Das sieht nicht nach einem YouTube-Link aus.',
     au_big: 'Die Datei ist zu groß (Grenze 12 MB).',
     confirm_au_delete: 'Dieses Stück entfernen?',
@@ -120,6 +122,8 @@ const T = {
     au_none: 'No music.', au_playing: 'Playing: ', au_paused: 'Paused: ',
     au_hint: 'The GM decides what plays; everyone sets their own volume. Browsers only allow sound after a click - that is what the button is for.',
     au_yt_note: 'YouTube tracks play from YouTube in each browser. The small player has to stay visible - YouTube’s terms require it.',
+    au_yt_consent: 'The GM is playing music from YouTube. To hear it, your browser has to load the player from youtube.com. Google (USA) then receives your IP address and can set cookies. Without your permission nothing is loaded from YouTube - the rest of the table works all the same. The permission applies to this browser and can be withdrawn at any time.',
+    au_yt_allow: 'Enable YouTube content', au_yt_revoke: 'Block YouTube again',
     au_bad_yt: 'That does not look like a YouTube link.',
     au_big: 'That file is too large (limit 12 MB).',
     confirm_au_delete: 'Remove this track?',
@@ -617,17 +621,31 @@ function syncAudio() {
       try { el.currentTime = st.pos; } catch (e) {}
     }
     if (!track) { ytBox.classList.add('hidden'); ytWanted = null; }
+    if (!track || track.kind !== 'yt') $('auYtConsent').classList.add('hidden');
     $('btnAuEnable').classList.add('hidden');
     return;
   }
 
   if (track.kind === 'yt') {
     el.pause();
+    /* Nothing from youtube.com before this participant has said yes. The
+       GM choosing a YouTube track is the GM's decision, not everyone's:
+       loading the player hands the IP address to Google, and a browser's
+       autoplay block does not stop that - it only stops the sound. */
+    if (!ytAllowed()) {
+      ytBox.classList.add('hidden');
+      $('auYtConsent').classList.remove('hidden');
+      $('btnAuEnable').classList.add('hidden');
+      return;
+    }
+    $('auYtConsent').classList.add('hidden');
+    $('auYtRevokeRow').classList.remove('hidden');
     ytBox.classList.remove('hidden');
     ensureYt(track, audioWantedPos(), vol);
     return;
   }
 
+  $('auYtConsent').classList.add('hidden');
   ytBox.classList.add('hidden');
   if (ytPlayer && ytReady) { try { ytPlayer.pauseVideo(); } catch (e) {} }
   const url = assetUrl(track.url);
@@ -684,8 +702,23 @@ function syncAudio() {
   });
 }
 
+/* Each participant's own permission for YouTube, kept in this browser.
+   Storage can be unavailable (private windows, blocked site data); then
+   the answer is "no" and the question simply comes again. */
+const LS_YT_OK = 'swd6_yt_ok';
+let ytAllowedThisPage = false;   // a yes that could not be stored still counts until reload
+function ytAllowed() {
+  if (ytAllowedThisPage) return true;
+  try { return localStorage.getItem(LS_YT_OK) === '1'; } catch (e) { return false; }
+}
+function ytSetAllowed(yes) {
+  ytAllowedThisPage = yes;
+  try { localStorage.setItem(LS_YT_OK, yes ? '1' : '0'); } catch (e) {}
+}
+
 /* The YouTube half. The iframe API is loaded only when a YouTube track is
-   actually used - nobody who never plays one talks to youtube.com. */
+   actually used AND the participant has allowed it - nobody who has not
+   said yes talks to youtube.com. */
 function ensureYt(track, pos, vol) {
   ytWanted = { id: track.yt, list: track.ytList || '', pos, vol,
                index: (state.audioState && state.audioState.index) || 0 };
@@ -1832,6 +1865,19 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!id || !confirm(t('confirm_au_delete'))) return;
     try { await api('audio_delete', { round: roundId, track: id }); await refresh(true); }
     catch (e) { alert(e.message); }
+  });
+  $('btnYtAllow').addEventListener('click', () => {
+    /* A click, so the browser allows sound as well. */
+    ytSetAllowed(true);
+    audioUnlocked = true;
+    syncAudio();
+  });
+  $('btnYtRevoke').addEventListener('click', () => {
+    /* The iframe API cannot be unloaded from a running page, and a player
+       left in place keeps talking to YouTube. Reloading is the one clean
+       way out; afterwards the question comes back instead of the player. */
+    ytSetAllowed(false);
+    location.reload();
   });
   $('btnAuEnable').addEventListener('click', () => {
     /* The click the browser was waiting for. */

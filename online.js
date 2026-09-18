@@ -19,8 +19,9 @@ Object.assign(T.de, {
   online_logout: 'Abmelden',
   online_logged_in_as: 'Angemeldet als',
   online_mydata: '⬇ Meine Daten herunterladen',
-  online_mydata_hint: 'DSGVO-Auskunft: lädt alle über dich gespeicherten Daten als JSON – ohne Passwort, Codes, das Geheimnis der Zwei-Faktor-Anmeldung und die Sitzungstoken, die deinen Zugang schützen.',
-  online_mydata_done: 'Daten heruntergeladen: {docs} Dokumente, {shares} Freigaben, {rounds} Runden.',
+  online_mydata_hint: 'DSGVO-Auskunft: lädt alle über dich gespeicherten Daten als ZIP – eine JSON-Datei plus deine hochgeladenen Karten, Marken und Musikstücke. Ohne Passwort, Codes, das Geheimnis der Zwei-Faktor-Anmeldung und die Sitzungstoken, die deinen Zugang schützen.',
+  online_mydata_done: 'Daten heruntergeladen: {docs} Dokumente, {shares} Freigaben, {rounds} Runden, {files} Dateien.',
+  online_mydata_missing: 'Diese Dateien nennt der Export, sie konnten beim Herunterladen aber nicht vom Server geholt werden:',
   online_pw_mismatch: 'Die Passwörter stimmen nicht überein.',
   online_pw_short: 'Das Passwort muss mindestens 8 Zeichen haben.',
   online_mfa: 'Zwei-Faktor-Anmeldung (MFA)',
@@ -107,8 +108,9 @@ Object.assign(T.en, {
   online_logout: 'Sign out',
   online_logged_in_as: 'Signed in as',
   online_mydata: '⬇ Download my data',
-  online_mydata_hint: 'GDPR access: downloads all data stored about you as JSON - without your password, codes, two-factor secret and session tokens, which protect your access.',
-  online_mydata_done: 'Data downloaded: {docs} documents, {shares} shares, {rounds} rounds.',
+  online_mydata_hint: 'GDPR access: downloads all data stored about you as a ZIP - one JSON file plus the maps, tokens and music you uploaded. Without your password, codes, two-factor secret and session tokens, which protect your access.',
+  online_mydata_done: 'Data downloaded: {docs} documents, {shares} shares, {rounds} rounds, {files} files.',
+  online_mydata_missing: 'The export names these files, but they could not be fetched from the server while downloading:',
   online_pw_mismatch: 'The passwords do not match.',
   online_pw_short: 'The password must be at least 8 characters.',
   online_mfa: 'Two-factor authentication (MFA)',
@@ -379,6 +381,89 @@ let adminData = null;           // { users: [...], registerMode }
 
 function apiUrl() {
   return (typeof SITE_CONFIG !== 'undefined' && SITE_CONFIG.apiUrl) || '';
+}
+
+/* ---------------- a minimal ZIP writer, for the data export ----------------
+   The export JSON names uploaded maps, portraits and music by their path on
+   the server (api/vtt/...). A path is not a copy, so the download packs the
+   JSON and those files into one ZIP, each file under exactly the path the
+   JSON gives - unpacked, every path in the JSON opens.
+
+   Written here rather than pulled in as a library: the files are pictures
+   and MP3s that are compressed already, so "stored" (no compression) is all
+   that is needed, and that is a CRC and three kinds of header. No ZIP64 -
+   an export never gets near four gigabytes. */
+let crcTable = null;
+function crc32(bytes) {
+  if (!crcTable) {
+    crcTable = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+      let c = n;
+      for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      crcTable[n] = c >>> 0;
+    }
+  }
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) crc = crcTable[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+/* files: [{ name, bytes: Uint8Array }] -> Blob */
+function makeZip(files) {
+  const enc = new TextEncoder();
+  const now = new Date();
+  const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+  const dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+  const parts = [], central = [];
+  let offset = 0;
+  files.forEach(f => {
+    const name = enc.encode(f.name);
+    const crc = crc32(f.bytes), size = f.bytes.length;
+    const local = new DataView(new ArrayBuffer(30));
+    local.setUint32(0, 0x04034b50, true);
+    local.setUint16(4, 20, true);
+    local.setUint16(6, 0x0800, true);     // bit 11: the name is UTF-8
+    local.setUint16(8, 0, true);          // stored
+    local.setUint16(10, dosTime, true);
+    local.setUint16(12, dosDate, true);
+    local.setUint32(14, crc, true);
+    local.setUint32(18, size, true);
+    local.setUint32(22, size, true);
+    local.setUint16(26, name.length, true);
+    local.setUint16(28, 0, true);
+    parts.push(local, name, f.bytes);
+    const cd = new DataView(new ArrayBuffer(46));
+    cd.setUint32(0, 0x02014b50, true);
+    cd.setUint16(4, 20, true);
+    cd.setUint16(6, 20, true);
+    cd.setUint16(8, 0x0800, true);
+    cd.setUint16(10, 0, true);
+    cd.setUint16(12, dosTime, true);
+    cd.setUint16(14, dosDate, true);
+    cd.setUint32(16, crc, true);
+    cd.setUint32(20, size, true);
+    cd.setUint32(24, size, true);
+    cd.setUint16(28, name.length, true);
+    cd.setUint32(42, offset, true);       // the rest (extra, comment, disk, attributes) stays 0
+    central.push(cd, name);
+    offset += 30 + name.length + size;
+  });
+  const cdSize = central.reduce((s, p) => s + p.byteLength, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true);
+  end.setUint16(8, files.length, true);
+  end.setUint16(10, files.length, true);
+  end.setUint32(12, cdSize, true);
+  end.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, end], { type: 'application/zip' });
+}
+/* Every server path the export names, once each. */
+function exportFilePaths(data) {
+  const tt = data.tableTop || {};
+  const paths = [];
+  (tt.tokens || []).forEach(x => { if (x.picture) paths.push(x.picture); });
+  (tt.maps || []).forEach(x => { if (x.file) paths.push(x.file); });
+  (tt.music || []).forEach(x => { if (x.file) paths.push(x.file); });
+  return [...new Set(paths)].filter(p => /^api\/vtt\/[0-9a-f]{64}\.[a-z0-9]{2,5}$/.test(p));
 }
 async function api(action, body, params) {
   const headers = { 'Content-Type': 'application/json' };
@@ -1497,17 +1582,40 @@ async function onlineAction(el) {
         return;
       case 'myData': {
         const data = await api('my_data');
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const base = 'swd6-meine-daten-' + (ONLINE.username || 'account');
+        const enc = new TextEncoder();
+        const files = [{ name: base + '.json', bytes: enc.encode(JSON.stringify(data, null, 2)) }];
+        /* The uploads, fetched from where the server delivers them. The
+           JSON says "api/vtt/<hash>.<ext>"; the web server has them next to
+           the API script as "vtt/<hash>.<ext>". One that cannot be fetched
+           (removed meanwhile, or an API on another host that does not allow
+           it) is listed in a text file instead of failing the whole export. */
+        const apiBase = new URL(apiUrl() || 'api/index.php', location.href);
+        const missing = [];
+        let fetched = 0;
+        for (const p of exportFilePaths(data)) {
+          try {
+            const res = await fetch(new URL(p.replace(/^api\//, ''), apiBase).href);
+            if (!res.ok) throw new Error(res.status);
+            files.push({ name: p, bytes: new Uint8Array(await res.arrayBuffer()) });
+            fetched++;
+          } catch (e) { missing.push(p); }
+        }
+        if (missing.length) {
+          files.push({ name: 'missing-files.txt',
+                       bytes: enc.encode(t('online_mydata_missing') + '\r\n\r\n' + missing.join('\r\n') + '\r\n') });
+        }
         const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'swd6-meine-daten-' + (ONLINE.username || 'account') + '.json';
+        a.href = URL.createObjectURL(makeZip(files));
+        a.download = base + '.zip';
         a.click();
-        URL.revokeObjectURL(a.href);
+        setTimeout(() => URL.revokeObjectURL(a.href), 10000);
         const d = data.documents ? data.documents.length : 0;
         onlineMsg = t('online_mydata_done')
           .replace('{docs}', d)
           .replace('{shares}', (data.sharesGiven || []).length)
-          .replace('{rounds}', (data.rounds || []).length);
+          .replace('{rounds}', (data.rounds || []).length)
+          .replace('{files}', fetched);
         break;
       }
       case 'logout':
