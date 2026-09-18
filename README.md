@@ -237,6 +237,20 @@ If MFA is enabled it is still required during a reset — a code alone does not 
 
 Public sites in Germany need a legal notice and — especially with user accounts — a privacy policy. Both ship as **ready-made templates** that only need your details: ⚙ menu → **“⚖ Legal notice & privacy”**. As an administrator the details are stored server-side and apply to all visitors; without a server there is a `config.js` snippet. If you already have your own legal pages, just enter the URLs instead.
 
+**What the privacy policy describes is what the software does** - including the
+table top: uploaded maps, portraits and music, the dice log, and voice and video,
+where the participants' devices learn each other's IP addresses. Two things
+there reach a third party, and the policy names both: music from YouTube, and the
+STUN server a browser asks when a call starts. By default that is Google's
+(`stun.l.google.com`). **If you set your own** in the `turn` block of
+`api/config.local.php` (`'stun' => ['stun:turn.your-domain.com:3478']`), Google
+drops out of the call entirely - adjust section 7 and 12 of the policy to match.
+
+Any signed-in user can download everything stored about them as JSON from the
+Online window. Deleting an account removes the rounds it led, table top and
+uploaded files included, and its tokens, dice log entries and call data in other
+people's rounds.
+
 **Hosting outside Germany?** The two documents are bound to a country to very
 different degrees, and the dialog has a **“Legal setting of the operator”**
 picker for it — Germany, another EU/EEA country, or outside the EU/EEA.
@@ -264,7 +278,7 @@ different things. The dialog says so when that setting is picked.
 
 Almost nobody makes an account just to say that a button did nothing, so reporting needs neither: ⚙ menu → **“🐞 Report a bug”**. One field, send, done. Signed in, the report carries the user name so it can be answered through the ticket system; without an account it is anonymous. One tick sends the sheet currently open along — pictures stripped — which usually turns a vague description into a reproducible fault.
 
-The same dialog holds a switch, on by default, that reports **script errors on their own**. That is the part that matters: a visitor who hits a crash normally closes the tab and is never heard from. Sent are the message, the place in the code, the page, the version, the browser family and the language — no IP address, no full user agent, nothing that follows anybody between visits. It can be switched off in that dialog, and section 7 of the built-in privacy policy describes it.
+The same dialog holds a switch, on by default, that reports **script errors on their own**. That is the part that matters: a visitor who hits a crash normally closes the tab and is never heard from. Sent are the message, the place in the code, the page, the version, the browser family and the language — no IP address stored, no full user agent, nothing that follows anybody between visits. It can be switched off in that dialog, and section 8 of the built-in privacy policy describes it.
 
 Administrators read what comes in under ☁ menu → **“🐞 Bug reports”**: crashes grouped into one row per fault with a counter, an attached sheet on request, and an export of the whole list as one JSON file.
 
@@ -381,7 +395,7 @@ Das Projekt ist die HTML-Portierung der Excel-Tabellen von **Chance Gibboney** �
 
 **Spielrunden** – Spielleiter können eine Runde eröffnen, Spieler per Einladungscode aufnehmen, deren angemeldete Charaktere ansehen und **für die Runde freigeben** – die Freigabe erscheint als Stempel auf dem Bogen (☁-Online-Fenster).
 
-**Fehler melden** – ⚙-Menü → **“🐞 Fehler melden”**: ein Feld, absenden, fertig, ohne Konto. Wer angemeldet ist, bekommt eine Antwort über das Ticket-System; ohne Konto bleibt die Meldung anonym. Ein Häkchen schickt den gerade offenen Bogen mit (ohne Bild). Im selben Dialog sitzt ein Schalter, der **Skriptfehler von selbst meldet** – denn wer auf einen Absturz stößt, macht sonst einfach den Tab zu. Übertragen werden Meldung, Stelle im Code, Seite, Version, Browser-Familie und Sprache; keine IP-Adresse, keine Kennung. Abschaltbar, und in Abschnitt 7 der eingebauten Datenschutzerklärung beschrieben. Administratoren lesen alles unter ☁-Menü → **“🐞 Fehlerberichte”**, inklusive JSON-Export.
+**Fehler melden** – ⚙-Menü → **“🐞 Fehler melden”**: ein Feld, absenden, fertig, ohne Konto. Wer angemeldet ist, bekommt eine Antwort über das Ticket-System; ohne Konto bleibt die Meldung anonym. Ein Häkchen schickt den gerade offenen Bogen mit (ohne Bild). Im selben Dialog sitzt ein Schalter, der **Skriptfehler von selbst meldet** – denn wer auf einen Absturz stößt, macht sonst einfach den Tab zu. Übertragen werden Meldung, Stelle im Code, Seite, Version, Browser-Familie und Sprache; keine gespeicherte IP-Adresse, keine Kennung. Abschaltbar, und in Abschnitt 8 der eingebauten Datenschutzerklärung beschrieben. Administratoren lesen alles unter ☁-Menü → **“🐞 Fehlerberichte”**, inklusive JSON-Export.
 
 **Easteregg** – seit einigen Versionen steckt eins in der App. Wo, wird hier nicht verraten: viel Spaß beim Suchen.
 

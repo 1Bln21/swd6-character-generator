@@ -1126,6 +1126,41 @@ function vtt_delete_unused($sha, $ext) {
   $path = vtt_dir() . '/' . $sha . '.' . $ext;
   if (is_file($path)) @unlink($path);
 }
+
+/* Everything a round leaves behind, removed in one place.
+
+   Deleting a round used to take only its members and its sheet entries.
+   The table top that arrived with 4.0.0 was never added to that list, so
+   maps, tokens, the dice log, the music, call presence and signalling all
+   stayed in the database with nothing pointing at them - and the uploaded
+   files stayed on disk, among them the portraits players had turned into
+   tokens. The same happened when a GM's account was deleted.
+
+   One function, used by both, so the next table added to the table top
+   has exactly one place to be remembered in. The files are collected
+   BEFORE the rows go, because afterwards nothing says which ones they
+   were; vtt_delete_unused() then keeps any a different round still uses.
+
+   The table names are literals, never input. */
+function round_purge($roundId) {
+  global $db;
+  $roundId = (int)$roundId;
+  if ($roundId <= 0) return;
+  $dateien = [];
+  foreach ([['round_maps', 'sha', 'ext'], ['round_tokens', 'img_sha', 'img_ext'],
+            ['round_audio', 'sha', 'ext']] as $t) {
+    $st = $db->prepare("SELECT $t[1] AS sha, $t[2] AS ext FROM $t[0]
+                        WHERE round_id = ? AND COALESCE($t[1], '') <> ''");
+    $st->execute([$roundId]);
+    foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $f) $dateien[] = $f;
+  }
+  foreach (['round_tokens', 'round_maps', 'round_log', 'round_audio', 'round_calls',
+            'round_signals', 'round_chars', 'round_members'] as $tab) {
+    $db->prepare("DELETE FROM $tab WHERE round_id = ?")->execute([$roundId]);
+  }
+  $db->prepare('DELETE FROM rounds WHERE id = ?')->execute([$roundId]);
+  foreach ($dateien as $f) vtt_delete_unused($f['sha'], $f['ext']);
+}
 /* ---- ticket notifications ----
    "New to me" means: a message from the other side is younger than the
    moment I last opened the ticket. For admins that counts messages from
@@ -1502,7 +1537,16 @@ case 'my_data': {
     'backupCodesLeft' => is_array($codes) ? count($codes) : 0,
     'hasRecoveryCode' => !empty($user['recovery_hash']),
     'adminResetPending' => !empty($user['reset_hash']) && (int)$user['reset_expires'] > time(),
+    /* The lockout counter is personal data about the account like any other
+       field here, and it was the one left out. */
+    'failedLogins'    => ['count' => (int)$user['fail_count'], 'lastAt' => (int)$user['fail_time']],
   ];
+  /* Sessions by expiry only. The token itself is a credential: handing it
+     out in a file that gets mailed around would be handing out the account. */
+  $st = $db->prepare('SELECT expires FROM tokens WHERE user_id = ? ORDER BY expires');
+  $st->execute([$user['id']]);
+  $account['sessions'] = array_map(function ($r) { return ['expires' => (int)$r['expires']]; },
+                                   $st->fetchAll(PDO::FETCH_ASSOC));
   /* Own documents including content (it is the user's own data) */
   $st = $db->prepare("SELECT id, name, COALESCE(kind,'char') AS kind, updated, data
                       FROM chars WHERE user_id = ? ORDER BY COALESCE(kind,'char'), " . ci('name'));
@@ -1535,27 +1579,129 @@ case 'my_data': {
   $st->execute([$user['id']]);
   $tickets = [];
   foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $tk) {
-    $ms = $db->prepare('SELECT is_admin, body, created, (image IS NOT NULL AND image <> \'\') AS has_image
+    /* The picture itself, not only whether there was one: it is part of what
+       the user sent, and stored as a data URI it can go into the file as is. */
+    $ms = $db->prepare('SELECT is_admin, body, image, created
                         FROM ticket_messages WHERE ticket_id = ? ORDER BY created, id');
     $ms->execute([$tk['id']]);
     $tickets[] = ['subject' => $tk['subject'], 'category' => $tk['category'], 'status' => $tk['status'],
                   'created' => (int)$tk['created'],
                   'messages' => array_map(function ($m) {
                     return ['fromAdmin' => (int)$m['is_admin'] === 1, 'body' => $m['body'],
-                            'created' => (int)$m['created'], 'hasImage' => (bool)$m['has_image']];
+                            'created' => (int)$m['created'],
+                            'image' => ($m['image'] !== null && $m['image'] !== '') ? $m['image'] : null];
                   }, $ms->fetchAll(PDO::FETCH_ASSOC))];
   }
+  /* Messages the user wrote in tickets that are NOT theirs - an admin's
+     answers. Only their own messages: the rest of such a ticket is the other
+     person's, and their rights count as well. */
+  $st = $db->prepare('SELECT t.subject, m.body, m.image, m.created
+                      FROM ticket_messages m JOIN tickets t ON t.id = m.ticket_id
+                      WHERE m.author_id = ? AND t.user_id <> ? ORDER BY m.created, m.id');
+  $st->execute([$user['id'], $user['id']]);
+  $answersInOtherTickets = array_map(function ($m) {
+    return ['ticket' => $m['subject'], 'body' => $m['body'], 'created' => (int)$m['created'],
+            'image' => ($m['image'] !== null && $m['image'] !== '') ? $m['image'] : null];
+  }, $st->fetchAll(PDO::FETCH_ASSOC));
+  /* When the user last read which ticket - small, but stored about them. */
+  $st = $db->prepare('SELECT t.subject, s.seen FROM ticket_seen s JOIN tickets t ON t.id = s.ticket_id
+                      WHERE s.user_id = ? ORDER BY s.seen');
+  $st->execute([$user['id']]);
+  $ticketsRead = array_map(function ($r) { return ['ticket' => $r['subject'], 'readAt' => (int)$r['seen']]; },
+                           $st->fetchAll(PDO::FETCH_ASSOC));
   /* Bug reports sent while signed in. Anonymous ones carry no user_id and
      cannot appear here - there is nothing linking them to anybody. */
-  $st = $db->prepare('SELECT kind, page, version, msg, src, ua, lang, hits, status, created
+  $st = $db->prepare('SELECT kind, page, version, msg, src, stack, ua, lang, sheet, hits, status, created
                       FROM reports WHERE user_id = ? ORDER BY created');
   $st->execute([$user['id']]);
   $reports = [];
   foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $r) {
     $r['hits'] = (int)$r['hits'];
     $r['created'] = (int)$r['created'];
+    /* The attached sheet is the user's own content; it goes back as data,
+       not as a string of escaped JSON. */
+    $r['sheet'] = ($r['sheet'] !== null && $r['sheet'] !== '') ? json_decode($r['sheet'], true) : null;
     $reports[] = $r;
   }
+
+  /* ---- rounds: the user's sheets entered there, and the table top ----
+     All of this arrived with 4.0.0 and was never added to the export. */
+  $st = $db->prepare('SELECT r.name AS round, c.name AS sheet, rc.approved, rc.approved_at, rc.note
+                      FROM round_chars rc JOIN chars c ON c.id = rc.char_id JOIN rounds r ON r.id = rc.round_id
+                      WHERE c.user_id = ? ORDER BY r.name, c.name');
+  $st->execute([$user['id']]);
+  $roundEntries = array_map(function ($r) {
+    return ['round' => $r['round'], 'sheet' => $r['sheet'], 'approved' => (int)$r['approved'],
+            'decidedAt' => (int)$r['approved_at'], 'note' => $r['note']];
+  }, $st->fetchAll(PDO::FETCH_ASSOC));
+
+  $vttPfad = function ($sha, $ext) {
+    return ($sha !== null && $sha !== '') ? 'api/vtt/' . $sha . '.' . $ext : null;
+  };
+  $st = $db->prepare('SELECT r.name AS round, l.kind, l.text, l.data, l.created
+                      FROM round_log l JOIN rounds r ON r.id = l.round_id
+                      WHERE l.user_id = ? ORDER BY l.created, l.id');
+  $st->execute([$user['id']]);
+  $diceLog = array_map(function ($r) {
+    return ['round' => $r['round'], 'kind' => $r['kind'], 'text' => $r['text'],
+            'data' => ($r['data'] !== null && $r['data'] !== '') ? json_decode($r['data'], true) : null,
+            'created' => (int)$r['created']];
+  }, $st->fetchAll(PDO::FETCH_ASSOC));
+
+  $st = $db->prepare('SELECT r.name AS round, m.name AS map, t.kind, t.label, t.color, t.x, t.y, t.size,
+                             t.facing, t.img_sha, t.img_ext, t.created
+                      FROM round_tokens t JOIN rounds r ON r.id = t.round_id
+                      LEFT JOIN round_maps m ON m.id = t.map_id
+                      WHERE t.owner_id = ? ORDER BY r.name, t.id');
+  $st->execute([$user['id']]);
+  $tokens = array_map(function ($r) use ($vttPfad) {
+    return ['round' => $r['round'], 'map' => $r['map'], 'kind' => $r['kind'], 'label' => $r['label'],
+            'color' => $r['color'], 'x' => (float)$r['x'], 'y' => (float)$r['y'], 'size' => (float)$r['size'],
+            'facing' => (float)$r['facing'], 'picture' => $vttPfad($r['img_sha'], $r['img_ext']),
+            'created' => (int)$r['created']];
+  }, $st->fetchAll(PDO::FETCH_ASSOC));
+
+  /* Uploads: only the GM can put maps and music into a round, so what sits
+     in the rounds this user leads is what this user uploaded. Given as paths
+     on this server rather than embedded - thirty maps of six megabytes each
+     do not belong in a JSON file, and the paths can be opened as they are. */
+  $st = $db->prepare('SELECT r.name AS round, m.name, m.w, m.h, m.bytes, m.sha, m.ext, m.created
+                      FROM round_maps m JOIN rounds r ON r.id = m.round_id
+                      WHERE r.gm_id = ? ORDER BY r.name, m.id');
+  $st->execute([$user['id']]);
+  $maps = array_map(function ($r) use ($vttPfad) {
+    return ['round' => $r['round'], 'name' => $r['name'], 'width' => (int)$r['w'], 'height' => (int)$r['h'],
+            'bytes' => (int)$r['bytes'], 'file' => $vttPfad($r['sha'], $r['ext']), 'created' => (int)$r['created']];
+  }, $st->fetchAll(PDO::FETCH_ASSOC));
+  $st = $db->prepare('SELECT r.name AS round, a.kind, a.name, a.bytes, a.sha, a.ext, a.yt_id, a.yt_list, a.created
+                      FROM round_audio a JOIN rounds r ON r.id = a.round_id
+                      WHERE r.gm_id = ? ORDER BY r.name, a.id');
+  $st->execute([$user['id']]);
+  $music = array_map(function ($r) use ($vttPfad) {
+    return ['round' => $r['round'], 'kind' => $r['kind'], 'name' => $r['name'], 'bytes' => (int)$r['bytes'],
+            'file' => $r['kind'] === 'file' ? $vttPfad($r['sha'], $r['ext']) : null,
+            'youtubeVideo' => $r['yt_id'] ?: null, 'youtubePlaylist' => $r['yt_list'] ?: null,
+            'created' => (int)$r['created']];
+  }, $st->fetchAll(PDO::FETCH_ASSOC));
+
+  /* Voice and video: presence in a call, and connection offers the user's
+     browser sent that have not been collected yet. Those carry the user's
+     own network addresses; offers sent TO the user carry someone else's and
+     stay out. Both normally live only for seconds. */
+  $st = $db->prepare('SELECT r.name AS round, c.cam, c.mic, c.seen
+                      FROM round_calls c JOIN rounds r ON r.id = c.round_id WHERE c.user_id = ?');
+  $st->execute([$user['id']]);
+  $calls = array_map(function ($r) {
+    return ['round' => $r['round'], 'camera' => (int)$r['cam'] === 1, 'microphone' => (int)$r['mic'] === 1,
+            'lastSeen' => (int)$r['seen']];
+  }, $st->fetchAll(PDO::FETCH_ASSOC));
+  $st = $db->prepare('SELECT r.name AS round, s.body, s.created
+                      FROM round_signals s JOIN rounds r ON r.id = s.round_id WHERE s.from_id = ?');
+  $st->execute([$user['id']]);
+  $signals = array_map(function ($r) {
+    return ['round' => $r['round'], 'body' => $r['body'], 'created' => (int)$r['created']];
+  }, $st->fetchAll(PDO::FETCH_ASSOC));
+
   json_out([
     'exportedAt' => time(),
     'account'    => $account,
@@ -1563,9 +1709,23 @@ case 'my_data': {
     'sharesGiven'    => $sharesGiven,
     'sharesReceived' => $sharesReceived,
     'rounds'     => $rounds,
+    'roundEntries' => $roundEntries,
+    'tableTop'   => ['diceLog' => $diceLog, 'tokens' => $tokens, 'maps' => $maps, 'music' => $music,
+                     'callPresence' => $calls, 'pendingCallSignals' => $signals],
     'tickets'    => $tickets,
+    'answersInOtherTickets' => $answersInOtherTickets,
+    'ticketsRead' => $ticketsRead,
     'bugReports' => $reports,
-    'note' => 'This is all data stored about your account. Password, MFA and recovery codes are stored only as irreversible hashes and are never included.',
+    /* This sentence used to say that MFA was stored "only as irreversible
+       hashes". It is not: a TOTP code cannot be checked without the secret,
+       so the secret is kept as it is. What is true is that it is left OUT
+       of the export, for the same reason as the session tokens. */
+    'note' => 'This export contains everything stored about your account. Left out for your own protection: '
+            . 'your password and your recovery, reset and backup codes (stored only as irreversible hashes), '
+            . 'the secret behind two-factor authentication (stored, because codes cannot be checked without it, '
+            . 'but never handed out) and your session tokens (listed by expiry only). Uploaded pictures and music '
+            . 'are given as paths on this server (api/vtt/...) instead of being embedded. Bug reports sent '
+            . 'without being signed in carry no name and cannot be linked to you, so they do not appear here.',
   ]);
 }
 
@@ -1846,24 +2006,45 @@ case 'admin_user_action': {
       if ($self) fail('You cannot delete your own account here');
       if (is_admin($target) && admin_count() <= 1) fail('The last administrator cannot be deleted');
       $db->prepare('DELETE FROM shares WHERE to_user_id = ? OR owner_id = ?')->execute([$id, $id]);
-      /* remove this user's character entries from every round */
+      /* Rounds the user led go completely, table top and files included -
+         see round_purge(). This used to delete the round rows only and left
+         maps, tokens, the dice log and the uploads behind. */
+      $st = $db->prepare('SELECT id FROM rounds WHERE gm_id = ?');
+      $st->execute([$id]);
+      foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $rid) round_purge($rid);
+      /* What the user left in OTHER people's rounds: their tokens (which may
+         carry their portrait), their entries in the dice log, and call
+         presence and signalling. The rounds themselves belong to someone
+         else and stay. Tokens made from the user's sheets go too, whoever
+         put them there - the sheet behind them is about to disappear. */
+      $st = $db->prepare("SELECT img_sha, img_ext FROM round_tokens
+                          WHERE (owner_id = ? OR char_id IN (SELECT id FROM chars WHERE user_id = ?))
+                          AND COALESCE(img_sha, '') <> ''");
+      $st->execute([$id, $id]);
+      $bilder = $st->fetchAll(PDO::FETCH_ASSOC);
+      $db->prepare('DELETE FROM round_tokens WHERE owner_id = ? OR char_id IN (SELECT id FROM chars WHERE user_id = ?)')
+         ->execute([$id, $id]);
+      foreach ($bilder as $b) vtt_delete_unused($b['img_sha'], $b['img_ext']);
+      $db->prepare('DELETE FROM round_log WHERE user_id = ?')->execute([$id]);
+      $db->prepare('DELETE FROM round_calls WHERE user_id = ?')->execute([$id]);
+      $db->prepare('DELETE FROM round_signals WHERE from_id = ? OR to_id = ?')->execute([$id, $id]);
+      $db->prepare('DELETE FROM round_members WHERE user_id = ?')->execute([$id]);
+      /* this user's character entries in every round, then the sheets */
       $db->prepare('DELETE FROM round_chars WHERE char_id IN (SELECT id FROM chars WHERE user_id = ?)')->execute([$id]);
       $db->prepare('DELETE FROM chars  WHERE user_id = ?')->execute([$id]);
-      /* rounds the user was a member or GM of */
-      $db->prepare('DELETE FROM round_members WHERE user_id = ?')->execute([$id]);
-      $db->prepare('DELETE FROM round_chars WHERE round_id IN (SELECT id FROM rounds WHERE gm_id = ?)')->execute([$id]);
-      $db->prepare('DELETE FROM round_members WHERE round_id IN (SELECT id FROM rounds WHERE gm_id = ?)')->execute([$id]);
-      $db->prepare('DELETE FROM rounds WHERE gm_id = ?')->execute([$id]);
       /* the user's support tickets (and every message in them) */
       $db->prepare('DELETE FROM ticket_messages WHERE ticket_id IN (SELECT id FROM tickets WHERE user_id = ?)')->execute([$id]);
       $db->prepare('DELETE FROM ticket_messages WHERE author_id = ?')->execute([$id]);
       $db->prepare('DELETE FROM ticket_seen WHERE ticket_id IN (SELECT id FROM tickets WHERE user_id = ?)')->execute([$id]);
       $db->prepare('DELETE FROM ticket_seen WHERE user_id = ?')->execute([$id]);
       $db->prepare('DELETE FROM tickets WHERE user_id = ?')->execute([$id]);
-      /* Bug reports lose the name but keep the fault. The link to a person
-         is what has to go; a crash that is still in the code helps nobody
-         by disappearing along with the account that ran into it. Any sheet
-         attached to one goes, because that is the user's own content. */
+      /* Bug reports. What the user WROTE goes: a feedback report is their
+         own text and may say anything about them. An automatic crash report
+         holds nothing they typed - the error message, the place in the
+         code, the browser family - so it loses only the link to the person
+         and any attached sheet; a crash that is still in the code helps
+         nobody by disappearing along with the account that ran into it. */
+      $db->prepare("DELETE FROM reports WHERE user_id = ? AND kind = 'fb'")->execute([$id]);
       $db->prepare('UPDATE reports SET user_id = 0, sheet = NULL WHERE user_id = ?')->execute([$id]);
       $db->prepare('DELETE FROM tokens WHERE user_id = ?')->execute([$id]);
       $db->prepare('DELETE FROM users  WHERE id = ?')->execute([$id]);
@@ -2018,9 +2199,7 @@ case 'round_delete': {
   if (!$round) fail('Round not found', 404);
   if ((int)$round['gm_id'] !== (int)$user['id'] && !is_admin($user))
     fail('Only the GM can delete this round', 403);
-  $db->prepare('DELETE FROM round_chars WHERE round_id = ?')->execute([$id]);
-  $db->prepare('DELETE FROM round_members WHERE round_id = ?')->execute([$id]);
-  $db->prepare('DELETE FROM rounds WHERE id = ?')->execute([$id]);
+  round_purge($id);
   json_out(['ok' => true]);
 }
 
