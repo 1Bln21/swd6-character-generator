@@ -154,7 +154,9 @@ de: {
   powers_learnable: 'Kräfte lernbar', learned: 'Gelernt',
   override_powers: 'Override zusätzl. Kräfte:',
   powers_hint: 'Wie in der Excel-Vorlage: Anzahl lernbarer Kräfte = Summe der Pips in Control, Sense und Alter (+ Override). Die Machtfertigkeiten selbst werden auf dem Tab „Attribute“ gesteigert.',
-  keep_up: 'Aufrechterhalten', maybe_missing: '⚠ evtl. nicht erfüllt', dark_side_title: 'Dunkle Seite',
+  keep_up: 'Aufrechterhalten', maybe_missing: '⚠ evtl. nicht erfüllt',
+  prereq_met: 'Erfüllt – klicken, um zur Kraft zu springen',
+  prereq_unmet: 'Noch nicht gelernt – klicken, um zur Kraft zu springen', dark_side_title: 'Dunkle Seite',
   /* equipment */
   equip_cost: 'Ausrüstungskosten', credits_left: 'Credits übrig',
   other_equip: 'Sonstige Ausrüstung', credits_word: 'Credits',
@@ -350,7 +352,9 @@ en: {
   powers_learnable: 'Powers learnable', learned: 'Learned',
   override_powers: 'Override extra powers:',
   powers_hint: 'As in the Excel original: number of learnable powers = sum of pips in Control, Sense and Alter (+ override). The Force skills themselves are raised on the "Attributes" tab.',
-  keep_up: 'Kept up', maybe_missing: '⚠ possibly not met', dark_side_title: 'Dark Side',
+  keep_up: 'Kept up', maybe_missing: '⚠ possibly not met',
+  prereq_met: 'Met - click to jump to the power',
+  prereq_unmet: 'Not learned yet - click to jump to the power', dark_side_title: 'Dark Side',
   /* Equipment */
   equip_cost: 'Equipment cost', credits_left: 'Credits left',
   other_equip: 'Other Equipment', credits_word: 'credits',
@@ -1662,6 +1666,50 @@ function viewSkills() {
 }
 
 /* ---------------- tab: the Force ---------------- */
+/* Which powers one part of a prerequisite names. The exact name first; the
+   front of a name only when nothing matches exactly - that is what makes
+   "Instinctive Astrogation (Either)" mean both halves. Without the order,
+   "Sense Force" was also met by "Sense Force Potential" and "Detoxify
+   Poison" by "Detoxify poison in Another". */
+function prereqTargets(part) {
+  const tr = powerKey(part);
+  if (!tr) return [];
+  const exact = DATA.powers.filter(p => powerKey(p.name) === tr);
+  if (exact.length) return exact.map(p => p.name);
+  return DATA.powers.filter(p => {
+    const k = powerKey(p.name);
+    return k.startsWith(tr + ':') || k.startsWith(tr + ' ');
+  }).map(p => p.name);
+}
+/* A power's prerequisite, split into its parts, each with the powers it
+   points at and whether one of them is learned. A part that names no known
+   power cannot be checked and counts as met rather than raising a false
+   alarm. */
+function prereqParts(p) {
+  if (!p.prereq || p.prereq === 'No Prerequisite' || p.prereq === 'Special') return [];
+  const learned = new Set(C.powers.map(powerKey));
+  return p.prereq.split(/,| and /i).map(x => x.trim()).filter(Boolean).map(text => {
+    const targets = prereqTargets(text);
+    return { text, targets, met: !targets.length || targets.some(n => learned.has(powerKey(n))) };
+  });
+}
+/* A prerequisite part as a link to the power it names. Unmet parts are
+   highlighted; the click scrolls there and lets the row light up. */
+function prereqLink(x) {
+  if (!x.targets.length) return esc(x.text);
+  return `<a href="#" class="prereq ${x.met ? 'met' : 'unmet'}" data-act="gotoPower"
+    data-power="${esc(x.targets[0])}" title="${esc(t(x.met ? 'prereq_met' : 'prereq_unmet'))}">${esc(x.text)}</a>`;
+}
+function gotoPower(name) {
+  const row = [...document.querySelectorAll('[data-power-row]')].find(r => r.dataset.powerRow === name);
+  if (!row) return;
+  row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  row.classList.remove('flash');
+  void row.offsetWidth;            // restart the animation on a second click
+  row.classList.add('flash');
+  const box = row.querySelector('input[type=checkbox]');
+  if (box) box.focus({ preventScroll: true });
+}
 function viewForce() {
   if (!forceTabNeeded()) {
     return `<div class="card"><h2>${t('the_force')}</h2>
@@ -1683,25 +1731,16 @@ function viewForce() {
   const catBlocks = cats.map(cat => {
     const rows = DATA.powers.filter(p => p.cat === cat).map(p => {
       const has = C.powers.includes(p.name);
-      const missing = p.prereq && p.prereq !== 'No Prerequisite' && p.prereq !== 'Special' &&
-        !p.prereq.split(/,| and /i).every(x => {
-          const tr = powerKey(x);
-          /* Exact match, or the requirement is the front of a power's name:
-             "Instinctive Astrogation (Either)" loses its bracket and then
-             matches both "Instinctive Astrogation: Control" and ": Sense",
-             which is what "either" means. */
-          return !tr || C.powers.some(pw => {
-            const k = powerKey(pw);
-            return k === tr || k.startsWith(tr + ':') || k.startsWith(tr + ' ');
-          });
-        });
-      return `<div class="power-row ${has ? 'learned' : ''}">
+      const parts = prereqParts(p);
+      const missing = parts.some(x => !x.met);
+      const reqText = parts.length ? parts.map(prereqLink).join(', ') : esc(p.prereq);
+      return `<div class="power-row ${has ? 'learned' : ''} ${has && missing ? 'prereq-missing' : ''}" data-power-row="${esc(p.name)}">
         <input type="checkbox" data-act="powerToggle" data-power="${esc(p.name)}" ${has ? 'checked' : ''}>
         <div>
           <div class="pname">${esc(p.name)} ${p.dark === 'Yes' ? `<span class="dark" title="${t('dark_side_title')}">☠</span>` : ''}</div>
           <div class="pmeta">
             ${t('difficulty')}: ${esc(p.diff || '–')} · ${t('keep_up')}: ${p.kept === 'Yes' ? t('yes') : t('no')} · ${esc(p.page)}
-            ${p.prereq && p.prereq !== 'No Prerequisite' ? `<br>${t('requirement')}: ${esc(p.prereq)} ${has && missing ? `<span class="warn">${t('maybe_missing')}</span>` : ''}` : ''}
+            ${p.prereq && p.prereq !== 'No Prerequisite' ? `<br>${t('requirement')}: ${reqText} ${has && missing ? `<span class="warn">${t('maybe_missing')}</span>` : ''}` : ''}
           </div>
         </div>
       </div>`;
@@ -2492,6 +2531,10 @@ content.addEventListener('click', e => {
   const dir = +el.dataset.dir || 0;
 
   switch (act) {
+    case 'gotoPower':
+      e.preventDefault();
+      gotoPower(el.dataset.power);
+      return;
     case 'attr': {
       const a = el.dataset.a;
       C.attrs[a] = Math.max(0, (C.attrs[a] || 0) + dir);

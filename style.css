@@ -292,6 +292,24 @@ table.list td.num, table.list th.num { text-align: right; white-space: nowrap; }
 .power-row .pmeta { font-size: 12px; color: var(--muted); }
 .power-row.learned .pname { color: var(--accent); }
 .power-row .dark { color: var(--red); }
+/* Prerequisites are links to the power they name: met in green, not yet
+   learned highlighted in red. A learned power whose prerequisite is missing
+   gets a red edge, so it stands out while scrolling the list. */
+.power-row a.prereq { text-decoration: underline dotted; text-underline-offset: 2px; cursor: pointer; }
+.power-row a.prereq.met { color: var(--green); }
+.power-row a.prereq.unmet { color: var(--red); font-weight: 600;
+  background: color-mix(in srgb, var(--red) 14%, transparent); padding: 0 3px; border-radius: 3px; }
+.power-row a.prereq:hover, .power-row a.prereq:focus-visible { text-decoration-style: solid; }
+.power-row.prereq-missing { box-shadow: inset 3px 0 0 var(--red); }
+/* The row a prerequisite link jumped to lights up briefly */
+.power-row.flash { animation: power-flash 1.6s ease-out; }
+@keyframes power-flash {
+  0%, 25% { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+  100% { background: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .power-row.flash { animation: none; outline: 2px solid var(--accent); }
+}
 
 /* ---------- Sub-tabs (weapons) ---------- */
 .subtabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
