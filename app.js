@@ -1216,7 +1216,12 @@ function viewInfo() {
   const sp = speciesData();
   ensureCloudSpecies();
   const extra = extraSpecies();
-  const speciesOpts = DATA.species.map(s =>
+  /* Sorted for display only. data.js keeps the order of the original
+     spreadsheet, where Morellian sits between Human and Hutt - and a
+     species nobody can find in the list might as well not be there. The
+     option value is the name, so nothing saved depends on the order. */
+  const byName = (a, b) => a.name.localeCompare(b.name);
+  const speciesOpts = DATA.species.slice().sort(byName).map(s =>
     `<option ${C.info.species === s.name ? 'selected' : ''}>${esc(s.name)}</option>`).join('')
     + (extra.length
       ? `<optgroup label="${esc(t('pdf_species_group'))}">`
