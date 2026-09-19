@@ -918,8 +918,8 @@ function viewModel() {
           <div><label>${t('dr_player')}</label>${inputT('info.player', i.player)}</div>
           <div><label>${t('dr_degree')}</label><select data-bind="info.degree" data-rerender="1">${selOpts(DROID_DATA.degrees.map(d => d.name), i.degree)}</select></div>
           <div><label>${t('dr_manufacturer')}</label>
-            <input type="text" list="makers" data-bind="info.manufacturer" value="${esc(i.manufacturer)}">
-            <datalist id="makers">${DROID_DATA.manufacturers.map(m => `<option value="${esc(m)}">`).join('')}</datalist></div>
+            <input type="text" data-combo="makers" autocomplete="off" data-bind="info.manufacturer" value="${esc(i.manufacturer)}">
+            <datalist id="makers">${DROID_DATA.manufacturers.slice().sort((a, b) => a.localeCompare(b)).map(m => `<option value="${esc(m)}">`).join('')}</datalist></div>
           <div><label>${t('dr_locomotion')}</label><select data-bind="info.locomotion">${selOpts(DROID_DATA.locomotion, i.locomotion)}</select></div>
           <div><label>${t('dr_scale')}</label><select data-bind="info.scale">${selOpts(DROID_DATA.scales, i.scale)}</select></div>
           <div><label>${t('dr_move')}</label>${inputN('info.move', i.move, 'style="width:80px"')}</div>

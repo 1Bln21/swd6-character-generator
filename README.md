@@ -312,6 +312,7 @@ Administrators read what comes in under ☁ menu → **“🐞 Bug reports”**:
 | `pdfdata-templates.js` | Character templates from the rulebook |
 | `online.js` | Online accounts client |
 | `report.js` | Bug report button and crash handler |
+| `combo.js` | Suggestion lists for text fields (home planet, droid manufacturer), drawn like a select |
 | `legal.js` | Legal notice / privacy pages |
 | `config.js` | Operator configuration |
 | `api/index.php` | Complete server API (PHP + SQLite/MySQL, one file) |

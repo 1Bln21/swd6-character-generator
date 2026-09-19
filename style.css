@@ -99,6 +99,26 @@ select, input[type=text], input[type=number], input[type=url], textarea {
   padding: 7px 9px; font-size: 14px; font-family: inherit;
 }
 select:focus, input:focus, textarea:focus { outline: 1px solid var(--accent-dim); }
+/* Text fields with a suggestion list (combo.js): an arrow like a select's,
+   and a list drawn in the select's colours instead of the browser's own
+   datalist pop-up, which cannot be styled at all. */
+input[data-combo] {
+  padding-right: 26px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+                    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 14px) 55%, calc(100% - 9px) 55%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+.combo-pop {
+  position: fixed; z-index: 1000; overflow-y: auto;
+  background: var(--inset); color: var(--text);
+  border: 1px solid var(--border); box-shadow: 0 6px 18px rgba(0,0,0,.45);
+  font-size: 14px; max-width: min(420px, calc(100vw - 8px));
+}
+.combo-item { padding: 5px 12px; cursor: default; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.combo-item:hover, .combo-item.active { background: color-mix(in srgb, var(--text) 38%, var(--inset)); }
+.combo-item.current { font-weight: 700; }
 /* Left alone, a select grows as wide as its longest entry and does not
    shrink back. With entries like "Turbocharger +1D - install: 4,500 Cr" it
    burst the card on a phone, and with it the page width. */

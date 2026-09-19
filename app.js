@@ -1216,6 +1216,27 @@ function applyCharTemplate() {
   update();
 }
 
+/* The home planets to suggest: the 92 of the original workbook plus every
+   homeworld a species names. Before, only the workbook's list was offered,
+   so the homeworld of most species - Morellia, Pantora, Rattatak, Kamino -
+   was missing from the suggestions. Entries that are not a planet ("Any",
+   "None", "Unknown ...") stay out, a trailing "(destroyed)" is dropped. */
+function planetNames() {
+  if (planetNames._cache) return planetNames._cache;
+  const seen = new Map();
+  const add = raw => {
+    const p = String(raw || '').replace(/\s*\([^)]*\)\s*$/, '').replace(/\.$/, '').trim();
+    if (!p || /^(any|none|unknown|please select|the sith homeworld)/i.test(p)) return;
+    const k = p.toLowerCase();
+    if (!seen.has(k)) seen.set(k, p);
+  };
+  DATA.planets.forEach(add);
+  DATA.species.concat(DATA.nearHumans, typeof PDF_SPECIES !== 'undefined' ? PDF_SPECIES : [])
+    .forEach(s => add(s.planet));
+  planetNames._cache = [...seen.values()].sort((a, b) => a.localeCompare(b));
+  return planetNames._cache;
+}
+
 function viewInfo() {
   const sp = speciesData();
   ensureCloudSpecies();
@@ -1240,7 +1261,7 @@ function viewInfo() {
   const nhOpts = [`<option value="">${t('nh_choose')}</option>`]
     .concat(DATA.nearHumans.map(s => `<option ${C.info.nearHuman === s.name ? 'selected' : ''}>${esc(s.name)}</option>`)).join('');
   const genderOpts = DATA.genders.map(g => `<option ${C.info.gender === g ? 'selected' : ''}>${esc(g)}</option>`).join('');
-  const planetList = DATA.planets.map(p => `<option value="${esc(p)}">`).join('');
+  const planetList = planetNames().map(p => `<option value="${esc(p)}">`).join('');
 
   const portraitCard = `
     <div class="card">
@@ -1341,7 +1362,7 @@ function viewInfo() {
               <option value="false" ${!C.info.forceSensitive ? 'selected' : ''}>${t('no')}</option>
               <option value="true" ${C.info.forceSensitive ? 'selected' : ''}>${t('yes')}</option>
             </select></div>
-          <div><label>${t('home_planet')}</label><input type="text" list="planets" autocomplete="off" data-bind="info.planet" value="${esc(C.info.planet)}"><datalist id="planets">${planetList}</datalist></div>
+          <div><label>${t('home_planet')}</label><input type="text" data-combo="planets" autocomplete="off" data-bind="info.planet" value="${esc(C.info.planet)}"><datalist id="planets">${planetList}</datalist></div>
           <div><label>${t('age')}</label>${inputT('info.age', C.info.age)}</div>
           <div><label>${t('height_m')} ${sp.hMax ? `<span class="hint">[${sp.hMin}–${sp.hMax}]</span>` : ''}</label>${inputT('info.height', C.info.height)}</div>
           <div><label>${t('weight_kg')}</label>${inputT('info.weight', C.info.weight)}</div>
