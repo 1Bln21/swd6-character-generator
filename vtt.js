@@ -43,7 +43,8 @@ const T = {
     gate_noserver: 'Für den Spieltisch wird der Server gebraucht. Diese Installation läuft ohne API.',
     gate_norounds: 'Du bist in keiner Spielrunde. Über ☁ oben kannst du eine anlegen oder mit einem Einladungscode beitreten.',
     gm_title: 'Spielleitung', gm_map_pick: 'Karte', gm_grid: 'Raster (px, 0 = aus)',
-    gm_scale: 'Maßstab (m je Kästchen)',
+    gm_scale: 'Maßstab (m je Kästchen)', gm_widthm: 'Karte breit (m)',
+    gm_scale_hint: 'Damit Reichweiten in Metern stimmen, braucht die Karte einen Maßstab. Am einfachsten: Wie breit ist die Karte insgesamt in Metern? (Ein Stockwerk eines Krankenhauses etwa 60 m, eine Hangarhalle 40 m.) Wer ein Raster eingestellt hat, kann stattdessen sagen, wie viele Meter ein Kästchen ist.',
     gm_dim: 'Dunkelheit',
     rng_title: 'Reichweiten',
     rng_none: 'Klick auf der Karte auf eine Marke, die du bewegen darfst – dann stehen hier ihre Reichweiten.',
@@ -58,9 +59,9 @@ const T = {
     rng_boost: 'Zusatz-Bewegung (m)', rng_boost_ring: 'Mit Zusatz',
     rng_boost_hint: 'Für Jet-Packs und Macht-Kräfte: Die Meter aus dem Ausrüstungskatalog stehen als Knopf bereit. Zu Macht-Kräften führt die App keinen Regeltext – dort steht als Vorschlag der eigene Move, das „?“ heißt: Wert nach eurer Tischregel setzen.',
     rng_offmap: '(reicht über die Karte hinaus)',
-    rng_need_grid: 'Raster und Maßstab fehlen – die Spielleitung stellt sie in ihrer Karte ein.',
-    rng_need_move: 'kein Move hinterlegt',
-    rng_own_hint: 'Freie Marke ohne Bogen: Move und Waffe hier eintragen.',
+    rng_need_grid: 'Die Karte hat noch keinen Maßstab – die Spielleitung trägt in ihrem Feld „Karte breit (m)“ ein, wie breit die Karte ist.',
+    rng_need_move: 'kein Move hinterlegt – unten eintragen (oder den Bogen einmal neu speichern)',
+    rng_own_hint: 'Werte an dieser Marke. Sie gehen dem Bogen vor – praktisch für freie Marken und für Bögen, die vor 4.0.0.5 gespeichert wurden und noch keinen Move mitbringen.',
     rng_own_move: 'Move (m)', rng_own_wname: 'Waffe', rng_own_wrange: 'Reichweite',
     rng_own_save: 'Werte speichern',
     gm_dim_hint: 'Tag und Nacht auf derselben Karte. Verdunkelt die Szene für alle – auch schon erkundetes Gelände. Die Marken bleiben sichtbar. Nur die Spielleitung kann das stellen.',
@@ -124,7 +125,8 @@ const T = {
     gate_noserver: 'The table needs the server. This installation runs without the API.',
     gate_norounds: 'You are not in a game round. Create one under ☁ up top, or join with an invite code.',
     gm_title: 'Game master', gm_map_pick: 'Map', gm_grid: 'Grid (px, 0 = off)',
-    gm_scale: 'Scale (m per square)',
+    gm_scale: 'Scale (m per square)', gm_widthm: 'Map width (m)',
+    gm_scale_hint: 'For ranges to mean metres the map needs a scale. The easy one: how wide is the whole map, in metres? (A hospital floor about 60 m, a hangar bay 40 m.) With a grid set you can give the metres per square instead.',
     gm_dim: 'Darkness',
     rng_title: 'Ranges',
     rng_none: 'Pick a token you may move on the map, and its ranges appear here.',
@@ -139,9 +141,9 @@ const T = {
     rng_boost: 'Extra movement (m)', rng_boost_ring: 'With extra',
     rng_boost_hint: 'For jet packs and Force powers: the metres out of the equipment catalogue are offered as a button. The app carries no rules text for Force powers - there your own Move is the suggestion, and the "?" means: set it the way your table plays it.',
     rng_offmap: '(reaches beyond the map)',
-    rng_need_grid: 'No grid and scale yet - the GM sets both on the map.',
-    rng_need_move: 'no move on record',
-    rng_own_hint: 'A free token without a sheet: put its move and weapon in here.',
+    rng_need_grid: 'The map has no scale yet - the GM puts its width in metres into the map panel.',
+    rng_need_move: 'no move on record - put one in below, or save the sheet once more',
+    rng_own_hint: 'Values kept at this token. They come before the sheet - handy for free tokens, and for sheets saved before 4.0.0.5 that carry no move yet.',
     rng_own_move: 'Move (m)', rng_own_wname: 'Weapon', rng_own_wrange: 'Range',
     rng_own_save: 'Save values',
     gm_dim_hint: 'Day and night on the same map. Darkens the scene for everyone, explored ground included. The tokens stay visible. Only the GM can set this.',
@@ -541,12 +543,19 @@ function parseRange(text) {
   return null;
 }
 
-/* Metres to a fraction of the map's width. Needs both halves of the scale:
-   how many pixels a grid square is on the original picture, and how many
-   metres that square stands for. */
+/* Metres to a fraction of the map's width. Two ways to know the scale:
+
+     * how many metres the whole map is across - the one to use for a
+       picture off the net, which says nothing about pixels per square,
+     * or a grid in pixels plus the metres one square stands for.
+
+   The width wins where it is set, because it is the easier of the two to
+   judge by eye: a hospital floor is about sixty metres across. */
 function metersToFraction(m) {
   const map = activeMap();
-  if (!map || !map.grid || map.grid <= 0 || !map.w) return 0;
+  if (!map) return 0;
+  if (+map.widthM > 0) return m / +map.widthM;
+  if (!map.grid || map.grid <= 0 || !map.w) return 0;
   const scale = +map.scaleM > 0 ? +map.scaleM : 2;
   return (m / scale) * map.grid / map.w;
 }
@@ -579,11 +588,14 @@ function tokenSheet(tok) {
    fields the game master filled in at the token itself. */
 function tokenReach(tok) {
   const sheet = tokenSheet(tok);
-  const move = (sheet && +sheet.move) || +tok.move || 0;
-  let weapons = (sheet && sheet.weapons) || [];
-  if (!weapons.length && tok.wrange) {
-    weapons = [{ name: tok.wname || t('rng_weapon'), range: tok.wrange }];
-  }
+  /* The token's own value comes FIRST. A sheet stored in the cloud before
+     4.0.0.5 carries no move at all, and a creature may not walk the way
+     its sheet says - so what is written at the figure wins, and the sheet
+     fills in where nothing is. */
+  const move = +tok.move || (sheet && +sheet.move) || 0;
+  const weapons = [];
+  if (tok.wrange) weapons.push({ name: tok.wname || t('rng_weapon'), range: tok.wrange });
+  ((sheet && sheet.weapons) || []).forEach(w => weapons.push(w));
   return { move: move, weapons: weapons, fromSheet: !!sheet };
 }
 
@@ -664,7 +676,9 @@ function renderRangePanel() {
   const reach = tokenReach(tok);
   $('rngWho').textContent = tok.label || t('rng_weapon');
   const fehlt = [];
-  if (!map || !map.grid) fehlt.push(t('rng_need_grid'));
+  /* Either way of scaling will do - the map's width in metres, or a grid
+     with the metres per square. */
+  if (!map || (!(+map.widthM > 0) && !(map.grid > 0))) fehlt.push(t('rng_need_grid'));
   if (!reach.move) fehlt.push(t('rng_need_move'));
   $('rngWhoHint').textContent = fehlt.join(' · ');
   $('rngMove').checked = rngMoveOn;
@@ -711,9 +725,10 @@ function renderRangePanel() {
   }
   $('rngLegend').innerHTML = lines.map(l => '<div>' + l + '</div>').join('');
 
-  /* Fields for a free token - only where there is no sheet to take the
-     values from, and only for whoever may move the piece. */
-  const eigene = mayMove(tok) && !reach.fromSheet && !tok.charId;
+  /* The fields at the figure itself, for whoever may move it. Not only for
+     free tokens: a sheet saved before 4.0.0.5 has no move in it, and this
+     is the way to give the figure one without opening the generator. */
+  const eigene = mayMove(tok);
   $('rngOwn').classList.toggle('hidden', !eigene);
   if (eigene && document.activeElement !== $('rngOwnMove')) {
     $('rngOwnMove').value = String(tok.move || 0);
@@ -754,6 +769,9 @@ function renderMapList() {
   $('gridSize').value = map ? (map.grid || 0) : 0;
   if ($('mapScale') && document.activeElement !== $('mapScale')) {
     $('mapScale').value = map ? (map.scaleM || 2) : 2;
+  }
+  if ($('mapWidthM') && document.activeElement !== $('mapWidthM')) {
+    $('mapWidthM').value = map ? (map.widthM || 0) : 0;
   }
   const dunkel = map ? (map.dim || 0) : 0;
   /* Do not overwrite the slider while it is being dragged - the answer to
@@ -2094,6 +2112,18 @@ document.addEventListener('DOMContentLoaded', function () {
     this.value = String(map.scaleM);
     renderRanges();
     try { await api('map_grid', { round: roundId, map: map.id, grid: map.grid, scaleM: map.scaleM }); await refresh(true); }
+    catch (e) { alert(e.message); }
+  });
+
+  /* The other way to scale a map: how many metres it is across. For a
+     picture off the net that is the only one anybody can judge. */
+  $('mapWidthM').addEventListener('change', async function () {
+    const map = activeMap();
+    if (!map) return;
+    map.widthM = Math.max(0, +this.value || 0);
+    this.value = String(map.widthM);
+    renderRanges();
+    try { await api('map_grid', { round: roundId, map: map.id, grid: map.grid, widthM: map.widthM }); await refresh(true); }
     catch (e) { alert(e.message); }
   });
 

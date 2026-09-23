@@ -508,9 +508,13 @@ $db->exec("CREATE TABLE IF NOT EXISTS round_maps (
   fog_rows INT DEFAULT 0,
   /* How dark the scene is, 0..100 - day and night on one and the same map */
   dim INT DEFAULT 0,
-  /* How many metres one grid square is. Without it the map has no scale,
-     and a movement or weapon range cannot be drawn on it at all. */
+  /* The map's scale, for the range rings. Two ways to give it, because a
+     map downloaded off the net rarely says how many pixels a square is:
+     metres per grid square, or simply how many metres the whole map is
+     across. The width wins where it is set - it is the easier one to
+     judge by eye. */
   scale_m REAL DEFAULT 2,
+  width_m REAL DEFAULT 0,
   /* Who uploaded it - see the note at the ALTER further down */
   uploader_id INT DEFAULT 0,
   created BIGINT
@@ -693,8 +697,10 @@ $rmAdd = ['fog' => "fog $TXT", 'fog_cols' => 'fog_cols INT DEFAULT 0',
           'fog_rows' => 'fog_rows INT DEFAULT 0',
           /* How dark the scene is, 0..100 - day and night on the same map */
           'dim' => 'dim INT DEFAULT 0',
-          /* Metres per grid square - the map's scale, for the range rings */
-          'scale_m' => 'scale_m REAL DEFAULT 2'];
+          /* The map's scale, for the range rings: metres per grid square,
+             or how many metres the whole map is across */
+          'scale_m' => 'scale_m REAL DEFAULT 2',
+          'width_m' => 'width_m REAL DEFAULT 0'];
 foreach ($rmAdd as $col => $colDef) {
   if (!$rmCols || in_array($col, $rmCols, true)) continue;
   try { $db->exec("ALTER TABLE round_maps ADD COLUMN $colDef"); }
@@ -2514,8 +2520,10 @@ case 'vtt_state': {
                      /* 0 = broad daylight; the client lays a black veil over
                         the terrain at this strength */
                      'dim' => isset($m['dim']) ? (int)$m['dim'] : 0,
-                     /* metres per grid square - the scale of the map */
-                     'scaleM' => isset($m['scale_m']) ? (float)$m['scale_m'] : 2.0];
+                     /* the scale: metres per grid square, or metres across
+                        the whole map (which wins where it is set) */
+                     'scaleM' => isset($m['scale_m']) ? (float)$m['scale_m'] : 2.0,
+                     'widthM' => isset($m['width_m']) ? (float)$m['width_m'] : 0.0];
     if ((int)$m['id'] === $activeMap) {
       list($activeFog, $fogCols, $fogRows) = fog_read($m);
       $row['fog'] = $activeFog;
@@ -2689,8 +2697,18 @@ case 'map_grid': {
     $scale = min(1000.0, $scale);
     $db->prepare('UPDATE round_maps SET scale_m = ? WHERE id = ?')->execute([$scale, $mapId]);
   }
+  /* How many metres the whole map is across - the way to scale a picture
+     that has no grid printed on it. 0 switches it off again. */
+  $breite = inp('widthM', null);
+  if ($breite !== null) {
+    $breite = (float)$breite;
+    if (!is_finite($breite) || $breite < 0) $breite = 0.0;
+    $breite = min(100000.0, $breite);
+    $db->prepare('UPDATE round_maps SET width_m = ? WHERE id = ?')->execute([$breite, $mapId]);
+  }
   vtt_touch($id);
-  json_out(['ok' => true, 'grid' => $grid, 'scaleM' => $scale === null ? null : (float)$scale]);
+  json_out(['ok' => true, 'grid' => $grid, 'scaleM' => $scale === null ? null : (float)$scale,
+            'widthM' => $breite === null ? null : (float)$breite]);
 }
 
 /* Move and weapon range of a free token - a creature, a guard, a speeder
