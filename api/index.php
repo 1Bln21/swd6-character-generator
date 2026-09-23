@@ -508,6 +508,9 @@ $db->exec("CREATE TABLE IF NOT EXISTS round_maps (
   fog_rows INT DEFAULT 0,
   /* How dark the scene is, 0..100 - day and night on one and the same map */
   dim INT DEFAULT 0,
+  /* How many metres one grid square is. Without it the map has no scale,
+     and a movement or weapon range cannot be drawn on it at all. */
+  scale_m REAL DEFAULT 2,
   /* Who uploaded it - see the note at the ALTER further down */
   uploader_id INT DEFAULT 0,
   created BIGINT
@@ -548,6 +551,14 @@ $db->exec("CREATE TABLE IF NOT EXISTS round_tokens (
      no facing at all - that is the default, because a marker that has not
      been turned yet should not pretend to look anywhere. */
   facing REAL DEFAULT -1,
+  /* For a free token the GM drops on the map - a creature, a guard, a
+     speeder. A token made from a sheet takes these from the sheet; a free
+     one has nowhere else to get them from, and without them the range
+     rings have nothing to draw. move is in metres per round, wrange is a
+     weapon range as the books write it, say 3-10/30/120. */
+  move INT DEFAULT 0,
+  wname $STR DEFAULT '',
+  wrange VARCHAR(64) DEFAULT '',
   created BIGINT
 )$SUF");
 /* Background music the GM puts on. Two kinds:
@@ -681,7 +692,9 @@ $rmCols = table_columns('round_maps');
 $rmAdd = ['fog' => "fog $TXT", 'fog_cols' => 'fog_cols INT DEFAULT 0',
           'fog_rows' => 'fog_rows INT DEFAULT 0',
           /* How dark the scene is, 0..100 - day and night on the same map */
-          'dim' => 'dim INT DEFAULT 0'];
+          'dim' => 'dim INT DEFAULT 0',
+          /* Metres per grid square - the map's scale, for the range rings */
+          'scale_m' => 'scale_m REAL DEFAULT 2'];
 foreach ($rmAdd as $col => $colDef) {
   if (!$rmCols || in_array($col, $rmCols, true)) continue;
   try { $db->exec("ALTER TABLE round_maps ADD COLUMN $colDef"); }
@@ -699,10 +712,14 @@ foreach (['round_maps' => $rmCols, 'round_audio' => $raCols] as $tab => $cols) {
   try { $db->exec("ALTER TABLE $tab ADD COLUMN uploader_id INT DEFAULT 0"); }
   catch (Exception $e) { $alterError = $e->getMessage(); }
 }
-/* round_tokens: the facing arrived after the first tables were in use */
+/* round_tokens: the facing arrived after the first tables were in use, the
+   move and the weapon range with the range rings of 4.0.0.5 */
 $rtCols = table_columns('round_tokens');
-if ($rtCols && !in_array('facing', $rtCols, true)) {
-  try { $db->exec("ALTER TABLE round_tokens ADD COLUMN facing REAL DEFAULT -1"); }
+$rtAdd = ['facing' => 'facing REAL DEFAULT -1', 'move' => 'move INT DEFAULT 0',
+          'wname' => "wname $STR DEFAULT ''", 'wrange' => "wrange VARCHAR(64) DEFAULT ''"];
+foreach ($rtAdd as $col => $colDef) {
+  if (!$rtCols || in_array($col, $rtCols, true)) continue;
+  try { $db->exec("ALTER TABLE round_tokens ADD COLUMN $colDef"); }
   catch (Exception $e) { $alterError = $e->getMessage(); }
 }
 $rndCols = table_columns('rounds');
@@ -2496,7 +2513,9 @@ case 'vtt_state': {
             'w' => (int)$m['w'], 'h' => (int)$m['h'], 'grid' => (int)$m['grid'],
                      /* 0 = broad daylight; the client lays a black veil over
                         the terrain at this strength */
-                     'dim' => isset($m['dim']) ? (int)$m['dim'] : 0];
+                     'dim' => isset($m['dim']) ? (int)$m['dim'] : 0,
+                     /* metres per grid square - the scale of the map */
+                     'scaleM' => isset($m['scale_m']) ? (float)$m['scale_m'] : 2.0];
     if ((int)$m['id'] === $activeMap) {
       list($activeFog, $fogCols, $fogRows) = fog_read($m);
       $row['fog'] = $activeFog;
@@ -2535,6 +2554,14 @@ case 'vtt_state': {
                    'x' => (float)$t['x'], 'y' => (float)$t['y'], 'size' => (float)$t['size'],
                    /* -1 = not turned; the client then draws no cone */
                    'facing' => isset($t['facing']) ? (float)$t['facing'] : -1,
+                   /* What the range rings need - and only for a figure this
+                      player may move. How far the enemy walks and how far
+                      his rifle carries is the GM's to reveal, and sending it
+                      to be "not drawn" would put it in a reply anyone can
+                      read. */
+                   'move' => ($isGm || $mine) && isset($t['move']) ? (int)$t['move'] : 0,
+                   'wname' => ($isGm || $mine) && isset($t['wname']) ? (string)$t['wname'] : '',
+                   'wrange' => ($isGm || $mine) && isset($t['wrange']) ? (string)$t['wrange'] : '',
                    'owner' => (string)$t['owner'], 'ownerId' => (int)$t['owner_id']];
     }
   }
@@ -2642,7 +2669,9 @@ case 'map_dim': {
 }
 
 /* The grid belongs to the map, not to the round: one map is drawn at
-   40 px per square, the next at 64. */
+   40 px per square, the next at 64. The scale rides along with it - metres
+   per square is what turns a grid into a measure, and the two are set in
+   the same breath. */
 case 'map_grid': {
   $user = auth();
   $id = (int)inp('round', 0);
@@ -2653,8 +2682,46 @@ case 'map_grid': {
   $st->execute([$mapId, $id]);
   if (!$st->fetch()) fail('Map not found in this round', 404);
   $db->prepare('UPDATE round_maps SET grid = ? WHERE id = ?')->execute([$grid, $mapId]);
+  $scale = inp('scaleM', null);
+  if ($scale !== null) {
+    $scale = (float)$scale;
+    if (!is_finite($scale) || $scale <= 0) $scale = 2.0;
+    $scale = min(1000.0, $scale);
+    $db->prepare('UPDATE round_maps SET scale_m = ? WHERE id = ?')->execute([$scale, $mapId]);
+  }
   vtt_touch($id);
-  json_out(['ok' => true, 'grid' => $grid]);
+  json_out(['ok' => true, 'grid' => $grid, 'scaleM' => $scale === null ? null : (float)$scale]);
+}
+
+/* Move and weapon range of a free token - a creature, a guard, a speeder
+   the GM dropped on the map. A token made from a sheet takes both from the
+   sheet and needs none of this.
+
+   Who may set it is who may move the piece: its owner, or the GM. */
+case 'token_stats': {
+  $user = auth();
+  $id = (int)inp('round', 0);
+  if (!round_is_member($id, $user['id'])) fail('Not a member of this round', 403);
+  $tokenId = (int)inp('token', 0);
+  $st = $db->prepare('SELECT owner_id FROM round_tokens WHERE id = ? AND round_id = ?');
+  $st->execute([$tokenId, $id]);
+  $tok = $st->fetch(PDO::FETCH_ASSOC);
+  if (!$tok) fail('Token not found', 404);
+  if ((int)$tok['owner_id'] !== (int)$user['id'] && !round_is_gm($id, $user['id'])) {
+    fail('You can only change your own tokens', 403);
+  }
+  $move = max(0, min(9999, (int)inp('move', 0)));
+  $wname = mb_substr(trim((string)inp('wname', '')), 0, 60);
+  /* Digits, slashes, dashes and spaces - a range as the books write it.
+     Anything else is somebody trying their luck. */
+  $wrange = trim((string)inp('wrange', ''));
+  if ($wrange !== '' && !preg_match('#^[0-9 ,./-]{1,40}$#', $wrange)) {
+    fail('That does not look like a range (for example 3-10/30/120)');
+  }
+  $db->prepare('UPDATE round_tokens SET move = ?, wname = ?, wrange = ? WHERE id = ?')
+     ->execute([$move, $wname, $wrange, $tokenId]);
+  vtt_touch($id);
+  json_out(['ok' => true, 'move' => $move, 'wname' => $wname, 'wrange' => $wrange]);
 }
 
 /* Painting the fog. The GM sends the cells they just brushed over plus the

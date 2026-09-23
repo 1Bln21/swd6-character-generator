@@ -491,7 +491,37 @@ function buildRollProfile() {
        browser - localStorage only ever holds the sheet somebody worked on
        here. It is derived data and is rebuilt on every save, so it can
        never drift away from the sheet. */
-    C._roll = { entries: entries, gear: gear };
+    /* Move and the ranged weapons, for the range rings at the table top
+       (4.0.0.5). A droid's move stands on its own sheet. */
+    const weapons = [];
+    (C.ranged || []).forEach(n => {
+      const r = byName(DATA.ranged, n);
+      if (r) weapons.push({ name: r.name, skill: r.skill || '', dmg: fmtD(r.dmg),
+                            range: [r.close, r.short, r.medium, r.long].join('/') });
+    });
+    (C.customRanged || []).forEach(r => {
+      if (r && r.name && r.ranges) weapons.push({ name: r.name, skill: r.skill || '',
+                                                  dmg: String(r.dmg || ''), range: String(r.ranges) });
+    });
+    /* A droid gets carried further by the same things a character does -
+       a jet pack in its equipment names its distance in the catalogue. */
+    const boosts = [];
+    const ausGear = (name, note) => {
+      const m = String(note || '').match(/(\d+)\s*(?:meters?|m)\s*horizont/i)
+             || String(note || '').match(/horizont\w*[^\d]{0,12}(\d+)/i);
+      if (m) boosts.push({ label: name, m: +m[1], sure: true });
+    };
+    Object.keys(C.equipment || {}).forEach(n => {
+      if ((C.equipment[n] || 0) <= 0) return;
+      const it = byName(DATA.equipment, n)
+        || (typeof PDF_EQUIPMENT !== 'undefined' && byName(PDF_EQUIPMENT, n));
+      ausGear(n, it ? (it.notes || it.note || '') : '');
+    });
+    (C.customEquipment || []).forEach(e => {
+      if (e && e.name && (+e.qty || 0) > 0) ausGear(e.name, e.note || e.notes || '');
+    });
+    C._roll = { entries: entries, gear: gear, move: +(C.info && C.info.move) || 0,
+                weapons: weapons, boosts: boosts };
     localStorage.setItem('swd6_roll_droid',
       JSON.stringify({ name: (C.info && C.info.name) || '', entries, gear }));
   } catch (e) {}

@@ -885,7 +885,48 @@ function buildRollProfile() {
        browser - localStorage only ever holds the sheet somebody worked on
        here. It is derived data and is rebuilt on every save, so it can
        never drift away from the sheet. */
-    C._roll = { entries: entries, gear: gear };
+    /* Move and the ranged weapons ride along since 4.0.0.5: the table top
+       draws the movement and weapon ranges of a figure on the map, and it
+       has no character data of its own to work them out from. Move is what
+       the sheet shows; the books' ×2 for high speed and ×4 for all-out are
+       applied where the rings are drawn. */
+    const sp = speciesData();
+    const move = (+sp.move || 0) + (+C.points.moveImp || 0);
+    const weapons = [];
+    (C.ranged || []).forEach(n => {
+      const r = catByName(DATA.ranged, n);
+      if (r) weapons.push({ name: r.name, skill: r.skill || '', dmg: fmtD(r.dmg),
+                            range: [r.close, r.short, r.medium, r.long].join('/') });
+    });
+    (C.customRanged || []).forEach(r => {
+      if (r && r.name && r.ranges) weapons.push({ name: r.name, skill: r.skill || '',
+                                                  dmg: String(r.dmg || ''), range: String(r.ranges) });
+    });
+    /* What can carry the figure further than its legs: a jet pack out of
+       the equipment, or a Force power. The packs name their distance in
+       the catalogue ("100 meters horizontally per charge"), so that number
+       is taken as it stands. For the powers the app holds no rules text -
+       there the character's own Move is offered as a starting point and
+       the table sets the rest. */
+    const boosts = [];
+    const ausGear = (name, note) => {
+      const m = String(note || '').match(/(\d+)\s*(?:meters?|m)\s*horizont/i)
+             || String(note || '').match(/horizont\w*[^\d]{0,12}(\d+)/i);
+      if (m) boosts.push({ label: name, m: +m[1], sure: true });
+    };
+    Object.keys(C.equipment || {}).forEach(n => {
+      if ((C.equipment[n] || 0) <= 0) return;
+      const it = catByName(DATA.equipment, n)
+        || (typeof PDF_EQUIPMENT !== 'undefined' && catByName(PDF_EQUIPMENT, n));
+      ausGear(n, it ? (it.notes || it.note || '') : '');
+    });
+    (C.customEquipment || []).forEach(e => {
+      if (e && e.name && (+e.qty || 0) > 0) ausGear(e.name, e.note || e.notes || '');
+    });
+    (C.powers || []).forEach(p => {
+      if (/speed|burst|jump|leap/i.test(p)) boosts.push({ label: p, m: move, sure: false });
+    });
+    C._roll = { entries: entries, gear: gear, move: move, weapons: weapons, boosts: boosts };
     localStorage.setItem('swd6_roll_char', JSON.stringify({ name: (C.info && C.info.name) || '', entries, gear }));
   } catch (e) {}
 }

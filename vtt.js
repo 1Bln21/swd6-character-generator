@@ -43,7 +43,26 @@ const T = {
     gate_noserver: 'Für den Spieltisch wird der Server gebraucht. Diese Installation läuft ohne API.',
     gate_norounds: 'Du bist in keiner Spielrunde. Über ☁ oben kannst du eine anlegen oder mit einem Einladungscode beitreten.',
     gm_title: 'Spielleitung', gm_map_pick: 'Karte', gm_grid: 'Raster (px, 0 = aus)',
+    gm_scale: 'Maßstab (m je Kästchen)',
     gm_dim: 'Dunkelheit',
+    rng_title: 'Reichweiten',
+    rng_none: 'Klick auf der Karte auf eine Marke, die du bewegen darfst – dann stehen hier ihre Reichweiten.',
+    rng_move: 'Bewegung', rng_weapon: 'Waffenreichweite', rng_weapon_pick: 'Waffe',
+    rng_cruise: 'Gehen', rng_high: 'Laufen', rng_allout: 'Volle Fahrt',
+    rng_cruise_cost: 'nebenbei, keine Aktion',
+    rng_high_cost: 'eine Aktion, Laufen-Probe',
+    rng_allout_cost: 'die ganze Runde – danach geht nichts mehr, auch kein Ausweichen',
+    rng_pb: 'Punkt-blank', rng_short: 'Kurz', rng_medium: 'Mittel', rng_long: 'Lang',
+    rng_pb_diff: 'Sehr leicht (5)', rng_short_diff: 'Leicht (10)',
+    rng_medium_diff: 'Moderat (15)', rng_long_diff: 'Schwer (20)',
+    rng_boost: 'Zusatz-Bewegung (m)', rng_boost_ring: 'Mit Zusatz',
+    rng_boost_hint: 'Für Jet-Packs und Macht-Kräfte: Die Meter aus dem Ausrüstungskatalog stehen als Knopf bereit. Zu Macht-Kräften führt die App keinen Regeltext – dort steht als Vorschlag der eigene Move, das „?“ heißt: Wert nach eurer Tischregel setzen.',
+    rng_offmap: '(reicht über die Karte hinaus)',
+    rng_need_grid: 'Raster und Maßstab fehlen – die Spielleitung stellt sie in ihrer Karte ein.',
+    rng_need_move: 'kein Move hinterlegt',
+    rng_own_hint: 'Freie Marke ohne Bogen: Move und Waffe hier eintragen.',
+    rng_own_move: 'Move (m)', rng_own_wname: 'Waffe', rng_own_wrange: 'Reichweite',
+    rng_own_save: 'Werte speichern',
     gm_dim_hint: 'Tag und Nacht auf derselben Karte. Verdunkelt die Szene für alle – auch schon erkundetes Gelände. Die Marken bleiben sichtbar. Nur die Spielleitung kann das stellen.',
     gm_upload: '＋ Karte hochladen', gm_delete: 'Karte löschen',
     gm_hint: 'Nur die Spielleitung kann Karten hochladen und umschalten. Große Bilder werden vor dem Hochladen verkleinert.',
@@ -105,7 +124,26 @@ const T = {
     gate_noserver: 'The table needs the server. This installation runs without the API.',
     gate_norounds: 'You are not in a game round. Create one under ☁ up top, or join with an invite code.',
     gm_title: 'Game master', gm_map_pick: 'Map', gm_grid: 'Grid (px, 0 = off)',
+    gm_scale: 'Scale (m per square)',
     gm_dim: 'Darkness',
+    rng_title: 'Ranges',
+    rng_none: 'Pick a token you may move on the map, and its ranges appear here.',
+    rng_move: 'Movement', rng_weapon: 'Weapon range', rng_weapon_pick: 'Weapon',
+    rng_cruise: 'Cruising', rng_high: 'High speed', rng_allout: 'All out',
+    rng_cruise_cost: 'alongside your action, free',
+    rng_high_cost: 'one action, running roll',
+    rng_allout_cost: 'the whole round - nothing else after it, not even a dodge',
+    rng_pb: 'Point blank', rng_short: 'Short', rng_medium: 'Medium', rng_long: 'Long',
+    rng_pb_diff: 'Very Easy (5)', rng_short_diff: 'Easy (10)',
+    rng_medium_diff: 'Moderate (15)', rng_long_diff: 'Difficult (20)',
+    rng_boost: 'Extra movement (m)', rng_boost_ring: 'With extra',
+    rng_boost_hint: 'For jet packs and Force powers: the metres out of the equipment catalogue are offered as a button. The app carries no rules text for Force powers - there your own Move is the suggestion, and the "?" means: set it the way your table plays it.',
+    rng_offmap: '(reaches beyond the map)',
+    rng_need_grid: 'No grid and scale yet - the GM sets both on the map.',
+    rng_need_move: 'no move on record',
+    rng_own_hint: 'A free token without a sheet: put its move and weapon in here.',
+    rng_own_move: 'Move (m)', rng_own_wname: 'Weapon', rng_own_wrange: 'Range',
+    rng_own_save: 'Save values',
     gm_dim_hint: 'Day and night on the same map. Darkens the scene for everyone, explored ground included. The tokens stay visible. Only the GM can set this.',
     gm_upload: '＋ Upload map', gm_delete: 'Delete map',
     gm_hint: 'Only the GM can upload maps and switch between them. Large pictures are scaled down before upload.',
@@ -300,6 +338,7 @@ function renderStage() {
   }
   renderFog();
   renderTokens();
+  renderRanges();
 }
 
 /* ---------------- fog of war ----------------
@@ -438,7 +477,8 @@ function renderTokens() {
         + (tok.color ? 'background:' + esc(tok.color) + ';' : '') + '"'
         + ' data-facing-for="' + tok.id + '"></div>'
       : '';
-    const cls = 'vtt-token kind-' + esc(tok.kind || 'npc') + (mayMove(tok) ? ' mine' : '');
+    const cls = 'vtt-token kind-' + esc(tok.kind || 'npc') + (mayMove(tok) ? ' mine' : '')
+              + (tok.id === selTok ? ' picked' : '');
     const style = 'left:' + (tok.x * 100) + '%;top:' + (tok.y * 100) + '%;'
                 + '--tok-size:' + (tok.size || 1) + ';'
                 + (tok.color ? 'border-color:' + esc(tok.color) + ';background:' + esc(tok.color) + ';' : '');
@@ -449,6 +489,246 @@ function renderTokens() {
          + 'title="' + esc(tok.label || '') + (tok.owner ? ' – ' + esc(tok.owner) : '') + '">'
          + inner + '</div>';
   }).join('');
+}
+
+/* ---------------- movement and weapon ranges ----------------
+   A figure is picked on the map and its reach is drawn around it: how far
+   it gets this round, and how far its weapon carries. Both are rings in
+   metres, which the map only has a scale for once the GM has set the grid
+   and how many metres a square is.
+
+   Who sees what follows who may MOVE a piece: your own, and for the game
+   master everyone's. A player who could measure the reach of every enemy
+   before the game master shows it would be reading the GM's notes.
+
+   The rings are drawn where the figure stands. They are a reading aid, not
+   a rule: nothing here stops a move or fires a shot. */
+let selTok = 0;             // the token whose reach is on show
+let rngMoveOn = true;
+let rngWeaponOn = true;
+let rngWeaponIdx = 0;
+let rngBoost = 0;           // extra metres the player set (jet pack, Force)
+const sheetCache = {};      // charId -> _roll profile (or null while loading)
+
+/* The rates the books give a character: a normal move, twice that at high
+   speed, four times all out. The cost is what matters at the table - all
+   out uses the whole round. */
+/* How far out a ring is still worth drawing, as a fraction of the map's
+   width. Beyond this it is all arc and no information. */
+const RING_MAX = 1.2;
+const MOVE_RATES = [
+  { key: 'cruise', mult: 1, cls: 'rng-cruise' },
+  { key: 'high', mult: 2, cls: 'rng-high' },
+  { key: 'allout', mult: 4, cls: 'rng-allout' },
+];
+
+/* "3-10/30/120" or "3/30/100/300" - what the books print, in metres.
+   The first number is point blank, then short, medium, long. Where only
+   three are given the first doubles as point blank and short. */
+function parseRange(text) {
+  const zahlen = String(text || '').replace(',', '.')
+    .split(/[\/]/).map(s => {
+      const m = String(s).match(/(\d+(?:\.\d+)?)\s*$/) || String(s).match(/(\d+(?:\.\d+)?)/);
+      return m ? parseFloat(m[1]) : NaN;
+    }).filter(n => !isNaN(n));
+  const erste = String(text || '').match(/(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)/);
+  if (erste) {
+    const pb = parseFloat(erste[1]), kurz = parseFloat(erste[2]);
+    return { pb: pb, short: kurz, medium: zahlen[1], long: zahlen[2] };
+  }
+  if (zahlen.length >= 4) return { pb: zahlen[0], short: zahlen[1], medium: zahlen[2], long: zahlen[3] };
+  if (zahlen.length === 3) return { pb: 0, short: zahlen[0], medium: zahlen[1], long: zahlen[2] };
+  return null;
+}
+
+/* Metres to a fraction of the map's width. Needs both halves of the scale:
+   how many pixels a grid square is on the original picture, and how many
+   metres that square stands for. */
+function metersToFraction(m) {
+  const map = activeMap();
+  if (!map || !map.grid || map.grid <= 0 || !map.w) return 0;
+  const scale = +map.scaleM > 0 ? +map.scaleM : 2;
+  return (m / scale) * map.grid / map.w;
+}
+
+function selectedToken() {
+  if (!selTok || !state) return null;
+  return (state.tokens || []).find(x => x.id === selTok) || null;
+}
+
+/* The sheet behind a token, if there is one and it may be read. Own sheets
+   are already here for the dice panel; the game master may fetch the ones
+   entered into the round. */
+function tokenSheet(tok) {
+  if (!tok || !tok.charId) return null;
+  if (rollProfiles[tok.charId] !== undefined && rollProfiles[tok.charId]) return rollProfiles[tok.charId];
+  if (sheetCache[tok.charId] !== undefined) return sheetCache[tok.charId];
+  sheetCache[tok.charId] = null;                 // asked for; do not ask again
+  api('char_get', { id: tok.charId }).then(full => {
+    /* char_get hands the sheet over as an object, not as a string - the
+       same way loadRollProfile() takes it. */
+    const d = full && full.data;
+    sheetCache[tok.charId] = (d && d._roll) || null;
+    renderRanges();
+  }).catch(() => {});
+  return null;
+}
+
+/* What the figure can do: its move in metres and the weapons it carries.
+   A token made from a sheet takes both from the sheet, a free one from the
+   fields the game master filled in at the token itself. */
+function tokenReach(tok) {
+  const sheet = tokenSheet(tok);
+  const move = (sheet && +sheet.move) || +tok.move || 0;
+  let weapons = (sheet && sheet.weapons) || [];
+  if (!weapons.length && tok.wrange) {
+    weapons = [{ name: tok.wname || t('rng_weapon'), range: tok.wrange }];
+  }
+  return { move: move, weapons: weapons, fromSheet: !!sheet };
+}
+
+/* Extra metres the player can switch on - a jet pack, a Force power. The
+   sheet works them out (the packs name their distance in the catalogue,
+   the powers do not), and the button here only fills the field: what a
+   power is worth is the table's call, not the app's. */
+function boostPicks(sheet) {
+  return (sheet && sheet.boosts) || [];
+}
+
+/* One ring: a circle in the map's own proportions. Width and height are
+   given as fractions of the stage, and the stage carries the map's aspect
+   ratio - so equal distances come out equal on screen, and a circle stays
+   a circle whatever the picture's shape. */
+function ringHtml(tok, meters, cls, label) {
+  const map = activeMap();
+  const fr = metersToFraction(meters);
+  if (!fr || fr <= 0 || !map) return '';
+  /* A blaster rifle carries 120 metres, and a hangar floor is thirty across
+     - that ring would be three map widths of arc through the corners and
+     bury everything under it. Past this it is only said in the legend. */
+  if (fr > RING_MAX) return '';
+  const w = fr * 2 * 100;
+  const h = fr * 2 * 100 * (map.w / (map.h || map.w));
+  return '<div class="rng-ring ' + cls + '" style="left:' + (tok.x * 100) + '%;top:' + (tok.y * 100)
+       + '%;width:' + w + '%;height:' + h + '%"><span class="rng-tag">' + esc(label) + '</span></div>';
+}
+
+function renderRanges() {
+  const box = $('ranges');
+  if (!box) return;
+  const tok = selectedToken();
+  const map = activeMap();
+  /* Selection survives a token being moved or hidden, but not its removal */
+  if (!tok) { box.innerHTML = ''; renderRangePanel(); return; }
+  const reach = tokenReach(tok);
+  const stuecke = [];
+  if (rngMoveOn && reach.move > 0) {
+    /* From the outside in: the widest ring is drawn first, so the closer
+       ones sit on top of it and their labels stay readable. */
+    MOVE_RATES.slice().reverse().forEach(r => {
+      const m = reach.move * r.mult;
+      stuecke.push(ringHtml(tok, m, r.cls, t('rng_' + r.key) + ' ' + m + ' m'));
+    });
+    if (rngBoost > 0) {
+      stuecke.push(ringHtml(tok, reach.move + rngBoost, 'rng-boost',
+                            t('rng_boost_ring') + ' ' + (reach.move + rngBoost) + ' m'));
+    }
+  }
+  if (rngWeaponOn && reach.weapons.length) {
+    const w = reach.weapons[Math.min(rngWeaponIdx, reach.weapons.length - 1)];
+    const r = parseRange(w && w.range);
+    if (r) {
+      [['long', r.long], ['medium', r.medium], ['short', r.short], ['pb', r.pb]].forEach(([key, m]) => {
+        /* rng-wring puts the label at the BOTTOM of the circle: a weapon's
+           short range and a character's cruising move are often the same
+           ten metres, and two labels on the same spot read as one. */
+        if (m > 0) stuecke.push(ringHtml(tok, m, 'rng-wring rng-w-' + key, t('rng_' + key) + ' ' + m + ' m'));
+      });
+    }
+  }
+  box.innerHTML = stuecke.join('');
+  box.classList.toggle('hidden', !stuecke.length);
+  renderRangePanel();
+}
+
+/* The panel under the map: who is selected, what is drawn, and for a free
+   token the two fields that give it a reach at all. */
+function renderRangePanel() {
+  const karte = $('rangeCard');
+  if (!karte) return;
+  const tok = selectedToken();
+  $('rngNone').classList.toggle('hidden', !!tok);
+  $('rngBody').classList.toggle('hidden', !tok);
+  if (!tok) return;
+  const map = activeMap();
+  const reach = tokenReach(tok);
+  $('rngWho').textContent = tok.label || t('rng_weapon');
+  const fehlt = [];
+  if (!map || !map.grid) fehlt.push(t('rng_need_grid'));
+  if (!reach.move) fehlt.push(t('rng_need_move'));
+  $('rngWhoHint').textContent = fehlt.join(' · ');
+  $('rngMove').checked = rngMoveOn;
+  $('rngWeapon').checked = rngWeaponOn;
+
+  const sel = $('rngWeaponSel');
+  const keep = sel.value;
+  sel.innerHTML = reach.weapons.map((w, i) =>
+    '<option value="' + i + '">' + esc(w.name || '?') + (w.range ? ' · ' + esc(w.range) : '') + '</option>').join('');
+  $('rngWeaponPick').classList.toggle('hidden', !reach.weapons.length);
+  if (reach.weapons.length) {
+    sel.value = keep && +keep < reach.weapons.length ? keep : String(Math.min(rngWeaponIdx, reach.weapons.length - 1));
+    rngWeaponIdx = +sel.value || 0;
+  }
+
+  const picks = boostPicks(tokenSheet(tok));
+  $('rngBoostPicks').innerHTML = picks.map((p, i) =>
+    '<button class="mini" data-boost="' + i + '">' + esc(p.label) + ': +' + p.m + ' m'
+    + (p.sure ? '' : ' ?') + '</button>').join(' ');
+  $('rngBoostPicks').classList.toggle('hidden', !picks.length);
+  rangeBoostPicks = picks;
+  if (document.activeElement !== $('rngBoost')) $('rngBoost').value = String(rngBoost);
+
+  /* The legend says what a rate costs - which is the point of drawing them
+     apart. All out is the one that matters: it takes the whole round. */
+  const lines = [];
+  const weit = m => metersToFraction(m) > RING_MAX ? ' <span class="hint">' + esc(t('rng_offmap')) + '</span>' : '';
+  if (rngMoveOn && reach.move > 0) {
+    MOVE_RATES.forEach(r => lines.push('<span class="rng-key ' + r.cls + '"></span>'
+      + esc(t('rng_' + r.key)) + ' ' + (reach.move * r.mult) + ' m – ' + esc(t('rng_' + r.key + '_cost'))
+      + weit(reach.move * r.mult)));
+    if (rngBoost > 0) lines.push('<span class="rng-key rng-boost"></span>'
+      + esc(t('rng_boost_ring')) + ' ' + (reach.move + rngBoost) + ' m');
+  }
+  if (rngWeaponOn && reach.weapons.length) {
+    const w = reach.weapons[Math.min(rngWeaponIdx, reach.weapons.length - 1)];
+    const r = parseRange(w && w.range);
+    if (r) {
+      [['pb', r.pb], ['short', r.short], ['medium', r.medium], ['long', r.long]].forEach(([key, m]) => {
+        if (m > 0) lines.push('<span class="rng-key rng-w-' + key + '"></span>'
+          + esc(t('rng_' + key)) + ' ' + m + ' m – ' + esc(t('rng_' + key + '_diff')) + weit(m));
+      });
+    }
+  }
+  $('rngLegend').innerHTML = lines.map(l => '<div>' + l + '</div>').join('');
+
+  /* Fields for a free token - only where there is no sheet to take the
+     values from, and only for whoever may move the piece. */
+  const eigene = mayMove(tok) && !reach.fromSheet && !tok.charId;
+  $('rngOwn').classList.toggle('hidden', !eigene);
+  if (eigene && document.activeElement !== $('rngOwnMove')) {
+    $('rngOwnMove').value = String(tok.move || 0);
+    $('rngOwnWname').value = tok.wname || '';
+    $('rngOwnWrange').value = tok.wrange || '';
+  }
+}
+let rangeBoostPicks = [];
+
+function selectToken(id) {
+  const tok = (state && (state.tokens || []).find(x => x.id === id)) || null;
+  /* Only pieces you may move - see the note at the top of this section. */
+  selTok = (tok && mayMove(tok)) ? id : 0;
+  renderTokens();
+  renderRanges();
 }
 
 /* 0 = broad daylight, 100 = pitch black. Not quite black even then: at
@@ -472,6 +752,9 @@ function renderMapList() {
   $('fogCard').classList.toggle('hidden', !isGm);
   const map = activeMap();
   $('gridSize').value = map ? (map.grid || 0) : 0;
+  if ($('mapScale') && document.activeElement !== $('mapScale')) {
+    $('mapScale').value = map ? (map.scaleM || 2) : 2;
+  }
   const dunkel = map ? (map.dim || 0) : 0;
   /* Do not overwrite the slider while it is being dragged - the answer to
      the previous step would jump it back under the finger. */
@@ -912,10 +1195,14 @@ function wireDragging() {
       return;
     }
     const el = ev.target.closest('.vtt-token');
-    if (!el) return;
+    /* A click into the open map puts the rings away again. */
+    if (!el) { if (selTok) selectToken(0); return; }
     const id = +el.getAttribute('data-id');
     const tok = (state.tokens || []).find(x => x.id === id);
     if (!tok || !mayMove(tok)) return;
+    /* Picking a figure up is picking it: while it is being moved, its reach
+       is exactly what one wants on the map. */
+    if (id !== selTok) selectToken(id);
     /* Shift turns the figure where it stands. Without it the drag decides
        the facing, which is how you move a miniature: you push it, and it
        ends up looking the way it went. */
@@ -1796,6 +2083,44 @@ document.addEventListener('DOMContentLoaded', function () {
     renderStage();
     try { await api('map_grid', { round: roundId, map: map.id, grid: map.grid }); await refresh(true); }
     catch (e) { alert(e.message); }
+  });
+
+  /* The scale: how many metres a grid square stands for. Without it the map
+     has no measure and no range can be drawn on it. */
+  $('mapScale').addEventListener('change', async function () {
+    const map = activeMap();
+    if (!map) return;
+    map.scaleM = +this.value > 0 ? +this.value : 2;
+    this.value = String(map.scaleM);
+    renderRanges();
+    try { await api('map_grid', { round: roundId, map: map.id, grid: map.grid, scaleM: map.scaleM }); await refresh(true); }
+    catch (e) { alert(e.message); }
+  });
+
+  /* ---- the range panel ---- */
+  $('rngMove').addEventListener('change', function () { rngMoveOn = this.checked; renderRanges(); });
+  $('rngWeapon').addEventListener('change', function () { rngWeaponOn = this.checked; renderRanges(); });
+  $('rngWeaponSel').addEventListener('change', function () { rngWeaponIdx = +this.value || 0; renderRanges(); });
+  $('rngBoost').addEventListener('input', function () { rngBoost = Math.max(0, +this.value || 0); renderRanges(); });
+  $('rngBoostPicks').addEventListener('click', ev => {
+    const b = ev.target.closest('[data-boost]');
+    if (!b) return;
+    const p = rangeBoostPicks[+b.dataset.boost];
+    if (!p) return;
+    rngBoost = p.m;
+    $('rngBoost').value = String(p.m);
+    renderRanges();
+  });
+  $('btnRngOwn').addEventListener('click', async () => {
+    const tok = selectedToken();
+    if (!tok) return;
+    const move = Math.max(0, +$('rngOwnMove').value || 0);
+    const wname = $('rngOwnWname').value.trim();
+    const wrange = $('rngOwnWrange').value.trim();
+    try {
+      await api('token_stats', { round: roundId, token: tok.id, move: move, wname: wname, wrange: wrange });
+      await refresh(true);
+    } catch (e) { alert(e.message); }
   });
 
   document.querySelectorAll('input[name="fogMode"]').forEach(r => {

@@ -17,6 +17,8 @@ This project is an HTML port of the Excel workbooks by **Chance Gibboney** — s
 
 Game masters can also run **game rounds**: invite players by code, let them submit characters, and approve them for the round (the approval is stamped on the sheet). See the ☁ Online window.
 
+The **table top** (`vtt.html`) puts the round on a map: the GM's battle maps, tokens made from your own sheets, fog of war, shared dice, music, and voice and video. Pick a token you may move and the map draws its **reach**: cruising, high speed and all out, each with what it costs of the round, plus the brackets of its weapon with their difficulties.
+
 ---
 
 ## English
@@ -399,7 +401,7 @@ Das Projekt ist die HTML-Portierung der Excel-Tabellen von **Chance Gibboney** �
 
 **NPCs** (`npc.html`) – erzeugt ganze **NPC-Gruppen mit kompakten Statblöcken**. Die Truppe wird **rollenweise** zusammengestellt: je Zeile eine Fraktion mit eigener Anzahl, also etwa 6 Sturmtruppen, 2 Offiziere und 3 Söldner in einer Gruppe. Dazu Spezies-Modus (nur Menschen / gemischt / eine Spezies / nur Aliens) und Erfahrungsstufe; bei „gemischt“ stellt der Mensch-Anteil Star-Wars-typisch die Mehrheit. Genauso für **Schiffe**: Anzahl je Klasse (Jäger, Space Transport, Capital), je Klasse getrennt wählbar, ob alle Schiffe baugleich sein sollen, und ein Ära-Filter für den Vorlagenpool. Mehrere Karten pro Druckseite.
 
-**Spielrunden** – Spielleiter können eine Runde eröffnen, Spieler per Einladungscode aufnehmen, deren angemeldete Charaktere ansehen und **für die Runde freigeben** – die Freigabe erscheint als Stempel auf dem Bogen (☁-Online-Fenster).
+**Spielrunden** – Spielleiter können eine Runde eröffnen, Spieler per Einladungscode aufnehmen, deren angemeldete Charaktere ansehen und **für die Runde freigeben** – die Freigabe erscheint als Stempel auf dem Bogen (☁-Online-Fenster). Der **Spieltisch** (`vtt.html`) bringt die Runde auf eine Karte: Kampfkarten der Spielleitung, Marken aus den eigenen Bögen, Nebel des Krieges, gemeinsames Würfeln, Musik sowie Sprache und Bild. Ein Klick auf eine Marke, die du bewegen darfst, zeichnet ihre **Reichweiten**: Gehen, Laufen und Volle Fahrt mit dem, was sie von der Runde kosten, dazu die Abschnitte der Waffe mit ihren Schwierigkeiten.
 
 **Fehler melden** – ⚙-Menü → **“🐞 Fehler melden”**: ein Feld, absenden, fertig, ohne Konto. Wer angemeldet ist, bekommt eine Antwort über das Ticket-System; ohne Konto bleibt die Meldung anonym. Ein Häkchen schickt den gerade offenen Bogen mit (ohne Bild). Im selben Dialog sitzt ein Schalter, der **Skriptfehler von selbst meldet** – denn wer auf einen Absturz stößt, macht sonst einfach den Tab zu. Übertragen werden Meldung, Stelle im Code, Seite, Version, Browser-Familie und Sprache; keine gespeicherte IP-Adresse, keine Kennung. Abschaltbar, und in Abschnitt 8 der eingebauten Datenschutzerklärung beschrieben. Administratoren lesen alles unter ☁-Menü → **“🐞 Fehlerberichte”**, inklusive JSON-Export.
 

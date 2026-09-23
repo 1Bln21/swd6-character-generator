@@ -881,6 +881,45 @@ table.list tr.worn > td { background: color-mix(in srgb, var(--accent) 12%, tran
   pointer-events: none;
   z-index: 0;
 }
+/* ---------- movement and weapon ranges ----------
+   Rings around the picked figure, drawn where it stands. They sit BELOW the
+   tokens and take no clicks, so a piece can still be dragged through them.
+   Width and height come as fractions of the stage, which carries the map's
+   proportions - that is what keeps a circle a circle on a wide map. */
+.vtt-ranges { position: absolute; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+.rng-ring {
+  position: absolute; transform: translate(-50%, -50%);
+  border: 2px solid currentColor; border-radius: 50%;
+  color: var(--accent); opacity: .85;
+}
+.rng-tag {
+  position: absolute; left: 50%; top: 0; transform: translate(-50%, -55%);
+  font-size: 11px; font-weight: 700; white-space: nowrap;
+  background: rgba(8,10,20,.78); color: currentColor;
+  padding: 0 5px; border-radius: 7px;
+}
+/* Movement: the further out, the more it costs - all out takes the round */
+.rng-cruise { color: var(--green); }
+.rng-high   { color: var(--accent); }
+.rng-allout { color: var(--red); }
+.rng-boost  { color: var(--blue); border-style: dashed; }
+/* The weapon's label sits at the foot of its circle - movement and weapon
+   rings share a radius often enough (ten metres is both a stroll and short
+   range), and two labels in the same place read as one. */
+.rng-wring .rng-tag { top: auto; bottom: 0; transform: translate(-50%, 55%); }
+/* Weapon brackets, from the easy shot outwards */
+.rng-w-pb     { color: #9ef7b0; border-style: dotted; }
+.rng-w-short  { color: #7fd1ff; border-style: dotted; }
+.rng-w-medium { color: #ffc46b; border-style: dotted; }
+.rng-w-long   { color: #ff8f6b; border-style: dotted; }
+.rng-legend { font-size: 12px; line-height: 1.7; margin-top: 6px; }
+.rng-key {
+  display: inline-block; width: 12px; height: 12px; margin-right: 7px;
+  border: 2px solid currentColor; border-radius: 50%; vertical-align: -2px;
+}
+.rng-picks { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
+.vtt-token.picked { box-shadow: 0 0 0 3px var(--accent), 0 4px 12px rgba(0,0,0,.6); }
+
 .vtt-token { z-index: 1; }
 
 /* A token is placed by its CENTRE, hence the translate - otherwise it would
