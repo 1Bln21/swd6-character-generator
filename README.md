@@ -11,7 +11,7 @@ This project is an HTML port of the Excel workbooks by **Chance Gibboney** — s
 | | |
 |---|---|
 | **Characters** | `index.html` — 26 rulebook templates, 376 species, all skills plus 20 advanced ones, Force powers, equipment, lightsaber workshop |
-| **Droids** | `droid.html` — degrees, 167 modifications, 393 ready-made droid templates |
+| **Droids** | `droid.html` — degrees, 167 modifications, 394 ready-made droid templates |
 | **Ships & Vehicles** | `ship.html` — 1,298 ship/vehicle templates, modification workshop, weapons, sensors |
 | **NPCs** | `npc.html` — build a group role by role (6 stormtroopers, 2 officers) or a flight class by class, with compact stat blocks |
 
@@ -39,16 +39,19 @@ The **table top** (`vtt.html`) puts the round on a map: the GM's battle maps, to
 - Shared **25D starting pool** for attributes, skills *and* modifications
 - **167 modifications** in 11 categories (processors, sensors, armor, weapons, medical …)
 - Hard-wired **database skills**
-- **Purchase price, new or used** - 30 of the 393 droids name a used price in the books, 13 of them only a used one. Pick which you paid; where the book stays silent, half is offered as a suggestion
-- **393 droid templates** from the sourcebooks — apply and adjust; built-in armament comes across as weapons, a free field takes armament no catalogue lists, and skills a droid brings along that no list knows (culinary arts, home economics) are kept as skills of their own
+- **Purchase price, new or used** - 30 of the 394 droids name a used price in the books, 13 of them only a used one. Pick which you paid; where the book stays silent, half is offered as a suggestion
+- **394 droid templates** from the sourcebooks — apply and adjust; built-in armament comes across as weapons, a free field takes armament no catalogue lists, and skills a droid brings along that no list knows (culinary arts, home economics) are kept as skills of their own
 
 **Ships & Vehicles** (`ship.html`)
 - **1,298 templates** (955 starships + 343 vehicles) — pick one and every base stat is filled in, weapons included
+- **Short names find the ship**: the catalogue knows the P-38 as "Buuper Torsckil Abbey Devices Porax-38 Starfighter", and the search finds it under P-38 all the same
+- **The nav computer is what the book says** — "Limited to 4 jumps", "Astromech droid holds 10 jumps", not just yes or no
 - **New and used price**, with a choice of which you paid. Where the book names no used price, 45% of the new one is offered as a suggestion - measured across the 336 ships that name both, the median is 47.5%. It stays a suggestion and is never written into the catalogue
-- **Modification workshop**: sublight drive, maneuverability, hyperdrive, hull, shields, weapon damage — each with install difficulty, cost as a percentage of the ship, and a growing **mishap modifier**. 353 of the 955 ships carry no price in the books ("Not available for sale"); the workshop says so instead of quietly pricing every refit at zero
-- Replacement drives, hyperdrives, shield generators, cargo conversions
+- **Modification workshop**: sublight drive, maneuverability, hyperdrive, hull, shields, weapon damage — each with install difficulty, cost as a percentage of the ship, and a growing **mishap modifier**. 352 of the 955 ships carry no price in the books ("Not available for sale"); the workshop says so instead of quietly pricing every refit at zero
+- Replacement drives, hyperdrives, shield generators, **backup shields** and cargo conversions. A backup shield is yard work: it costs money and cargo space, and carries no mishap modifier
+- **Hyperdrive refits** from x3 down to x1/2, including the x0.75 step (a house rule, marked as one in the list)
 - Up to twelve weapons with fire arc, fire control and ranges; sensors and NPC crew skills
-- **Weapon picker**: 1,064 armament types collected from the ship entries in the compendia, plus the *Galaxy Guide 6* summary with price and weight — filter by scale (Starfighter, Capital, Speeder, Walker, Character), pick one, and every stat is filled in
+- **Weapon picker**: 978 armament types collected from the ship entries in the compendia, plus the *Galaxy Guide 6* summary with price and weight — filter by scale (Starfighter, Capital, Speeder, Walker, Character), pick one, and every stat is filled in
 - **Cargo space** is tracked against installed replacement systems — in kilograms for fighters, tons for freighters. Percentage upgrades cost no cargo space at all, which is exactly how starfighters get upgraded (see `ANLEITUNG.txt`)
 - **Workshop** with the expanded rules from *Galaxy Guide 6: Tramp Freighters*: a mishap roller covering all five systems and three severities, the repair cost table priced against your ship, spaceport classes with docking fees, the restocking formula, overhaul costs, installation times and the linked-weapons rules
 

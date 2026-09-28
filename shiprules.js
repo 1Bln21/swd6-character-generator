@@ -127,6 +127,22 @@ const TRAMP_RULES = {
   ],
 
   /* --------------------------------------------------------------------
+     House rule: the x0.75 hyperdrive
+     ---------------------------------------------------------------------
+     The book goes x2, x1, x1/2 and knows nothing in between, while the
+     catalogue holds plenty of ships that fly at x0.75 - so the step could
+     be owned but not fitted.
+
+     The figures sit where the step sits: harder than x1 (Very Difficult,
+     25 %, mishap +2), cheaper than x1/2 (Heroic, 35 %, mishap +3). Set at
+     the maintainer's request on 27 September 2026. Anyone playing strictly
+     by the book removes this list.
+     -------------------------------------------------------------------- */
+  hyperImproveHouse: [
+    { label: 'x0.75', diff: 'Heroic', costPct: 0.30, mishap: 3, houseRule: true },
+  ],
+
+  /* --------------------------------------------------------------------
      Weapon summary from Chapter Eight
      The prices are for fitting to a light freighter; the weight comes off
      the cargo hold. For legal armament the Empire demands a permit - 30 %

@@ -75,6 +75,8 @@ Object.assign(T.de, {
   sh_repl_maneuver: 'Ersatz-Manövriertriebwerke',
   sh_maneuver_hint: 'Hausregel (nicht in den Büchern): kaufbare Manövriertriebwerke, bewusst teuer. Obergrenze je Klasse – Space Transport bis 2D, Capital-Kreuzer bis 1D+2, größere Capital nur 1D, Jäger bis 4D. Preis/Gewicht skalieren mit der Schiffsklasse.',
   sh_shieldgen: 'Schildgenerator', sh_keep: '– Original behalten –',
+  sh_backupshield: 'Backup-Schild', sh_shieldbackup: 'Backup-Schild',
+  sh_backupshield_hint: 'Ein zweiter Schildgenerator, der übernimmt, wenn der erste ausfällt – Werftarbeit, also nur Kosten und Gewicht, kein Pannen-Modifikator.',
   sh_mods_general: 'Ausrüstungs-Umbauten',
   sh_cargo_mods: 'Fracht-Umbauten',
   sh_cargo_left: 'Frachtraum frei',
@@ -219,6 +221,8 @@ Object.assign(T.en, {
   sh_repl_maneuver: 'Replacement maneuver thrusters',
   sh_maneuver_hint: 'House rule (not in the books): purchasable maneuver thrusters, deliberately expensive. Cap per class — space transport up to 2D, capital cruiser up to 1D+2, larger capital only 1D, starfighter up to 4D. Price/weight scale with the ship class.',
   sh_shieldgen: 'Shield generator', sh_keep: '– keep original –',
+  sh_backupshield: 'Backup shield', sh_shieldbackup: 'Backup shield',
+  sh_backupshield_hint: 'A second shield generator that takes over when the first one goes - yard work, so cost and weight only, no mishap modifier.',
   sh_mods_general: 'Equipment modifications',
   sh_cargo_mods: 'Cargo modifications',
   sh_cargo_left: 'Cargo space free',
@@ -309,9 +313,17 @@ function emptyDoc() {
       name: '', owner: '', craft: '', type: '', scale: 'Starfighter',
       skill: 'Space Transports', skillSpec: '', crew: '', passengers: '',
       cargo: '', consumables: '', length: '', cover: 'Not applicable',
-      altitude: '', nav: true, hyper: 'x2', hyperBackup: 'None',
+      /* The nav computer is text, not a yes/no. The books rarely stop at
+         yes: "Limited to 4 jumps", "Astromech droid holds 10 jumps",
+         "No (uses starport computations)" - 47 different answers in the
+         catalogue. Sheets from before 4.0.0.5.2 hold true/false and are
+         turned into words when they are loaded (see migrate()). */
+      altitude: '', nav: 'Yes', hyper: 'x2', hyperBackup: 'None',
       capitalClass: 'cruiser',      // capital scale only: cruiser | stardestroyer | ssd
       hull: 12, shields: 3, maneuver: 3, space: 4, atmosphere: '',
+      /* Backup shields, as text like the backup hyperdrive: a second bank
+         that takes over as the first one is shot away. */
+      shieldBackup: '',
       costNew: 0, costUsed: 0, bought: 'new',   // new | used - which price counts
       mishapBase: 0, portrait: '', notes: '',
       cargoRule: 'auto',            // auto | strict | off - see cargoStatus()
@@ -326,6 +338,7 @@ function emptyDoc() {
     mods: {
       drive: '', maneuver: '', hyper: '', hull: '', shield: '', wdmg: '',
       replDrive: '', replHyper: '', shieldGen: '', backupHyper: false, replManeuver: '',
+      backupShield: '',             // a second shield generator, by its rating
       general: {},                  // name -> count
       cargo: {},                    // name -> count
       custom: [],                   // {name, desc, cost, weight}
@@ -358,8 +371,36 @@ function migrate(obj) {
     if (typeof w.stock !== 'boolean') w.stock = true;
   });
   if (!Array.isArray(m.mods.custom)) m.mods.custom = [];
+  /* Up to 4.0.0.5.1 the nav computer was a yes/no. It is text now, because
+     the books answer with more than that ("Limited to 4 jumps"), so an
+     older sheet's true/false becomes the word it stood for. */
+  if (typeof m.info.nav === 'boolean') m.info.nav = m.info.nav ? 'Yes' : 'No';
   m.kind = 'ship';
   return m;
+}
+/* Suggestions for the nav computer field - the answers the books give
+   most often. Anything can be typed; these only save the typing. */
+const NAV_SUGGESTIONS = [
+  'Yes', 'No', 'None',
+  'Limited to 1 jump', 'Limited to 2 jumps', 'Limited to 3 jumps',
+  'Limited to 4 jumps', 'Limited to 5 jumps', 'Limited to 10 jumps',
+  'Yes (limited to 2 jumps)', 'Yes (limited to 4 jumps)',
+  'Astromech droid holds 10 jumps',
+  'No (uses astromech droid programmed with 10 jumps)',
+  'No (uses droid or starport computations)',
+];
+/* A sheet saved before 4.0.0.5.2 may still hand in a boolean here. */
+function navText(v) {
+  if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+  return String(v == null ? '' : v);
+}
+/* Does the ship have one at all? The sheet prints the words, but the dice
+   page and the workshop only want to know yes or no, and "No (uses a
+   droid)" is a no. */
+function navHasComputer(v) {
+  const s = navText(v).trim().toLowerCase();
+  if (!s) return false;
+  return !/^(no|none|n)\b/.test(s);
 }
 function emptyWeapon() {
   return { name: '', scale: 'Starfighter', arc: 'Front', skill: 'Starship Gunnery',
@@ -481,9 +522,20 @@ function hullShieldList(base) {
   return base.concat(extra);
 }
 
+/* Entry step from Galaxy Guide 6 in front, the spreadsheet's steps after
+   it - and the x0.75 house rule in its place between x1 and x1/2, so the
+   list runs from the easy refit to the hard one. */
 function hyperImproveList() {
   const extra = (typeof TRAMP_RULES !== 'undefined') ? TRAMP_RULES.hyperImproveExtra : [];
-  return extra.concat(SHIP_DATA.hyperImprove);
+  const haus = (typeof TRAMP_RULES !== 'undefined' && TRAMP_RULES.hyperImproveHouse)
+    ? TRAMP_RULES.hyperImproveHouse : [];
+  const liste = extra.concat(SHIP_DATA.hyperImprove);
+  haus.forEach(h => {
+    const wert = x => parseFloat(String(x.label).replace('x', '')) || 0;
+    const stelle = liste.findIndex(x => wert(x) < wert(h));
+    liste.splice(stelle < 0 ? liste.length : stelle, 0, h);
+  });
+  return liste;
 }
 /* Drives are stored by model name, because that is what identifies them in
    the parts catalogue - but a model name has no business on the sheet. A
@@ -582,6 +634,11 @@ function shipDerived() {
   if (md.backupHyper) { modCost += BACKUP_HYPER.cost * wf; weight += BACKUP_HYPER.weight * wf; }
   const sg = SHIP_DATA.shieldGens.find(x => x.rating === md.shieldGen);
   if (sg) { modCost += sg.cost * wf; weight += sg.weight * wf; }
+  /* A backup shield is a second generator out of the same table - a yard
+     job, so it costs money and cargo space and carries no mishap modifier,
+     exactly like the backup hyperdrive. */
+  const bs = SHIP_DATA.shieldGens.find(x => x.rating === md.backupShield);
+  if (bs) { modCost += bs.cost * wf; weight += bs.weight * wf; }
   /* Replacement thrusters (house rule, dear, price/weight by class). */
   const mt = maneuverThruster(i, md.replManeuver);
   if (mt) { modCost += mt.cost * wf; weight += mt.weight * wf; }
@@ -643,9 +700,12 @@ function shipDerived() {
      into the tab by hand. "None"/empty = none. */
   const hyperBackup = md.backupHyper ? BACKUP_HYPER.mult
     : (i.hyperBackup && i.hyperBackup !== 'None' ? i.hyperBackup : '');
+  /* A backup shield fitted in the workshop beats the one typed on the
+     stats tab - the same order as the backup hyperdrive. */
+  const shieldBackup = md.backupShield || String(i.shieldBackup || '').trim();
   return Object.assign(
     { modCost, mishap, weight, hull, shields, maneuver, space, hyper, wdmgPips,
-      atmo, canAtmo: canEnterAtmosphere(i.atmosphere), hyperBackup, pctChosen,
+      atmo, canAtmo: canEnterAtmosphere(i.atmosphere), hyperBackup, shieldBackup, pctChosen,
       weightFactor: wf, weaponWeight: Math.round(weaponWeight * 10) / 10,
       costTotal: shipPaid() + modCost, boughtUsed: i.bought === 'used' && !!+i.costUsed },
     cargoStatus(weight));
@@ -765,7 +825,16 @@ function templateCard() {
   const { ships, vehicles } = templates();
   if (!ships.length && !vehicles.length) return '';
   const f = tplFilter.toLowerCase();
-  const match = x => (!f || x.name.toLowerCase().includes(f) || (x.craft || '').toLowerCase().includes(f)) &&
+  /* Short names count too. Everybody knows the P-38; hardly anybody
+     types "Buuper Torsckil Abbey Devices Porax-38 Starfighter". So a
+     name like "Porax-38" is searched under "P-38" as well - first
+     letter, hyphen, number. Only for real words, or the acronyms in
+     the catalogue (AIC-4, INT-66) would answer to nonsense like A-4.
+     It only ever ADDS matches, so nothing can go missing through it. */
+  const kuerzel = txt => (String(txt).match(/[A-Z][a-z]{2,}-\d{1,3}/g) || [])
+    .map(w => (w[0] + '-' + w.split('-')[1]).toLowerCase());
+  const match = x => (!f || x.name.toLowerCase().includes(f) || (x.craft || '').toLowerCase().includes(f)
+                     || kuerzel(x.name + ' ' + (x.craft || '')).some(k => k.includes(f))) &&
                      (!tplEra || x.era === tplEra);
   const opt = (x, idx, kind) => `<option value="${kind}:${idx}">${esc(x.name)}${x.scale ? ' · ' + esc(x.scale) : ''}${x.book ? ' · ' + esc(x.book) : ''}</option>`;
   /* Ceiling per group. It dates from a time when the list was thought to
@@ -883,7 +952,13 @@ function applyTemplate() {
   if (!src.hyperBackup) i.hyperBackup = 'None';
   else if (SHIP_DATA.hyperMults.includes(src.hyperBackup)) i.hyperBackup = src.hyperBackup;
   else { i.hyperBackup = 'None'; varied.push(t('sh_hyperbackup') + ': ' + src.hyperBackup); }
-  i.nav = /yes/i.test(src.nav || '');
+  /* The book's own words, not a yes or no: "Limited to 4 jumps" is
+     neither, and the P-38 lost exactly that in the old boolean. */
+  i.nav = String(src.nav || '');
+  /* A backup shield that the catalogue writes into the shield text
+     ("2D, backup: 2D", "4D (3D backup)") goes into its own field. */
+  const bsm = /backup:?\s*(\d+D(?:\+\d)?)|\((\d+D(?:\+\d)?)\s*backup\)/i.exec(src.shields || '');
+  i.shieldBackup = bsm ? (bsm[1] || bsm[2]) : '';
   i.hull = src.hullPips || 0;
   i.shields = src.shieldPips || 0;
   i.maneuver = src.maneuverPips || 0;
@@ -964,10 +1039,8 @@ function viewShip() {
       <div><label>${t('sh_cover')}</label><select data-bind="info.cover">${selOpts(SHIP_DATA.covers, i.cover)}</select></div>
       <div><label>${t('sh_altitude')}</label>${inputT('info.altitude', i.altitude)}</div>
       <div><label>${t('sh_nav')}</label>
-        <select data-bind="info.nav" data-type="bool">
-          <option value="true" ${i.nav ? 'selected' : ''}>${t('yes')}</option>
-          <option value="false" ${!i.nav ? 'selected' : ''}>${t('no')}</option>
-        </select></div>
+        <input type="text" data-combo="navlist" autocomplete="off" data-bind="info.nav" value="${esc(navText(i.nav))}">
+        <datalist id="navlist">${NAV_SUGGESTIONS.map(x => `<option value="${esc(x)}">`).join('')}</datalist></div>
       <div><label>${t('sh_hyper')}</label><select data-bind="info.hyper">${selOpts(SHIP_DATA.hyperMults, i.hyper)}</select></div>
       <div><label>${t('sh_hyperbackup')}</label><select data-bind="info.hyperBackup">${selOpts(SHIP_DATA.hyperMults, i.hyperBackup)}</select></div>
     </div>
@@ -976,6 +1049,7 @@ function viewShip() {
     <div class="formgrid">
       <div><label>${t('sh_hull')}</label>${diceCtl('info.hull', i.hull)}</div>
       <div><label>${t('sh_shields')}</label>${diceCtl('info.shields', i.shields)}</div>
+      <div><label>${t('sh_shieldbackup')}</label>${inputT('info.shieldBackup', i.shieldBackup, 'placeholder="2D"')}</div>
       <div><label>${t('sh_maneuver')}</label>${diceCtl('info.maneuver', i.maneuver)}</div>
       <div><label>${t('sh_space')}</label>${inputN('info.space', i.space, 'style="width:90px"')}</div>
       <div class="wide"><label>${t('sh_atmosphere')}</label>${inputT('info.atmosphere', i.atmosphere, 'style="width:100%"')}
@@ -1256,6 +1330,7 @@ function viewMods() {
       ${partSel('replDrive', SHIP_DATA.replDrives, 'model', t('sh_repl_drive'), t('sh_keep'), x => driveClassName(x.model))}
       ${partSel('replHyper', SHIP_DATA.replHyper, 'model', t('sh_repl_hyper'), t('sh_keep'), x => hyperClassName(x.model))}
       ${partSel('shieldGen', SHIP_DATA.shieldGens, 'rating', t('sh_shieldgen'), t('sh_keep'))}
+      ${partSel('backupShield', SHIP_DATA.shieldGens, 'rating', t('sh_backupshield'), t('none_dash'))}
       <div><label>${t('sh_buy_backup')}</label>
         <select data-bind="mods.backupHyper" data-type="bool">
           <option value="false" ${!C.mods.backupHyper ? 'selected' : ''}>${t('no')}</option>
@@ -1275,7 +1350,8 @@ function viewMods() {
   <div class="card"><h2>${t('sh_effective')}</h2>
     <p>
       ${t('sh_hull')}: <span class="dice">${fmtD(der.hull)}</span> &nbsp;
-      ${t('sh_shields')}: <span class="dice">${fmtD(der.shields)}</span> &nbsp;
+      ${t('sh_shields')}: <span class="dice">${fmtD(der.shields)}</span>${der.shieldBackup
+        ? ' <span class="hint">(' + esc(t('sh_backupshield')) + ' ' + esc(der.shieldBackup) + ')</span>' : ''} &nbsp;
       ${t('sh_maneuver')}: <span class="dice">${fmtD(der.maneuver)}</span> &nbsp;
       ${t('sh_space')}: <span class="dice">${der.space}</span> &nbsp;
       ${t('sh_hyper')}: <span class="dice">${esc(der.hyper && der.hyper !== 'None' ? der.hyper : t('none_one'))}</span> &nbsp;
@@ -1325,6 +1401,7 @@ function renderSheet() {
   if (C.mods.replDrive) modList.push(driveClassName(C.mods.replDrive));
   if (C.mods.replHyper) modList.push(hyperClassName(C.mods.replHyper));
   if (C.mods.shieldGen) modList.push(`${t('sh_shieldgen')}: ${C.mods.shieldGen}`);
+  if (C.mods.backupShield) modList.push(`${t('sh_backupshield')}: ${C.mods.backupShield}`);
   for (const [n, q] of Object.entries(C.mods.general)) if (q > 0) modList.push(n + (q > 1 ? ' ×' + q : ''));
   for (const [n, q] of Object.entries(C.mods.cargo)) {
     if (q <= 0) continue;
@@ -1357,7 +1434,7 @@ function renderSheet() {
         ? `${fmtCargo(der.cargoLeft, der.cargoUnit)} ${t('sh_cargo_of')} ${fmtCargo(der.cargoBase, der.cargoUnit)} (${t('sh_cargo_used')} ${der.weight} t)`
         : i.cargo, 3)}
       ${sheetField(t('sh_consumables'), i.consumables, 3)}
-      ${sheetField(t('sh_nav'), i.nav ? t('yes') : t('no'), 3)}
+      ${sheetField(t('sh_nav'), navText(i.nav), 3)}
       ${sheetField(t('sh_cover'), i.cover, 3)}
       ${sheetField(t('sh_altitude'), i.altitude, 3)}
       ${sheetField(t('sh_mishap_total'), String(der.mishap), 3)}
