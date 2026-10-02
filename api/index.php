@@ -44,6 +44,17 @@ $CONFIG = [
   'register_code' => '',
   // The name shown in the authenticator app
   'issuer' => 'SWD6 Generator',
+  /* Password for api/check.php. That page names the database host, the
+     database and its user, the exact PHP version and the extensions that
+     are loaded - the groundwork someone does before trying anything, and
+     it costs nothing to take away. Set it here and the page asks for it
+     (any user name, this password).
+
+     Left empty the page still works while NO account exists yet, because
+     that is what it is for: a fresh installation has to be set up before
+     there is anyone who could be asked for a password. Once the first
+     account is there it locks itself and says so. */
+  'check_pass' => '',
   // Admins may edit the legal notice / privacy policy. The first registered
   // user (ID 1) is always an admin; add further usernames here.
   'admins' => [],
@@ -1433,9 +1444,11 @@ function report_cut($v, $max) {
 switch ($action) {
 
 case 'ping': {
+  /* Which database engine is in use was reported here once and nothing in
+     the client ever read it - it only told a passer-by what to aim at.
+     api/check.php still says, behind its password. */
   $mode = register_mode();
   json_out(['ok' => true, 'api' => 'swd6', 'version' => 2,
-            'db' => $DRIVER,
             'register' => $mode !== 'closed',
             'registerMode' => $mode,
             'registerCode' => $CONFIG['register_code'] !== '']);
@@ -2167,7 +2180,21 @@ case 'legal_get': {
     $f = $dataDir . '/legal.json';
     $data = is_file($f) ? json_decode(file_get_contents($f), true) : null;
   }
-  json_out(['legal' => is_array($data) ? $data : null]);
+  /* The privacy policy has to say WHICH STUN server the browser contacts,
+     not which one the app ships with by default - on an installation that
+     points it at its own relay, naming Google would be plain wrong, and on
+     one that keeps the default, saying nothing would be worse. So the page
+     is told what is configured and writes the sentence that fits.
+
+     Only the host names go out, and those are no secret: the browser opens
+     a connection to them a moment later anyway. */
+  $stun = [];
+  foreach ((array)(isset($CONFIG['turn']['stun']) ? $CONFIG['turn']['stun'] : []) as $u) {
+    $h = preg_replace('#^stuns?:#i', '', trim((string)$u));
+    $h = preg_replace('#[:?].*$#', '', $h);
+    if ($h !== '' && !in_array($h, $stun, true)) $stun[] = $h;
+  }
+  json_out(['legal' => is_array($data) ? $data : null, 'stun' => $stun]);
 }
 
 case 'legal_save': {
@@ -2176,7 +2203,8 @@ case 'legal_save': {
   $in = inp('legal');
   if (!is_array($in)) fail('No data');
   $fields = ['name', 'street', 'zip', 'city', 'country', 'email', 'phone',
-             'responsible', 'vatId', 'provider', 'providerAddress'];
+             'responsible', 'vatId', 'provider', 'providerAddress',
+             'jurisdiction', 'logDays', 'backupDays'];
   $out = [];
   foreach ($fields as $f2) {
     $v = isset($in[$f2]) ? trim(strip_tags((string)$in[$f2])) : '';

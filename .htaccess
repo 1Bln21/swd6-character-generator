@@ -1,15 +1,32 @@
-# Make browsers revalidate the app files instead of serving them straight
-# from cache, so an update is picked up immediately - otherwise the browser
-# still shows the old version after an update (a stale version number in the
-# credits, say) although the new file is already on the server.
+# How long a browser may keep a file.
 #
-# "no-cache" does not mean "do not store": the browser may keep the file, it
-# just has to check before using it. If nothing changed the server answers
-# 304 (not retransmitted), so it costs almost nothing.
+# The pages themselves must never be cached: they carry the version number
+# that points at everything else, so they are what makes an update arrive.
+#
+# Scripts and styles are the opposite. Every page pulls about twenty of
+# them, among them catalogues of two megabytes, and they only ever change
+# with a release. They used to be marked "no-cache, must-revalidate", which
+# does not mean "do not store" - the browser kept them and only asked
+# whether they were still current. That ask is cheap in bytes and expensive
+# in time: twenty questions per page change, each one a round trip to the
+# server. Measured from Germany that was about half a second before HTTP/2,
+# and it was the whole of the delay noticed when switching tabs.
+#
+# So the pages now ask for them by version - "app.js?v=4.0.0.5.3" - and the
+# answer may be kept for a year without asking again. A release changes the
+# number, the address changes with it, and every browser fetches the new
+# file once. Nothing has to expire for an update to arrive.
+#
+# tools/version-assets.py writes those numbers from APP_VERSION and is part
+# of the release; it also fails loudly when a page was forgotten, because a
+# page left on the old number would hand out year-old scripts.
 
 <IfModule mod_headers.c>
-  <FilesMatch "\.(html|js|css)$">
+  <FilesMatch "\.html$">
     Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+  <FilesMatch "\.(js|css)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
 
   # Security headers. They guard against clickjacking (the sign-in page
@@ -46,6 +63,21 @@
   # which leaves the call tile black.
   Header set Permissions-Policy "geolocation=(), microphone=(self), camera=(self), display-capture=(self)"
 </IfModule>
+
+# Copies and leftovers are never served. Apache runs "index.php" but hands
+# out "index.php.bak" as plain text, and the same goes for what editors
+# leave behind - "~", ".save", ".swp" - or for an archive uploaded while
+# updating. api/.htaccess carries the same rule for the folder that matters
+# most; this one covers everything else.
+<FilesMatch "(?i)(\.(bak|old|orig|rej|save|swp|swo|tmp|dist|log|sql|sqlite|db|zip|tar|gz|7z)|~|\.php\.[a-z0-9]+)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order deny,allow
+    Deny from all
+  </IfModule>
+</FilesMatch>
 
 # The rulebook catalogs are large (pdfdata-craft.js alone is about 1.5 MB).
 # Being plain text they compress very well - gzip cuts them to roughly a

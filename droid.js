@@ -594,7 +594,7 @@ function templateCard() {
   if (!src.length) return '';
   const f = tplFilter.toLowerCase().trim();
   const hits = src.map((x, n) => [x, n])
-    .filter(([x]) => !f || x.name.toLowerCase().includes(f) || (x.type || '').toLowerCase().includes(f))
+    .filter(([x]) => catMatch(x, f, ['name', 'type']))
     .filter(([x]) => !tplDegree || droidFunctionOf(x) === tplDegree)
     .sort((a, b) => {
       /* by function group, alphabetically within it - that way similar
@@ -886,8 +886,7 @@ function pdfCatalogBlock(kind) {
        empty until somebody typed two characters - which makes the card look
        as though it held nothing at all. Search and era now only narrow. */
     const all = src.filter(x => (!era || x.era === era) &&
-      (f.length < 2 || x.name.toLowerCase().includes(f) ||
-       (x.type || '').toLowerCase().includes(f)));
+      (f.length < 2 || catMatch(x, f, ['name', 'type'])));
     const hits = all.slice(0, LIMIT);
     if (!hits.length) info = `<p class="hint">${t('pdf_none')}</p>`;
     else {

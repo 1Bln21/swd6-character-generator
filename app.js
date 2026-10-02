@@ -1102,9 +1102,7 @@ function templateCard() {
   const list = charTemplates();
   if (!list.length) return '';
   const f = charTplFilter.trim().toLowerCase();
-  const hits = list.filter(x => !f
-    || x.name.toLowerCase().includes(f)
-    || (x.species || '').toLowerCase().includes(f));
+  const hits = list.filter(x => catMatch(x, f, ['name', 'species']));
   const opts = hits.map(x =>
     `<option ${C.info.template === x.name ? 'selected' : ''} value="${esc(x.name)}">`
     + `${esc(x.name)}${x.species ? ' · ' + esc(x.species) : ''}</option>`).join('');
@@ -1465,9 +1463,7 @@ function pdfCatalogBlock(kind) {
        empty until somebody typed two characters - which makes the card look
        as though it held nothing at all. Search and era now only narrow. */
     const matchEra = x => !era || x.era === era;
-    const matchText = x => f.length < 2 ||
-      x.name.toLowerCase().includes(f) || (x.type || '').toLowerCase().includes(f) ||
-      (x.model || '').toLowerCase().includes(f);
+    const matchText = x => f.length < 2 || catMatch(x, f, ['name', 'type', 'model']);
     const all = src.filter(x => matchEra(x) && matchText(x));
     const hits = all.slice(0, LIMIT);
     if (!hits.length) info = `<p class="hint">${t('pdf_none')}</p>`;

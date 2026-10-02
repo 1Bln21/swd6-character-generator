@@ -102,6 +102,22 @@ Upload everything **except the `api/` folder** to any web space or GitHub Pages.
 location ^~ /api/data/ { deny all; }
 ```
 
+**Caching.** The pages are never cached, the scripts they pull are cached for
+a year — they are asked for by version (`app.js?v=4.0.0.5.3`), so a release
+changes the address and every browser fetches it once. Each page pulls about
+twenty files, among them catalogues of two megabytes; asking the server
+whether each is still current cost roughly half a second per page change
+before this. `tools/version-assets.py` writes those numbers from
+`APP_VERSION` and is part of making a release — run it, or the pages keep
+pointing at the previous version's files. On nginx the `.htaccess` does
+nothing, so set it there instead:
+
+```nginx
+location ~* \.html$ { add_header Cache-Control "no-cache, must-revalidate"; }
+location ~* \.(js|css)$ { add_header Cache-Control "public, max-age=31536000, immutable"; }
+location ~* (\.(bak|old|orig|save|swp|sql|sqlite|db|zip)|~)$ { deny all; }
+```
+
 **HTTPS with Let's Encrypt** — on shared hosting activate the free certificate in your panel (one click). On your own server:
 
 ```bash
@@ -300,6 +316,12 @@ Administrators read what comes in under ☁ menu → **“🐞 Bug reports”**:
 - **8 single-use backup codes** in case the device is lost
 - Rate limiting: 8 failed attempts → 15 minute lockout
 - SQL exclusively via prepared statements
+- `api/check.php` closes itself once the first account exists; `'check_pass'`
+  in `api/config.local.php` reopens it. It names the database, its user and
+  the PHP version, which is nobody's business after the setup is done
+- Copies and leftovers are never served: `.bak`, `.old`, `~`, `.save`, `.swp`
+  and the like are refused by both `.htaccess` files. Apache runs `index.php`
+  but hands out `index.php.bak` as plain text — with the credentials in it
 
 ### Files
 
@@ -318,10 +340,12 @@ Administrators read what comes in under ☁ menu → **“🐞 Bug reports”**:
 | `online.js` | Online accounts client |
 | `report.js` | Bug report button and crash handler |
 | `combo.js` | Suggestion lists for text fields (home planet, droid manufacturer), drawn like a select |
+| `search.js` | Catalogue search: short names (P-38 for Porax-38) and the hand-kept `alias` field |
 | `legal.js` | Legal notice / privacy pages |
 | `config.js` | Operator configuration |
 | `api/index.php` | Complete server API (PHP + SQLite/MySQL, one file) |
 | `api/check.php` | Installation check |
+| `tools/version-assets.py` | Stamps the app version onto every script and stylesheet the pages pull |
 | `tools/*.py` | Scripts that regenerate the data files from the sources |
 | `tools/smoke.html` | A walk through the interface — see below |
 

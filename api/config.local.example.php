@@ -50,7 +50,20 @@ return [
   //   'urls'   => ['turns:turn.example.de:5349?transport=udp',
   //                'turns:turn.example.de:5349?transport=tcp'],
   //   'secret' => 'THE-SAME-STRING-AS-IN-TURNSERVER-CONF',
+  //   // coturn answers STUN requests on the same ports, so an installation
+  //   // that runs one needs no outside server at all. Left out, the browser
+  //   // asks Google's public STUN server - which works, but means every
+  //   // participant's IP address goes to a third party before a call, and
+  //   // the privacy policy has to say so. Naming your own ends that.
+  //   'stun'   => ['stun:turn.example.de:3478'],
   // ],
+
+  // Password for api/check.php. That page names the database, its user and
+  // the PHP version - everything a stranger would want to know first. Set
+  // this and it asks before showing anything (any user name, this
+  // password). Left empty it still works while no account exists, so a
+  // fresh installation can be set up, and locks itself afterwards.
+  // 'check_pass' => 'something-only-you-know',
 
   // While setting up, this puts the details of an unexpected fault back
   // into the answer instead of only into the server's error log. Handy for

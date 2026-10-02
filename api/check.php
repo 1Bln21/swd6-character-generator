@@ -14,6 +14,81 @@
 define('SWD6_CONFIG_ONLY', true);
 $CONFIG = require __DIR__ . '/index.php';
 
+/* ---------------- who may read this ----------------
+   Everything below names the database host, the database and its user, the
+   PHP version and the extensions that are loaded. During setup that is the
+   whole point; afterwards it is a free reconnaissance report, so the page
+   closes itself once the installation is done.
+
+   'check_pass' in api/config.local.php opens it again. Empty, the page
+   stays readable only while NO account exists yet - otherwise setting up a
+   fresh installation would need a password that nobody can set until the
+   page has helped them get that far. */
+
+/* The password may arrive the ordinary way or, under PHP-FPM, only as the
+   Authorization header that api/.htaccess forwards - the same detour the
+   app itself takes for its token. */
+function check_basic_pass() {
+  if (isset($_SERVER['PHP_AUTH_PW'])) return (string)$_SERVER['PHP_AUTH_PW'];
+  foreach (['HTTP_AUTHORIZATION', 'REDIRECT_HTTP_AUTHORIZATION'] as $k) {
+    if (empty($_SERVER[$k])) continue;
+    if (!preg_match('/^Basic\s+(.+)$/i', trim((string)$_SERVER[$k]), $m)) continue;
+    $raw = base64_decode($m[1], true);
+    if ($raw === false) continue;
+    $pos = strpos($raw, ':');
+    return $pos === false ? '' : substr($raw, $pos + 1);
+  }
+  return '';
+}
+
+/* Is anyone registered yet? Asked quietly and with no report of its own -
+   a failure here means "cannot tell", and that counts as "still being set
+   up", because that is the case this page exists for. */
+function check_has_accounts($CONFIG) {
+  $d = $CONFIG['db'];
+  $mysql = ($d['driver'] === 'mysql')
+    || ($d['driver'] === 'auto' && $d['host'] !== '' && $d['name'] !== '' && $d['user'] !== '');
+  try {
+    if ($mysql) {
+      $dsn = 'mysql:host=' . $d['host'] . ($d['port'] !== '' ? ';port=' . $d['port'] : '')
+           . ';dbname=' . $d['name'] . ';charset=utf8mb4';
+      $db = new PDO($dsn, $d['user'], $d['pass']);
+    } else {
+      $f = __DIR__ . '/data/swd6.sqlite';
+      if (!is_file($f)) return false;
+      $db = new PDO('sqlite:' . $f);
+    }
+    $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    return (int)$db->query('SELECT COUNT(*) FROM users')->fetchColumn() > 0;
+  } catch (Exception $e) {
+    return false;
+  }
+}
+
+$checkPass = isset($CONFIG['check_pass']) ? (string)$CONFIG['check_pass'] : '';
+if ($checkPass !== '') {
+  if (!hash_equals($checkPass, check_basic_pass())) {
+    /* A wrong answer costs a second. Guessing through a list over the
+       network stops being worth anybody's while at that rate. */
+    sleep(1);
+    header('WWW-Authenticate: Basic realm="SWD6 installation check", charset="UTF-8"');
+    header('HTTP/1.1 401 Unauthorized');
+    header('Content-Type: text/plain; charset=utf-8');
+    exit("SWD6 - Installations-Check\n\nPasswort erforderlich "
+       . "(Benutzername beliebig, Passwort aus 'check_pass').\n");
+  }
+} elseif (check_has_accounts($CONFIG)) {
+  header('HTTP/1.1 403 Forbidden');
+  header('Content-Type: text/plain; charset=utf-8');
+  exit("SWD6 - Installations-Check\n\n"
+     . "Diese Seite ist gesperrt, weil die Installation fertig ist: sie nennt "
+     . "Datenbank, Datenbankbenutzer und PHP-Version und gehoert damit nicht "
+     . "mehr ins offene Netz.\n\n"
+     . "Wieder zugaenglich machen: in api/config.local.php\n"
+     . "    'check_pass' => 'ein-passwort',\n"
+     . "Wird sie nicht mehr gebraucht, kann api/check.php geloescht werden.\n");
+}
+
 $rows = [];       // [status, title, text]  status: ok | warn | err | info
 function add($status, $title, $text = '') { global $rows; $rows[] = [$status, $title, $text]; }
 function h($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }

@@ -11,3 +11,39 @@
 <IfModule mod_setenvif.c>
   SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
 </IfModule>
+
+# Never hand out a copy of a PHP file. Apache runs "index.php", but
+# "index.php.bak" it does not recognise and therefore serves as plain text -
+# with the database password in it. The same goes for what editors leave
+# behind: "index.php~" (nano, vi), ".save" and ".swp" (interrupted edits),
+# ".orig" and ".rej" (a patch that did not apply cleanly).
+#
+# This is not hypothetical. A copy of api/index.php made before an update
+# sat in this folder for seven weeks, readable by anyone, and it was the
+# reason the configuration now lives in config.local.php - that file is
+# never overwritten, so there is nothing left to copy beforehand.
+<FilesMatch "(?i)(\.(bak|old|orig|rej|save|swp|swo|tmp|dist|sample|log|sql|sqlite|db)|~|\.php\.[a-z0-9]+)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order deny,allow
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+# The example configuration is shipped to be read and copied, so it keeps
+# its name - but it must not be served either: it shows the shape of the
+# real file next to it, and on an installation where someone filled it in
+# instead of renaming it, it would carry the credentials themselves.
+<Files "config.local.example.php">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+</Files>
+
+<Files "config.local.php">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+</Files>

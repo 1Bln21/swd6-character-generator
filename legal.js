@@ -33,6 +33,8 @@ Object.assign(T.de, {
   legal_f_vat: 'USt-IdNr. (optional)',
   legal_f_provider: 'Hosting-Anbieter (für die Datenschutzerklärung)',
   legal_f_provideraddr: 'Anschrift des Hosters (optional)',
+  legal_f_logdays: 'Server-Logfiles: Aufbewahrung in Tagen (optional)',
+  legal_f_backupdays: 'Sicherungskopien: Aufbewahrung in Tagen (optional)',
   legal_required: '* Pflichtangaben für ein Impressum in Deutschland.',
   legal_f_jurisdiction: 'Rechtsraum des Betreibers',
   legal_j_de: 'Deutschland',
@@ -76,6 +78,8 @@ Object.assign(T.en, {
   legal_f_vat: 'VAT ID (optional)',
   legal_f_provider: 'Hosting provider (for the privacy policy)',
   legal_f_provideraddr: 'Address of the host (optional)',
+  legal_f_logdays: 'Server log files: retention in days (optional)',
+  legal_f_backupdays: 'Backup copies: retention in days (optional)',
   legal_required: '* Required for a legal notice (Impressum) in Germany.',
   legal_f_jurisdiction: 'Legal setting of the operator',
   legal_j_de: 'Germany',
@@ -109,7 +113,13 @@ const LEGAL_FIELDS = ['name', 'street', 'zip', 'city', 'country', 'email', 'phon
                       /* Under whose law the site is run: 'de' | 'eu' | 'other'.
                          NOT the same as the postal country above - that one is
                          free text and says where the letters go. */
-                      'jurisdiction'];
+                      'jurisdiction',
+                      /* How long server log files and backup copies are kept,
+                         in days. Both are numbers the operator alone knows -
+                         they live in logrotate and in a backup script, not in
+                         this app - and a privacy policy may not guess them.
+                         Left empty the text keeps the vague wording it had. */
+                      'logDays', 'backupDays'];
 
 /* Which legal setting applies. Empty counts as Germany, so an installation
    that existed before this field keeps exactly the text it had. */
@@ -123,6 +133,91 @@ function legalJWarn(wo) {
          (wo === 'other' ? esc(t('legal_j_warn_privacy')) : '');
 }
 let legalServer = null;      // loaded from the server (applies to all visitors)
+
+/* Which STUN server the browser really asks, reported by the API.
+   null = not asked yet, or no server to ask (then the text falls back to
+   describing the shipped default, which is all it can honestly say).
+
+   This exists because the privacy policy may not describe a setting - it
+   has to describe what happens. An installation that points STUN at its own
+   relay transfers nothing to anybody, and saying "Google" there would be
+   simply false; one that keeps the default must say so. The page cannot
+   know which, so the server tells it. */
+let legalStun = null;
+
+/* Is every one of them ours? Compared on the registrable domain, so
+   stun.swd6gen.de counts as the same site as swd6gen.de. */
+function stunIsOwn() {
+  if (!legalStun || !legalStun.length) return false;
+  const eigen = location.hostname.split('.').slice(-2).join('.').toLowerCase();
+  if (!eigen) return false;
+  return legalStun.every(h => {
+    h = String(h).toLowerCase();
+    return h === eigen || h.endsWith('.' + eigen);
+  });
+}
+/* The sentence that fits what is actually configured. Three cases, and
+   the third is the honest one: before the server has answered - or on an
+   installation without an API at all - the page can only describe what the
+   app ships with, and says so in those words. */
+function stunSatzDe() {
+  if (stunIsOwn())
+    return 'Dieser Server wird für diese Seite selbst betrieben (' + esc(legalStun.join(', '))
+         + '); an Dritte werden dabei keine Daten übermittelt.';
+  const fremd = stunForeign();
+  if (fremd.length) {
+    const google = fremd.some(h => /(^|\.)google\.com$/i.test(h));
+    return 'Diese Seite verwendet dafür ' + esc(fremd.join(', '))
+         + (google ? ' (Google LLC, USA)' : '') + '; dieser Server erhält dabei deine IP-Adresse.';
+  }
+  return 'Welcher das ist, legt der Betreiber fest; in der Grundeinstellung ist es ein Server '
+       + 'von Google (stun.l.google.com, Google LLC, USA), der dabei deine IP-Adresse erhält.';
+}
+function stunSatzEn() {
+  if (stunIsOwn())
+    return 'That server is run for this site itself (' + esc(legalStun.join(', '))
+         + '); no data are transferred to third parties in the process.';
+  const fremd = stunForeign();
+  if (fremd.length) {
+    const google = fremd.some(h => /(^|\.)google\.com$/i.test(h));
+    return 'This site uses ' + esc(fremd.join(', ')) + (google ? ' (Google LLC, USA)' : '')
+         + ' for that; it receives your IP address in the process.';
+  }
+  return 'Which one is set by the operator; in the default setting it is a server of Google '
+       + '(stun.l.google.com, Google LLC, USA), which receives your IP address in the process.';
+}
+
+/* Retention, said in days when the operator filled it in. */
+function tageZahl(d, feld) {
+  const n = parseInt((d && d[feld]) || '', 10);
+  return (n > 0 && n < 100000) ? n : 0;
+}
+function logSatz(d, en) {
+  const n = tageZahl(d, 'logDays');
+  if (!n) return en ? 'These data are generally deleted after a few days and are not merged with other data sources.'
+                    : 'Diese Daten werden in der Regel nach wenigen Tagen gelöscht und nicht mit anderen Datenquellen zusammengeführt.';
+  return en ? 'These data are deleted automatically after ' + n + ' days and are not merged with other data sources.'
+            : 'Diese Daten werden nach ' + n + ' Tagen automatisch gelöscht und nicht mit anderen Datenquellen zusammengeführt.';
+}
+/* Deleting something does not reach the backups, and saying nothing about
+   that gap would make the deletion promise above sound more absolute than
+   it is. Named, it is simply a stated period. */
+function backupSatz(d, en) {
+  const n = tageZahl(d, 'backupDays');
+  if (!n) return '';
+  return en ? ' Backup copies are kept for at most ' + n + ' days, including off-site; deleted data disappear from those at the latest when that period ends.'
+            : ' Sicherungskopien werden längstens ' + n + ' Tage aufbewahrt, auch an einem getrennten Ort; aus ihnen verschwinden gelöschte Daten spätestens mit Ablauf dieser Frist.';
+}
+
+/* Only the third-party ones, for naming them in the text. */
+function stunForeign() {
+  if (!legalStun) return [];
+  const eigen = location.hostname.split('.').slice(-2).join('.').toLowerCase();
+  return legalStun.filter(h => {
+    h = String(h).toLowerCase();
+    return !(h === eigen || h.endsWith('.' + eigen));
+  });
+}
 let legalMsg = '';
 let legalSnippetOpen = false;
 
@@ -280,9 +375,9 @@ function docPrivacy(d) {
     <h4>1. Controller</h4>
     <p>${legalAddress(d)}<br>E-mail: ${esc(d.email)}${d.phone ? '<br>Phone: ' + esc(d.phone) : ''}</p>
     <h4>2. Overview</h4>
-    <p>This application is a character generator for a tabletop role-playing game, with a table top for play groups. It contains no advertising and no tracking. All files (scripts, styles, fonts) are delivered from this server; no external CDNs or analytics services are used. There are exactly two exceptions, both at the table top and both only when you use the function in question: music from YouTube, and the STUN server used to set up voice and video calls (section 7).</p>
+    <p>This application is a character generator for a tabletop role-playing game, with a table top for play groups. It contains no advertising and no tracking. All files (scripts, styles, fonts) are delivered from this server; no external CDNs or analytics services are used. ${stunIsOwn() ? 'There is exactly one exception, at the table top and only when you use the function: music from YouTube (section 7).' : 'There are exactly two exceptions, both at the table top and both only when you use the function in question: music from YouTube, and the STUN server used to set up voice and video calls (section 7).'}</p>
     <h4>3. Server log files</h4>
-    <p>When you access the site, the web server it runs on (${host}${hostAddr}) automatically records server log files: IP address, date and time of the request, the file requested, amount of data transferred, browser type and version, operating system and referrer URL. Legal basis is Art. 6 (1) (f) GDPR (legitimate interest in a technically correct presentation and the security of the service). These data are generally deleted after a few days and are not merged with other data sources.</p>
+    <p>When you access the site, the web server it runs on (${host}${hostAddr}) automatically records server log files: IP address, date and time of the request, the file requested, amount of data transferred, browser type and version, operating system and referrer URL. Legal basis is Art. 6 (1) (f) GDPR (legitimate interest in a technically correct presentation and the security of the service). ${logSatz(d, true)}</p>
     <h4>4. Storage in your browser (local storage)</h4>
     <p>The application stores your characters, the chosen language and – if you use an account – your login token in your browser’s local storage. These data remain on your device and are not transmitted automatically. No cookies are used for analysis or advertising. You can delete them at any time via your browser settings or the functions of the application.</p>
     <h4>5. User accounts (optional)</h4>
@@ -292,7 +387,7 @@ function docPrivacy(d) {
     <h4>7. Play rounds and the table top</h4>
     <p>If you join a play round, the round stores your membership and the sheets you enter for it, together with the game master's approval. At the table top the following are stored in addition: maps and music files the game master uploads; tokens on the map with label, position and – if you make one out of your character – a reduced copy of its portrait; and the round's dice and note log, with who wrote each entry. Everything at the table top can be seen by all members of the round; tokens in parts of the map the game master has hidden are withheld by the server. Uploaded pictures and music are stored on this server under a name derived from their content and are delivered through that address. That name is long, but it is not a protection: anyone who has the address – because a member passed it on, for example – can open the file without signing in.</p>
     <p><b>Voice and video</b> run directly between the browsers of the participants (WebRTC) and are encrypted in transit (DTLS-SRTP). For this to work, <b>the devices of the other participants learn your IP address</b>. If no direct connection is possible, the stream is relayed through a TURN server operated for this site; it passes the encrypted packets on and stores nothing. While you are in a call, whether your camera and microphone are on and when you were last seen are stored briefly, and so are the connection offers exchanged between the browsers until they are collected.</p>
-    <p>To find out its own public address, your browser asks a <b>STUN server</b> when a call starts. Which one is set by the operator; in the default setting it is a server of Google (stun.l.google.com, Google LLC, USA), which receives your IP address in the process.</p>
+    <p>To find out its own public address, your browser asks a <b>STUN server</b> when a call starts. ${stunSatzEn()}</p>
     <p>If the game master plays <b>music from YouTube</b>, the table first asks you whether YouTube content may be loaded. Only once you agree does your browser load YouTube's embedded player from youtube.com; Google (USA) then receives your IP address and can set cookies, and Google's privacy policy applies. Without your agreement nothing is loaded from YouTube and the rest of the table works as before. Your agreement is stored in your browser only and can be withdrawn at any time with “Block YouTube again” below the player. Legal basis for this is your consent, Art. 6 (1) (a) GDPR and § 25 (1) TDDDG. Music uploaded to the round plays from this server instead.</p>
     <p>Legal basis for everything else at the table top is Art. 6 (1) (b) GDPR (providing the function you use). If the game master deletes the round, its maps, tokens, log and music are deleted with it, including the files, unless another round uses the same file.</p>
     <h4>8. Bug reports and feedback</h4>
@@ -301,13 +396,13 @@ function docPrivacy(d) {
     <p>To limit abuse of the open interface, the number of reports per sender within one hour is counted. For this your IP address is read, but not stored: the key is a hash of it with an installation-specific secret and the current date. That is pseudonymisation, not anonymisation – someone holding the secret could, with effort, work the address back out. The key does not connect one day with the next and is deleted once it is older than two days (the next time a report comes in).</p>
     <p>Legal basis is Art. 6 (1) (f) GDPR (legitimate interest in finding and fixing faults in the application). Automatic reporting can be switched off at any time in the same dialog; the setting is stored in your browser. Reports are deleted at the latest 90 days after being dealt with, an attached sheet after seven.</p>
     <h4>9. Storage period and deletion</h4>
-    <p>Characters are stored until you delete them. Your account and all associated data will be deleted on request to ${esc(d.email)}. This includes the rounds you lead with everything at their table top, and in other people's rounds your tokens, your log entries, your call data and the maps and music you uploaded there as a co-game master; those rounds themselves remain. All bug reports sent while you were signed in are deleted as well – those you wrote and the automatic ones, since an error message can occasionally quote a value from the page (section 8). Reports sent without being signed in carry no name and cannot be assigned to you.</p>
+    <p>Characters are stored until you delete them. Your account and all associated data will be deleted on request to ${esc(d.email)}. This includes the rounds you lead with everything at their table top, and in other people's rounds your tokens, your log entries, your call data and the maps and music you uploaded there as a co-game master; those rounds themselves remain. All bug reports sent while you were signed in are deleted as well – those you wrote and the automatic ones, since an error message can occasionally quote a value from the page (section 8). Reports sent without being signed in carry no name and cannot be assigned to you.${backupSatz(d, true)}</p>
     <h4>10. Encryption</h4>
     <p>This site uses HTTPS (TLS) to protect the transmission of your data.</p>
     <h4>11. Your rights</h4>
     <p>You have the right to information (Art. 15 GDPR), rectification (Art. 16), erasure (Art. 17), restriction of processing (Art. 18), data portability (Art. 20) and to object (Art. 21), and to withdraw a consent you have given at any time with effect for the future (Art. 7 (3)). You also have the right to lodge a complaint with a supervisory authority (Art. 77 GDPR). If you have an account, you can download a copy of the data stored about you at any time in the Online window (“Download my data”) – as a ZIP file with the data as JSON and your uploaded files.</p>
     <h4>12. Disclosure and third countries</h4>
-    <p>Your data are not passed on to third parties, apart from the technical processing by the hosting provider acting as a processor. The two exceptions at the table top are described in section 7: when you use them, YouTube and – in the default setting – the STUN server receive your IP address; both are operated by Google LLC in the USA, so data are transferred there in these two cases. Google LLC is certified under the EU-U.S. Data Privacy Framework; the transfer is based on the European Commission's adequacy decision of 10 July 2023 (Art. 45 GDPR).</p>
+    <p>Your data are not passed on to third parties, apart from the technical processing by the hosting provider acting as a processor. ${stunIsOwn() ? 'The exception at the table top is described in section 7: when you play music from YouTube, YouTube receives your IP address; it is operated by Google LLC in the USA, so data are transferred there in that case.' : 'The two exceptions at the table top are described in section 7: when you use them, YouTube and the STUN server receive your IP address; both are operated by Google LLC in the USA, so data are transferred there in these two cases.'} Google LLC is certified under the EU-U.S. Data Privacy Framework; the transfer is based on the European Commission's adequacy decision of 10 July 2023 (Art. 45 GDPR).</p>
     <h4>13. No automated decision-making</h4>
     <p>No automated decision-making or profiling within the meaning of Art. 22 GDPR takes place.</p>`;
   return `
@@ -315,9 +410,9 @@ function docPrivacy(d) {
     <h4>1. Verantwortlicher</h4>
     <p>${legalAddress(d)}<br>E-Mail: ${esc(d.email)}${d.phone ? '<br>Telefon: ' + esc(d.phone) : ''}</p>
     <h4>2. Überblick</h4>
-    <p>Diese Anwendung ist ein Charaktergenerator für ein Tischrollenspiel, mit einem Spieltisch für Spielrunden. Sie kommt ohne Werbung und ohne Tracking aus. Alle benötigten Dateien (Skripte, Stylesheets, Schriften) werden von diesem Server ausgeliefert; es werden keine externen CDNs oder Analysedienste eingebunden. Es gibt genau zwei Ausnahmen, beide am Spieltisch und beide nur, wenn du die jeweilige Funktion nutzt: Musik von YouTube und der STUN-Server für den Aufbau von Sprach- und Videoverbindungen (Abschnitt 7).</p>
+    <p>Diese Anwendung ist ein Charaktergenerator für ein Tischrollenspiel, mit einem Spieltisch für Spielrunden. Sie kommt ohne Werbung und ohne Tracking aus. Alle benötigten Dateien (Skripte, Stylesheets, Schriften) werden von diesem Server ausgeliefert; es werden keine externen CDNs oder Analysedienste eingebunden. ${stunIsOwn() ? 'Es gibt genau eine Ausnahme, am Spieltisch und nur, wenn du die Funktion nutzt: Musik von YouTube (Abschnitt 7).' : 'Es gibt genau zwei Ausnahmen, beide am Spieltisch und beide nur, wenn du die jeweilige Funktion nutzt: Musik von YouTube und der STUN-Server für den Aufbau von Sprach- und Videoverbindungen (Abschnitt 7).'}</p>
     <h4>3. Server-Logfiles</h4>
-    <p>Beim Aufruf der Seite speichert der Webserver, auf dem sie läuft (${host}${hostAddr}), automatisch Server-Logfiles: IP-Adresse, Datum und Uhrzeit der Anfrage, aufgerufene Datei, übertragene Datenmenge, Browsertyp und -version, Betriebssystem sowie Referrer-URL. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einer technisch fehlerfreien Darstellung und der Sicherheit des Angebots). Diese Daten werden in der Regel nach wenigen Tagen gelöscht und nicht mit anderen Datenquellen zusammengeführt.</p>
+    <p>Beim Aufruf der Seite speichert der Webserver, auf dem sie läuft (${host}${hostAddr}), automatisch Server-Logfiles: IP-Adresse, Datum und Uhrzeit der Anfrage, aufgerufene Datei, übertragene Datenmenge, Browsertyp und -version, Betriebssystem sowie Referrer-URL. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einer technisch fehlerfreien Darstellung und der Sicherheit des Angebots). ${logSatz(d, false)}</p>
     <h4>4. Speicherung im Browser (localStorage)</h4>
     <p>Die Anwendung speichert deine Charaktere, die gewählte Sprache und – bei Nutzung eines Kontos – dein Anmeldetoken im lokalen Speicher deines Browsers. Diese Daten verbleiben auf deinem Gerät und werden nicht automatisch übertragen. Cookies zu Analyse- oder Werbezwecken werden nicht eingesetzt. Du kannst die Daten jederzeit über die Browsereinstellungen oder die Funktionen der Anwendung löschen.</p>
     <h4>5. Benutzerkonten (optional)</h4>
@@ -327,7 +422,7 @@ function docPrivacy(d) {
     <h4>7. Spielrunden und Spieltisch</h4>
     <p>Trittst du einer Spielrunde bei, speichert die Runde deine Mitgliedschaft und die Bögen, die du für sie anmeldest, samt Freigabe durch die Spielleitung. Am Spieltisch kommen hinzu: Karten und Musikdateien, die die Spielleitung hochlädt; Marken auf der Karte mit Beschriftung, Position und – wenn du eine aus deinem Charakter machst – einer verkleinerten Kopie seines Porträts; sowie das Würfel- und Notizprotokoll der Runde mit der Angabe, wer welchen Eintrag geschrieben hat. Alles am Spieltisch sehen alle Mitglieder der Runde; Marken in Bereichen, die die Spielleitung verdeckt hat, hält der Server zurück. Hochgeladene Bilder und Musik liegen auf diesem Server unter einem Namen, der aus ihrem Inhalt gebildet wird, und werden über diese Adresse ausgeliefert. Dieser Name ist lang, aber kein Schutz: Wer die Adresse hat – etwa weil ein Mitglied sie weitergegeben hat –, kann die Datei ohne Anmeldung öffnen.</p>
     <p><b>Sprache und Video</b> laufen direkt zwischen den Browsern der Teilnehmenden (WebRTC) und sind auf dem Übertragungsweg verschlüsselt (DTLS-SRTP). Damit das funktioniert, <b>erfahren die Geräte der anderen Teilnehmenden deine IP-Adresse</b>. Ist keine direkte Verbindung möglich, läuft der Datenstrom über einen TURN-Server, der für diese Seite betrieben wird; er reicht die verschlüsselten Pakete weiter und speichert nichts. Während du in einem Anruf bist, werden kurzzeitig gespeichert, ob Kamera und Mikrofon an sind und wann du zuletzt gesehen wurdest, außerdem die zwischen den Browsern ausgetauschten Verbindungsangebote, bis sie abgeholt sind.</p>
-    <p>Um die eigene öffentliche Adresse zu ermitteln, fragt dein Browser beim Start eines Anrufs einen <b>STUN-Server</b>. Welcher das ist, legt der Betreiber fest; in der Grundeinstellung ist es ein Server von Google (stun.l.google.com, Google LLC, USA), der dabei deine IP-Adresse erhält.</p>
+    <p>Um die eigene öffentliche Adresse zu ermitteln, fragt dein Browser beim Start eines Anrufs einen <b>STUN-Server</b>. ${stunSatzDe()}</p>
     <p>Spielt die Spielleitung <b>Musik von YouTube</b> ab, fragt dich der Spieltisch zuerst, ob YouTube-Inhalte geladen werden dürfen. Erst wenn du zustimmst, lädt dein Browser den eingebetteten Player von youtube.com; Google (USA) erhält dann deine IP-Adresse und kann Cookies setzen, es gilt die Datenschutzerklärung von Google. Ohne deine Zustimmung wird nichts von YouTube geladen, der übrige Spieltisch funktioniert unverändert. Die Zustimmung wird nur in deinem Browser gespeichert und lässt sich jederzeit mit „YouTube wieder sperren“ unter dem Player widerrufen. Rechtsgrundlage ist insoweit deine Einwilligung, Art. 6 Abs. 1 lit. a DSGVO und § 25 Abs. 1 TDDDG. In die Runde hochgeladene Musik läuft dagegen von diesem Server.</p>
     <p>Rechtsgrundlage für alles Übrige am Spieltisch ist Art. 6 Abs. 1 lit. b DSGVO (Bereitstellung der Funktion, die du nutzt). Löscht die Spielleitung die Runde, werden Karten, Marken, Protokoll und Musik mitgelöscht, einschließlich der Dateien, sofern keine andere Runde dieselbe Datei nutzt.</p>
     <h4>8. Fehlerberichte und Rückmeldungen</h4>
@@ -336,13 +431,13 @@ function docPrivacy(d) {
     <p>Um Missbrauch der offenen Schnittstelle zu begrenzen, wird die Zahl der Meldungen je Absender innerhalb einer Stunde gezählt. Dafür wird deine IP-Adresse gelesen, aber nicht gespeichert: Schlüssel ist ein Hash aus ihr, einem installationsspezifischen Geheimnis und dem aktuellen Datum. Das ist eine Pseudonymisierung, keine Anonymisierung – wer das Geheimnis kennt, könnte die Adresse mit Aufwand zurückrechnen. Der Schlüssel verbindet einen Tag nicht mit dem nächsten und wird gelöscht, sobald er älter als zwei Tage ist (beim nächsten eingehenden Bericht).</p>
     <p>Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse daran, Fehler der Anwendung zu finden und zu beheben). Die automatische Meldung lässt sich im selben Dialog jederzeit abschalten; die Einstellung liegt in deinem Browser. Berichte werden spätestens 90 Tage nach ihrer Erledigung gelöscht, ein angehängter Bogen bereits nach sieben Tagen.</p>
     <h4>9. Speicherdauer und Löschung</h4>
-    <p>Charaktere werden gespeichert, bis du sie löschst. Dein Konto und alle zugehörigen Daten löschen wir auf Anfrage an ${esc(d.email)}. Dazu gehören die Runden, die du leitest, mit allem, was an ihrem Spieltisch liegt, und in fremden Runden deine Marken, deine Protokolleinträge, deine Anrufdaten sowie Karten und Musik, die du dort als Co-Spielleitung hochgeladen hast; die fremden Runden selbst bleiben bestehen. Ebenso gelöscht werden alle Fehlerberichte, die gesendet wurden, während du angemeldet warst – selbst geschriebene wie automatische, da eine Fehlermeldung im Einzelfall einen Wert von der Seite wiedergeben kann (Abschnitt 8). Ohne Anmeldung gesendete Berichte tragen keinen Namen und lassen sich dir nicht zuordnen.</p>
+    <p>Charaktere werden gespeichert, bis du sie löschst. Dein Konto und alle zugehörigen Daten löschen wir auf Anfrage an ${esc(d.email)}. Dazu gehören die Runden, die du leitest, mit allem, was an ihrem Spieltisch liegt, und in fremden Runden deine Marken, deine Protokolleinträge, deine Anrufdaten sowie Karten und Musik, die du dort als Co-Spielleitung hochgeladen hast; die fremden Runden selbst bleiben bestehen. Ebenso gelöscht werden alle Fehlerberichte, die gesendet wurden, während du angemeldet warst – selbst geschriebene wie automatische, da eine Fehlermeldung im Einzelfall einen Wert von der Seite wiedergeben kann (Abschnitt 8). Ohne Anmeldung gesendete Berichte tragen keinen Namen und lassen sich dir nicht zuordnen.${backupSatz(d, false)}</p>
     <h4>10. Verschlüsselung</h4>
     <p>Diese Seite nutzt HTTPS (TLS), um die Übertragung deiner Daten zu schützen.</p>
     <h4>11. Deine Rechte</h4>
     <p>Du hast das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch (Art. 21) sowie das Recht, eine erteilte Einwilligung jederzeit mit Wirkung für die Zukunft zu widerrufen (Art. 7 Abs. 3). Außerdem steht dir ein Beschwerderecht bei einer Datenschutz-Aufsichtsbehörde zu (Art. 77 DSGVO). Hast du ein Konto, kannst du eine Kopie der über dich gespeicherten Daten jederzeit selbst im Online-Fenster abrufen („Meine Daten herunterladen“) – als ZIP-Datei mit den Daten als JSON und deinen hochgeladenen Dateien.</p>
     <h4>12. Weitergabe und Drittländer</h4>
-    <p>Eine Weitergabe deiner Daten an Dritte findet nicht statt – abgesehen von der technischen Verarbeitung durch den Hosting-Anbieter als Auftragsverarbeiter. Die beiden Ausnahmen am Spieltisch sind in Abschnitt 7 beschrieben: Nutzt du sie, erhalten YouTube und – in der Grundeinstellung – der STUN-Server deine IP-Adresse. Beide werden von Google LLC in den USA betrieben; in diesen beiden Fällen findet also eine Übermittlung dorthin statt. Google LLC ist nach dem EU-US Data Privacy Framework zertifiziert; die Übermittlung stützt sich auf den Angemessenheitsbeschluss der EU-Kommission vom 10. Juli 2023 (Art. 45 DSGVO).</p>
+    <p>Eine Weitergabe deiner Daten an Dritte findet nicht statt – abgesehen von der technischen Verarbeitung durch den Hosting-Anbieter als Auftragsverarbeiter. ${stunIsOwn() ? 'Die Ausnahme am Spieltisch ist in Abschnitt 7 beschrieben: Spielst du Musik von YouTube ab, erhält YouTube deine IP-Adresse. YouTube wird von Google LLC in den USA betrieben; in diesem Fall findet also eine Übermittlung dorthin statt.' : 'Die beiden Ausnahmen am Spieltisch sind in Abschnitt 7 beschrieben: Nutzt du sie, erhalten YouTube und der STUN-Server deine IP-Adresse. Beide werden von Google LLC in den USA betrieben; in diesen beiden Fällen findet also eine Übermittlung dorthin statt.'} Google LLC ist nach dem EU-US Data Privacy Framework zertifiziert; die Übermittlung stützt sich auf den Angemessenheitsbeschluss der EU-Kommission vom 10. Juli 2023 (Art. 45 DSGVO).</p>
     <h4>13. Keine automatisierte Entscheidungsfindung</h4>
     <p>Eine automatisierte Entscheidungsfindung oder ein Profiling im Sinne des Art. 22 DSGVO findet nicht statt.</p>`;
 }
@@ -472,6 +567,8 @@ function renderLegalSettings() {
     ${field('legal_f_vat', 'vatId')}
     ${field('legal_f_provider', 'provider')}
     ${field('legal_f_provideraddr', 'providerAddress')}
+    ${field('legal_f_logdays', 'logDays')}
+    ${field('legal_f_backupdays', 'backupDays')}
     <p class="hint">${t('legal_required')}</p>
 
     <p style="margin-top:12px">
@@ -622,6 +719,9 @@ document.addEventListener('change', e => {
   try {
     const res = await fetch(url + '?action=legal_get');
     const data = await res.json();
+    /* Independent of the imprint: an installation may have left those
+       fields empty and still point STUN somewhere that has to be named. */
+    if (data && Array.isArray(data.stun)) { legalStun = data.stun; renderLegal(); }
     if (data && data.legal) {
       const o = legalEmpty();
       LEGAL_FIELDS.forEach(f => { if (data.legal[f]) o[f] = data.legal[f]; });

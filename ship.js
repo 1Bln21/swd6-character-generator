@@ -827,15 +827,9 @@ function templateCard() {
   const f = tplFilter.toLowerCase();
   /* Short names count too. Everybody knows the P-38; hardly anybody
      types "Buuper Torsckil Abbey Devices Porax-38 Starfighter". So a
-     name like "Porax-38" is searched under "P-38" as well - first
-     letter, hyphen, number. Only for real words, or the acronyms in
-     the catalogue (AIC-4, INT-66) would answer to nonsense like A-4.
-     It only ever ADDS matches, so nothing can go missing through it. */
-  const kuerzel = txt => (String(txt).match(/[A-Z][a-z]{2,}-\d{1,3}/g) || [])
-    .map(w => (w[0] + '-' + w.split('-')[1]).toLowerCase());
-  const match = x => (!f || x.name.toLowerCase().includes(f) || (x.craft || '').toLowerCase().includes(f)
-                     || kuerzel(x.name + ' ' + (x.craft || '')).some(k => k.includes(f))) &&
-                     (!tplEra || x.era === tplEra);
+     name like "Porax-38" is found under "P-38" too, and a hand-kept
+     'alias' catches the nicknames no rule reaches. See search.js. */
+  const match = x => catMatch(x, f, ['name', 'craft']) && (!tplEra || x.era === tplEra);
   const opt = (x, idx, kind) => `<option value="${kind}:${idx}">${esc(x.name)}${x.scale ? ' · ' + esc(x.scale) : ''}${x.book ? ' · ' + esc(x.book) : ''}</option>`;
   /* Ceiling per group. It dates from a time when the list was thought to
      be a bottleneck; measured, the browser needs about three milliseconds
@@ -1105,9 +1099,10 @@ function weaponCard() {
   const cat = weaponCatalog();
   if (!cat.length) return '';
   const f = wpnFilter.toLowerCase().trim();
+  /* Both places filter identically on purpose: the second one looks the
+     chosen entry up by its position in this very list. */
   const hits = cat.filter(w =>
-    (!wpnScale || w.scale === wpnScale) &&
-    (!f || w.name.toLowerCase().includes(f)));
+    (!wpnScale || w.scale === wpnScale) && catMatch(w, f, ['name']));
   const CAP = 300;
   /* Some books append an explanation to the damage value ("6D against
      planetary shields, 3D otherwise"). In the pick line only the dice code
@@ -1167,9 +1162,10 @@ function addWeaponFromCatalog() {
   if (!sel || sel.value === '') return;
   const cat = weaponCatalog();
   const f = wpnFilter.toLowerCase().trim();
+  /* Both places filter identically on purpose: the second one looks the
+     chosen entry up by its position in this very list. */
   const hits = cat.filter(w =>
-    (!wpnScale || w.scale === wpnScale) &&
-    (!f || w.name.toLowerCase().includes(f)));
+    (!wpnScale || w.scale === wpnScale) && catMatch(w, f, ['name']));
   const src = hits[+sel.value];
   if (!src) return;
   const nw = emptyWeapon();
