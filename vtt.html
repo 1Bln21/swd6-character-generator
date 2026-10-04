@@ -10,8 +10,8 @@
      attributes scattered through the generated markup do. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' https://www.youtube.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src https://www.youtube.com https://www.youtube-nocookie.com">
 <title>Star Wars D6 – Table</title>
-<link rel="stylesheet" href="style.css?v=4.0.0.5.5">
-<script src="theme.js?v=4.0.0.5.5"></script>
+<link rel="stylesheet" href="style.css?v=4.0.0.5.6">
+<script src="theme.js?v=4.0.0.5.6"></script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗺️</text></svg>">
 </head>
 <body>
@@ -199,6 +199,26 @@
                 <div><label data-i18n="rng_own_wdmg">Schaden</label><input type="text" id="rngOwnWdmg" maxlength="10" placeholder="5D+1"></div>
                 <div><label data-i18n="rng_own_soak">Widerstand</label><input type="text" id="rngOwnSoak" maxlength="10" placeholder="4D"></div>
                 <div><label data-i18n="rng_own_dodge">Ausweichen</label><input type="text" id="rngOwnDodge" maxlength="10" placeholder="3D+2"></div>
+                <div><label data-i18n="rng_own_armp">Rüstung phys.</label><input type="text" id="rngOwnArmP" maxlength="10" placeholder="+1D"></div>
+                <div><label data-i18n="rng_own_arme">Rüstung energ.</label><input type="text" id="rngOwnArmE" maxlength="10" placeholder="+2"></div>
+              </div>
+              <label data-i18n="rng_own_stats">Attribute und Fertigkeiten</label>
+              <textarea id="rngOwnStats" rows="5" spellcheck="false"
+                        placeholder="Geschicklichkeit 3D&#10;Blaster 4D+2&#10;Stärke 3D&#10;Wahrnehmung 2D+1"></textarea>
+              <p class="hint" data-i18n="rng_own_stats_hint"></p>
+              <p><label class="opt-row" style="text-transform:none">
+                <input type="checkbox" id="rngOwnForce"> <span data-i18n="rng_own_force">Macht-Nutzer</span>
+              </label></p>
+              <div id="rngOwnForceBox" class="hidden">
+                <div class="formgrid">
+                  <div><label data-i18n="rng_own_control">Kontrolle</label><input type="text" id="rngOwnControl" maxlength="10" placeholder="4D"></div>
+                  <div><label data-i18n="rng_own_sense">Spüren</label><input type="text" id="rngOwnSense" maxlength="10" placeholder="3D+1"></div>
+                  <div><label data-i18n="rng_own_alter">Verändern</label><input type="text" id="rngOwnAlter" maxlength="10" placeholder="2D"></div>
+                </div>
+                <label data-i18n="rng_own_powers">Macht-Kräfte</label>
+                <textarea id="rngOwnPowers" rows="4" spellcheck="false"
+                          placeholder="Telekinese&#10;Lichtschwertkampf&#10;Gefahr spüren&#10;Beschleunigte Heilung"></textarea>
+                <p class="hint" data-i18n="rng_own_powers_hint"></p>
               </div>
               <p><button class="mini accent" id="btnRngOwn" data-i18n="rng_own_save">Werte speichern</button></p>
             </div>
@@ -349,12 +369,12 @@
   <span>Star Wars: The Roleplaying Game, 2nd Edition – West End Games D6-System</span><span id="legalLinks"></span>
 </footer>
 
-<script src="config.js?v=4.0.0.5.5"></script>
-<script src="vtt.js?v=4.0.0.5.5"></script>
-<script src="online.js?v=4.0.0.5.5"></script>
-<script src="help.js?v=4.0.0.5.5"></script>
-<script src="credits.js?v=4.0.0.5.5"></script>
-<script src="report.js?v=4.0.0.5.5"></script>
-<script src="legal.js?v=4.0.0.5.5"></script>
+<script src="config.js?v=4.0.0.5.6"></script>
+<script src="vtt.js?v=4.0.0.5.6"></script>
+<script src="online.js?v=4.0.0.5.6"></script>
+<script src="help.js?v=4.0.0.5.6"></script>
+<script src="credits.js?v=4.0.0.5.6"></script>
+<script src="report.js?v=4.0.0.5.6"></script>
+<script src="legal.js?v=4.0.0.5.6"></script>
 </body>
 </html>

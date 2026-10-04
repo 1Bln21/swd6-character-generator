@@ -740,7 +740,14 @@ $rtAdd = ['facing' => 'facing REAL DEFAULT -1', 'move' => 'move INT DEFAULT 0',
              move and its range already do. Stored as pips - "5D+1" is 16 -
              because that is what the dice roller works in. */
           'wdmg' => 'wdmg INT DEFAULT 0', 'soak' => 'soak INT DEFAULT 0',
-          'dodge' => 'dodge INT DEFAULT 0'];
+          'dodge' => 'dodge INT DEFAULT 0',
+          /* 4.0.0.5.6: the little stat block a game master writes for a
+             figure that has no sheet - attributes, skills, armour, and the
+             Force skills where there are any. One column rather than a
+             dozen, because what a stormtrooper needs and what a rancor
+             needs have almost nothing in common, and a form of twelve
+             boxes would stand ten of them empty. */
+          'stats' => "stats $TXT"];
 foreach ($rtAdd as $col => $colDef) {
   if (!$rtCols || in_array($col, $rtCols, true)) continue;
   try { $db->exec("ALTER TABLE round_tokens ADD COLUMN $colDef"); }
@@ -2608,6 +2615,10 @@ case 'vtt_state': {
                    'wdmg' => ($isGm || $mine) && isset($t['wdmg']) ? (int)$t['wdmg'] : 0,
                    'soak' => ($isGm || $mine) && isset($t['soak']) ? (int)$t['soak'] : 0,
                    'dodge' => ($isGm || $mine) && isset($t['dodge']) ? (int)$t['dodge'] : 0,
+                   /* Same lock as the rest: what the enemy can do is the
+                      game master's to reveal, not the answer's to carry. */
+                   'stats' => ($isGm || $mine) && !empty($t['stats'])
+                              ? json_decode((string)$t['stats'], true) : null,
                    'owner' => (string)$t['owner'], 'ownerId' => (int)$t['owner_id']];
     }
   }
@@ -2779,9 +2790,42 @@ case 'token_stats': {
   $wdmg = max(0, min(90, (int)inp('wdmg', 0)));
   $soak = max(0, min(90, (int)inp('soak', 0)));
   $dodge = max(0, min(90, (int)inp('dodge', 0)));
-  $db->prepare('UPDATE round_tokens SET move = ?, wname = ?, wrange = ?, wdmg = ?, soak = ?, dodge = ?
-                WHERE id = ?')
-     ->execute([$move, $wname, $wrange, $wdmg, $soak, $dodge, $tokenId]);
+  /* The block arrives as JSON and is stored as JSON - but re-encoded from
+     what was actually understood, never passed through. Whatever else the
+     caller put in there does not survive the trip. */
+  $statsIn = inp('stats');
+  if (is_string($statsIn)) $statsIn = json_decode($statsIn, true);
+  $stats = '';
+  if (is_array($statsIn)) {
+    $eintraege = [];
+    foreach ((array)(isset($statsIn['entries']) ? $statsIn['entries'] : []) as $e) {
+      if (!is_array($e)) continue;
+      $l = mb_substr(trim(strip_tags((string)(isset($e['l']) ? $e['l'] : ''))), 0, 40);
+      $p = max(0, min(90, (int)(isset($e['p']) ? $e['p'] : 0)));
+      if ($l !== '' && $p > 0) $eintraege[] = ['l' => $l, 'p' => $p];
+      if (count($eintraege) >= 40) break;
+    }
+    $kraefte = [];
+    foreach ((array)(isset($statsIn['powers']) ? $statsIn['powers'] : []) as $k) {
+      $k = mb_substr(trim(strip_tags((string)$k)), 0, 60);
+      if ($k !== '') $kraefte[] = $k;
+      if (count($kraefte) >= 8) break;
+    }
+    $out = [
+      'entries' => $eintraege,
+      'armP' => max(0, min(90, (int)(isset($statsIn['armP']) ? $statsIn['armP'] : 0))),
+      'armE' => max(0, min(90, (int)(isset($statsIn['armE']) ? $statsIn['armE'] : 0))),
+      'force' => !empty($statsIn['force']) ? 1 : 0,
+      'powers' => $kraefte,
+    ];
+    if ($eintraege || $kraefte || $out['armP'] || $out['armE'] || $out['force']) {
+      $stats = json_encode($out, JSON_UNESCAPED_UNICODE);
+      if (strlen($stats) > 4000) fail('That stat block is too long');
+    }
+  }
+  $db->prepare('UPDATE round_tokens SET move = ?, wname = ?, wrange = ?, wdmg = ?, soak = ?,
+                       dodge = ?, stats = ? WHERE id = ?')
+     ->execute([$move, $wname, $wrange, $wdmg, $soak, $dodge, $stats, $tokenId]);
   vtt_touch($id);
   json_out(['ok' => true, 'move' => $move, 'wname' => $wname, 'wrange' => $wrange]);
 }

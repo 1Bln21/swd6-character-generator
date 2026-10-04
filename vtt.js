@@ -84,6 +84,13 @@ const T = {
     rng_own_hint: 'Werte an dieser Marke. Sie gehen dem Bogen vor – gedacht für freie Marken, die gar keinen Bogen haben, und für Bögen, die vor 4.0.0.5 gespeichert wurden. Schaden, Widerstand und Ausweichen trägst du als Würfel ein (5D+1), nicht als Zahl; ohne Widerstand lässt sich an dieser Marke kein Schaden ausrechnen.',
     rng_own_move: 'Move (m)', rng_own_wname: 'Waffe', rng_own_wrange: 'Reichweite',
     rng_own_wdmg: 'Schaden', rng_own_soak: 'Widerstand', rng_own_dodge: 'Ausweichen',
+    rng_own_armp: 'Rüstung phys.', rng_own_arme: 'Rüstung energ.',
+    rng_own_stats: 'Attribute und Fertigkeiten',
+    rng_own_stats_hint: 'Eine Zeile je Eintrag, Name und Würfel: „Blaster 4D+2“. Zeilen ohne Würfel werden übergangen. Was hier steht, lässt sich im Würfelfeld direkt anklicken, sobald die Marke gewählt ist. Steht „Stärke“ darin, zählt sie plus Rüstung als Widerstand; steht „Ausweichen“ darin, weicht die Marke damit aus.',
+    rng_own_force: 'Macht-Nutzer',
+    rng_own_control: 'Kontrolle', rng_own_sense: 'Spüren', rng_own_alter: 'Verändern',
+    rng_own_powers: 'Macht-Kräfte',
+    rng_own_powers_hint: 'Eine Kraft je Zeile, als Gedächtnisstütze – gewürfelt wird mit Kontrolle, Spüren oder Verändern, so wie es die Kraft verlangt.',
     rng_own_save: 'Werte speichern',
     gm_dim_hint: 'Tag und Nacht auf derselben Karte. Verdunkelt die Szene für alle – auch schon erkundetes Gelände. Die Marken bleiben sichtbar. Nur die Spielleitung kann das stellen.',
     gm_upload: '＋ Karte hochladen', gm_delete: 'Karte löschen',
@@ -186,6 +193,13 @@ const T = {
     rng_own_hint: 'Values kept at this token. They come before the sheet - meant for free tokens, which have no sheet at all, and for sheets saved before 4.0.0.5. Damage, resistance and dodge are typed as dice (5D+1), not as a number; without a resistance no damage can be worked out at this token.',
     rng_own_move: 'Move (m)', rng_own_wname: 'Weapon', rng_own_wrange: 'Range',
     rng_own_wdmg: 'Damage', rng_own_soak: 'Resistance', rng_own_dodge: 'Dodge',
+    rng_own_armp: 'Armour phys.', rng_own_arme: 'Armour energy',
+    rng_own_stats: 'Attributes and skills',
+    rng_own_stats_hint: 'One line per entry, a name and dice: "Blaster 4D+2". Lines without dice are skipped. What stands here can be clicked straight from the dice panel once the token is selected. A "Strength" line counts with the armour as the resistance; a "Dodge" line is what the figure dodges with.',
+    rng_own_force: 'Force user',
+    rng_own_control: 'Control', rng_own_sense: 'Sense', rng_own_alter: 'Alter',
+    rng_own_powers: 'Force powers',
+    rng_own_powers_hint: 'One power per line, as a reminder - the roll itself is made with Control, Sense or Alter, whichever the power asks for.',
     rng_own_save: 'Save values',
     gm_dim_hint: 'Day and night on the same map. Darkens the scene for everyone, explored ground included. The tokens stay visible. Only the GM can set this.',
     gm_upload: '＋ Upload map', gm_delete: 'Delete map',
@@ -704,7 +718,14 @@ function renderRanges() {
   box.classList.toggle('hidden', !stuecke.length);
   renderRangePanel();
   renderAttack();
+  /* The figure's own values belong in the dice list, and they change when
+     the game master edits them - but a refresh arrives every few seconds,
+     and rebuilding a <select> that often would fight with anyone using it.
+     So only when something in it actually differs. */
+  const kennung = (tok ? tok.id : 0) + '|' + JSON.stringify(tokenEntries(tok));
+  if (kennung !== rollWhatKey) { rollWhatKey = kennung; renderRollWhat(); }
 }
+let rollWhatKey = '';
 
 /* The panel under the map: who is selected, what is drawn, and for a free
    token the two fields that give it a reach at all. */
@@ -776,7 +797,9 @@ function renderRangePanel() {
   /* Not while somebody is typing in one of them - a refresh arrives every
      few seconds and would wipe the field mid-word. */
   const tippt = ['rngOwnMove', 'rngOwnWname', 'rngOwnWrange', 'rngOwnWdmg',
-                 'rngOwnSoak', 'rngOwnDodge'].some(id => document.activeElement === $(id));
+                 'rngOwnSoak', 'rngOwnDodge', 'rngOwnArmP', 'rngOwnArmE',
+                 'rngOwnStats', 'rngOwnPowers', 'rngOwnControl', 'rngOwnSense',
+                 'rngOwnAlter'].some(id => document.activeElement === $(id));
   if (eigene && !tippt) {
     $('rngOwnMove').value = String(tok.move || 0);
     $('rngOwnWname').value = tok.wname || '';
@@ -786,6 +809,22 @@ function renderRangePanel() {
     $('rngOwnWdmg').value = tok.wdmg ? pipsToDice(tok.wdmg) : '';
     $('rngOwnSoak').value = tok.soak ? pipsToDice(tok.soak) : '';
     $('rngOwnDodge').value = tok.dodge ? pipsToDice(tok.dodge) : '';
+    const s = tokenStats(tok) || {};
+    $('rngOwnArmP').value = s.armP ? pipsToDice(s.armP) : '';
+    $('rngOwnArmE').value = s.armE ? pipsToDice(s.armE) : '';
+    /* The Force skills are shown in their own boxes and therefore kept out
+       of the text area - otherwise they would stand in both places and the
+       next save would decide which one won. */
+    const alle = tokenEntries(tok);
+    $('rngOwnStats').value = statsText(alle.filter(e => !isForceLabel(e.l)));
+    FORCE_KEYS.forEach(f => {
+      const e = alle.find(x => f.re.test(String(x.l || '').trim()));
+      $('rngOwn' + f.key.charAt(0).toUpperCase() + f.key.slice(1)).value =
+        e ? pipsToDice(e.p) : '';
+    });
+    $('rngOwnForce').checked = !!s.force;
+    $('rngOwnPowers').value = (s.powers || []).join(String.fromCharCode(10));
+    $('rngOwnForceBox').classList.toggle('hidden', !s.force);
   }
 }
 let rangeBoostPicks = [];
@@ -797,6 +836,7 @@ function selectToken(id) {
   selTok = (tok && mayMove(tok)) ? id : 0;
   renderTokens();
   renderRanges();
+  renderRollWhat();          // the figure's own values belong in the list
 }
 
 /* 0 = broad daylight, 100 = pitch black. Not quite black even then: at
@@ -1609,15 +1649,28 @@ function renderRollSheets() {
 async function renderRollWhat() {
   const id = +$('rollSheet').value || 0;
   const what = $('rollWhat');
+  const behalten = what.value;
   const gear = $('rollGear');
   const prof = await loadRollProfile(id);
+  /* The figure on the map can be rolled with too. A stormtrooper the game
+     master wrote a stat block for is the commonest thing to roll at the
+     table, and typing its dice into the number fields every time is
+     exactly the work this is meant to take away. */
+  const tok = selectedToken();
+  const eigene = tokenEntries(tok);
+  const markeGruppe = eigene.length
+    ? '<optgroup label="' + esc(tokenName(tok)) + '">'
+      + eigene.map((e, i) => '<option value="m' + i + '">' + esc(e.l) + ' '
+          + pipsToDice(e.p) + '</option>').join('')
+      + '</optgroup>'
+    : '';
   if (!prof || !(prof.entries || []).length) {
-    what.innerHTML = '<option value="">' + esc(t('roll_free')) + '</option>';
+    what.innerHTML = '<option value="">' + esc(t('roll_free')) + '</option>' + markeGruppe;
     gear.innerHTML = '';
     updateRollSum();
     return;
   }
-  what.innerHTML = '<option value="">' + esc(t('roll_free')) + '</option>'
+  what.innerHTML = '<option value="">' + esc(t('roll_free')) + '</option>' + markeGruppe
     + prof.entries.map((e, i) =>
         '<option value="' + i + '">' + esc(e.label) + ' ' + pipsToDice(e.pips) + '</option>').join('');
   /* The bonuses are offered, not applied: only the player knows whether
@@ -1629,6 +1682,10 @@ async function renderRollWhat() {
           + '<input type="checkbox" class="roll-gear-box" data-pips="' + g.pips + '"> '
           + '<span>' + esc(g.label) + ' +' + pipsToDice(g.pips) + '</span></label>').join('')
     : '';
+  /* The list is rebuilt whenever the figure on the map changes, so what
+     was picked has to survive that - otherwise choosing a skill and then
+     nudging the token would quietly put the pool back to a free roll. */
+  if (behalten && [...what.options].some(o => o.value === behalten)) what.value = behalten;
   updateRollSum();
 }
 
@@ -1640,7 +1697,10 @@ function rollPoolPips() {
   const prof = rollProfiles[id];
   const idx = $('rollWhat').value;
   let pips = 0, from = '';
-  if (prof && idx !== '') {
+  if (idx && idx.charAt(0) === 'm') {
+    const e = tokenEntries(selectedToken())[+idx.slice(1)];
+    if (e) { pips = e.p; from = e.l; }
+  } else if (prof && idx !== '') {
     const e = prof.entries[+idx];
     if (e) { pips = e.pips; from = e.label; }
   }
@@ -1769,6 +1829,94 @@ function rangeBracket(rangeText, meters) {
 function damageKind(name) {
   return /blaster|laser|ion|disrupt|plasma|stun|bowcaster|flame|energ/i.test(String(name || ''))
     ? 'energy' : 'phys';
+}
+
+/* ---------------- the stat block kept at a token ----------------
+   A figure the game master simply put on the map has no sheet, and most of
+   what gets shot at is such a figure. The block is written the way the
+   books print one - one line per entry, "Blaster 4D+2" - because that is
+   copied off a page in ten seconds, and because what a stormtrooper needs
+   and what a rancor needs have almost nothing in common. A form of twelve
+   boxes would stand ten of them empty.
+
+   Everything the figure can do lives in the one list, Force skills
+   included: in the books Control, Sense and Alter ARE skills. They are
+   only pulled out into boxes of their own so the panel can hide them for
+   the figures that use no Force at all, which is nearly all of them. */
+
+/* "Blaster 4D+2" -> { l: 'Blaster', p: 14 }. A line without dice is
+   skipped rather than kept as zero - half a line is a typo, not a value. */
+function statsParse(text) {
+  const out = [];
+  String(text || '').split(/\r?\n/).forEach(zeile => {
+    const m = zeile.match(/^\s*(.+?)[\s:]+(\d+)\s*D\s*(?:\+\s*(\d))?\s*$/i);
+    if (!m) return;
+    const l = m[1].trim().slice(0, 40);
+    const p = (+m[2]) * 3 + (+(m[3] || 0));
+    if (l && p > 0 && out.length < 40) out.push({ l: l, p: p });
+  });
+  return out;
+}
+function statsText(entries) {
+  return (entries || []).map(e => e.l + ' ' + pipsToDice(e.p)).join('\n');
+}
+
+/* The three Force skills, recognised in either language so a block typed
+   in German still fills the boxes on an English page. */
+const FORCE_KEYS = [
+  { key: 'control', re: /^(control|kontrolle)$/i },
+  { key: 'sense', re: /^(sense|sp(ü|ue)ren)$/i },
+  { key: 'alter', re: /^(alter|ver(ä|ae)ndern)$/i },
+];
+function isForceLabel(label) {
+  return FORCE_KEYS.some(f => f.re.test(String(label || '').trim()));
+}
+
+function tokenStats(tok) {
+  return (tok && tok.stats && typeof tok.stats === 'object') ? tok.stats : null;
+}
+/* Everything the figure can roll. */
+function tokenEntries(tok) {
+  const s = tokenStats(tok);
+  return (s && Array.isArray(s.entries)) ? s.entries : [];
+}
+/* Look a value up by name, in either language. */
+function statEntry(tok, re) {
+  return tokenEntries(tok).find(e => re.test(String(e.l || '').trim())) || null;
+}
+/* Armour at the token, in pips, kept apart the way the books keep it - a
+   blaster bolt and a vibroblade do not meet the same thing. */
+function tokenArmor(tok, kind) {
+  const s = tokenStats(tok);
+  if (!s) return 0;
+  return Math.max(0, +(kind === 'energy' ? s.armE : s.armP) || 0);
+}
+
+/* What a hit has to get through at this figure, in pips. Three sources,
+   most specific first: the single resistance field, then Strength out of
+   the block plus its armour, then the sheet behind the token. */
+function tokenSoak(tok, kind, sheet) {
+  if (tok && +tok.soak > 0) return +tok.soak;
+  const str = statEntry(tok, /^(strength|st(ä|ae)rke)$/i);
+  if (str) return str.p + tokenArmor(tok, kind);
+  const vom = (sheet && sheet.soak && +sheet.soak[kind]) || 0;
+  return vom;
+}
+
+/* What the figure dodges with. The dedicated field wins, then a Dodge in
+   the block, then Dexterity - the books let the governing attribute stand
+   in for an untrained reaction - and finally the sheet. */
+function tokenDodgePips(tok, sheet) {
+  if (tok && +tok.dodge > 0) return { pips: +tok.dodge, label: t('dod_do') };
+  const skill = statEntry(tok, /^(dodge|ausweichen)$/i);
+  if (skill) return { pips: skill.p, label: skill.l };
+  const attr = statEntry(tok, /^(dexterity|geschicklichkeit)$/i);
+  if (attr) return { pips: attr.p, label: attr.l };
+  const entries = (sheet && sheet.entries) || [];
+  const s2 = entries.find(x => /^(dodge|ausweichen)$/i.test(x.label));
+  const a2 = entries.find(x => /^(dexterity|geschicklichkeit)$/i.test(x.label));
+  const e = s2 || a2;
+  return e ? { pips: e.pips, label: e.label } : { pips: 0, label: '' };
 }
 
 let atkTargetId = 0;
@@ -1926,27 +2074,17 @@ async function doDodge(row, use) {
   let total = 0, r = null, label = '';
   if (use) {
     const tok = tokenById(d.atk.toId);
-    /* The figure's own value first, the same as for move, range and
-       resistance - that is what makes a token the game master simply put
-       on the map able to answer at all. */
-    let pips = tok ? (+tok.dodge || 0) : 0;
-    let name = t('dod_do');
-    if (!pips) {
-      /* Fetched and waited for, not taken from the cache: the first time a
-         figure is shot at its sheet has never been asked for, and
-         tokenSheet() would answer null while the request is still in the
-         air - which would read as "no sheet" and refuse the roll. */
-      const sheet = tok && tok.charId ? await loadRollProfile(tok.charId) : null;
-      const entries = (sheet && sheet.entries) || [];
-      const skill = entries.find(x => /^(dodge|ausweichen)$/i.test(x.label));
-      /* Not trained: the books let the governing attribute stand in, and
-         for dodge that is Dexterity. */
-      const attr = entries.find(x => /^(dexterity|geschicklichkeit)$/i.test(x.label));
-      pips = (skill && skill.pips) || (attr && attr.pips) || 0;
-      if (skill || attr) name = (skill || attr).label;
-    }
-    if (!pips) { alert(t('dod_nostat')); return; }
-    label = name + ' ' + pipsToDice(pips);
+    /* Fetched and waited for, not taken from the cache: the first time a
+       figure is shot at its sheet has never been asked for, and
+       tokenSheet() would answer null while the request is still in the air
+       - which would read as "no sheet" and refuse the roll. Skipped
+       entirely when the token answers for itself. */
+    const braucht = !(tok && (+tok.dodge > 0 || tokenEntries(tok).length));
+    const sheet = braucht && tok && tok.charId ? await loadRollProfile(tok.charId) : null;
+    const d2 = tokenDodgePips(tok, sheet);
+    if (!d2.pips) { alert(t('dod_nostat')); return; }
+    const pips = d2.pips;
+    label = d2.label + ' ' + pipsToDice(pips);
     r = rollPool(Math.floor(pips / 3), pips % 3, true, 0);
     total = r.total;
   }
@@ -1976,11 +2114,10 @@ async function doDamage(row) {
   /* What is written at the figure comes first, exactly as it does for move
      and range: a creature the game master put on the map has no sheet, and
      one that does may still be meant to soak differently tonight. */
-  let soakPips = tok ? (+tok.soak || 0) : 0;
-  if (!soakPips) {
-    const sheet = tok && tok.charId ? await loadRollProfile(tok.charId) : null;
-    soakPips = (sheet && sheet.soak && +sheet.soak[kind]) || 0;
-  }
+  const brauchtBogen = !(tok && (+tok.soak > 0
+    || statEntry(tok, /^(strength|st(ä|ae)rke)$/i)));
+  const sheet = brauchtBogen && tok && tok.charId ? await loadRollProfile(tok.charId) : null;
+  const soakPips = tokenSoak(tok, kind, sheet);
   if (!soakPips) { alert(t('dmg_nosoak')); return; }
   const dmg = rollPool(Math.floor(dmgPips / 3), dmgPips % 3, true, 0);
   const soak = rollPool(Math.floor(soakPips / 3), soakPips % 3, true, 0);
@@ -2572,6 +2709,12 @@ document.addEventListener('DOMContentLoaded', function () {
     $('rngBoost').value = String(p.m);
     renderRanges();
   });
+  /* The Force boxes are shown only where they mean something - almost
+     nothing on a map uses the Force, and three empty fields on every
+     stormtrooper would be three fields too many. */
+  $('rngOwnForce').addEventListener('change', function () {
+    $('rngOwnForceBox').classList.toggle('hidden', !this.checked);
+  });
   $('btnRngOwn').addEventListener('click', async () => {
     const tok = selectedToken();
     if (!tok) return;
@@ -2581,9 +2724,30 @@ document.addEventListener('DOMContentLoaded', function () {
     const wdmg = dicePips($('rngOwnWdmg').value);
     const soak = dicePips($('rngOwnSoak').value);
     const dodge = dicePips($('rngOwnDodge').value);
+    const force = $('rngOwnForce').checked;
+    const entries = statsParse($('rngOwnStats').value);
+    /* The Force boxes are merged back into the one list - they are skills
+       like any other and are rolled the same way. Dropped entirely when
+       the figure is no Force user, so switching the tick off does not
+       leave three orphans behind that nothing ever shows again. */
+    if (force) {
+      FORCE_KEYS.forEach(f => {
+        const p = dicePips($('rngOwn' + f.key.charAt(0).toUpperCase() + f.key.slice(1)).value);
+        if (p > 0) entries.push({ l: t('rng_own_' + f.key), p: p });
+      });
+    }
+    const stats = {
+      entries: entries,
+      armP: dicePips($('rngOwnArmP').value),
+      armE: dicePips($('rngOwnArmE').value),
+      force: force ? 1 : 0,
+      powers: force ? $('rngOwnPowers').value.split(/\r?\n/)
+                        .map(x => x.trim()).filter(Boolean).slice(0, 8) : [],
+    };
     try {
       await api('token_stats', { round: roundId, token: tok.id, move: move, wname: wname,
-                                 wrange: wrange, wdmg: wdmg, soak: soak, dodge: dodge });
+                                 wrange: wrange, wdmg: wdmg, soak: soak, dodge: dodge,
+                                 stats: JSON.stringify(stats) });
       await refresh(true);
     } catch (e) { alert(e.message); }
   });
