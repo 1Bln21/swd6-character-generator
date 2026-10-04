@@ -1047,6 +1047,22 @@ body.map-only .vtt-bar { margin: 0 0 4px; padding: 0 4px; }
 .vtt-log-row { padding: 3px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
 .vtt-log-row b { color: var(--accent); }
 
+/* A shot in the log is a little block rather than a line: the roll, what
+   the defender did about it, the damage - and the one button that is the
+   next person's to press. The left edge marks where one shot ends and the
+   next begins, which a plain list of lines cannot do. */
+.atk-block { border-left: 3px solid var(--accent); padding-left: 8px; margin: 6px 0; }
+.atk-block > div { padding: 1px 0; }
+.atk-acts { margin-top: 4px; }
+.atk-hit { color: #ff8a65; }
+.atk-miss { color: var(--muted); }
+.wnd-none { color: var(--muted); }
+.wnd-stunned { color: #ffd54f; }
+.wnd-wounded { color: #ffa726; }
+.wnd-incap { color: #ff7043; }
+.wnd-mortally { color: #ef5350; }
+.wnd-killed { color: #e53935; font-weight: 700; }
+
 /* On a phone the map takes the whole width and the controls go underneath -
    side by side there would leave neither of them usable. */
 @media (max-width: 900px) {

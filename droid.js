@@ -520,8 +520,13 @@ function buildRollProfile() {
     (C.customEquipment || []).forEach(e => {
       if (e && e.name && (+e.qty || 0) > 0) ausGear(e.name, e.note || e.notes || '');
     });
+    /* Same as on the character sheet: what a hit has to get through, so
+       the table top can work a shot out to the end. For a droid that is
+       Strength plus armour and shields from the modifications. */
+    const dat = droidArmorTotals();
     C._roll = { entries: entries, gear: gear, move: +(C.info && C.info.move) || 0,
-                weapons: weapons, boosts: boosts };
+                weapons: weapons, boosts: boosts,
+                soak: { phys: dat.physTotal, energy: dat.enerTotal } };
     localStorage.setItem('swd6_roll_droid',
       JSON.stringify({ name: (C.info && C.info.name) || '', entries, gear }));
   } catch (e) {}

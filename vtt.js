@@ -61,6 +61,26 @@ const T = {
     rng_offmap: '(reicht über die Karte hinaus)',
     rng_need_grid: 'Die Karte hat noch keinen Maßstab – die Spielleitung trägt in ihrem Feld „Karte breit (m)“ ein, wie breit die Karte ist.',
     rng_need_move: 'kein Move hinterlegt – unten eintragen (oder den Bogen einmal neu speichern)',
+    atk_title: 'Angriff', atk_target: 'Ziel', atk_notarget: '— kein Ziel —',
+    atk_weapon: 'Waffe', atk_gmmod: 'Bonus der Spielleitung',
+    atk_gmmod_hint: 'Negativ macht den Schuss leichter (Deckung weg, stehendes Ziel), positiv schwerer.',
+    atk_pick: 'Ziel wählen – die Entfernung bestimmt dann die Schwierigkeit.',
+    atk_outofrange: 'Außer Reichweite', atk_weaponreach: 'Waffe reicht',
+    atk_diff: 'Schwierigkeit', atk_do: '🎯 Angriff würfeln',
+    atk_log: '{who} schießt mit {weapon} auf {target} ({m} m): {total} gegen {diff}',
+    atk_roll: 'Wurf', atk_vs: 'gegen', atk_bydodge: 'durch Ausweichen erhöht',
+    atk_hit: 'Treffer', atk_miss: 'Daneben',
+    dod_do: 'Ausweichen', dod_skip: 'Kein Ausweichen', dod_waiting: 'Wartet auf das Ziel …', dmg_waiting: 'Wartet auf den Schadenswurf des Ziels …',
+    dod_log: '{who} weicht aus: {total}', dod_none: '{who} weicht nicht aus',
+    dod_nostat: 'Für diese Marke ist kein Bogen hinterlegt – ohne Geschicklichkeit oder Ausweichen lässt sich nichts würfeln.',
+    dmg_do: '💥 Schaden', dmg_result: 'Schaden {dmg} gegen Widerstand {soak}',
+    dmg_log: '{who}: Schaden {dmg} gegen Widerstand {soak} → {wound}',
+    dmg_nodmg: 'Zu dieser Waffe steht kein Schaden im Katalog.',
+    dmg_nosoak: 'Für diese Marke ist kein Bogen hinterlegt – ohne Stärke und Rüstung lässt sich der Widerstand nicht würfeln.',
+    dmg_phys: 'physisch', dmg_energy: 'energetisch',
+    wnd_none: 'Keine Wirkung', wnd_stunned: 'Benommen (Stunned)',
+    wnd_wounded: 'Verwundet (Wounded)', wnd_incap: 'Handlungsunfähig (Incapacitated)',
+    wnd_mortally: 'Tödlich verwundet (Mortally Wounded)', wnd_killed: 'Getötet (Killed)',
     rng_own_hint: 'Werte an dieser Marke. Sie gehen dem Bogen vor – praktisch für freie Marken und für Bögen, die vor 4.0.0.5 gespeichert wurden und noch keinen Move mitbringen.',
     rng_own_move: 'Move (m)', rng_own_wname: 'Waffe', rng_own_wrange: 'Reichweite',
     rng_own_save: 'Werte speichern',
@@ -143,6 +163,25 @@ const T = {
     rng_offmap: '(reaches beyond the map)',
     rng_need_grid: 'The map has no scale yet - the GM puts its width in metres into the map panel.',
     rng_need_move: 'no move on record - put one in below, or save the sheet once more',
+    atk_title: 'Attack', atk_target: 'Target', atk_notarget: '- no target -',
+    atk_weapon: 'Weapon', atk_gmmod: 'Game master bonus',
+    atk_gmmod_hint: 'Negative makes the shot easier (no cover, a standing target), positive harder.',
+    atk_pick: 'Pick a target - the distance then sets the difficulty.',
+    atk_outofrange: 'Out of range', atk_weaponreach: 'weapon reaches',
+    atk_diff: 'Difficulty', atk_do: '🎯 Roll attack',
+    atk_log: '{who} fires {weapon} at {target} ({m} m): {total} against {diff}',
+    atk_roll: 'Roll', atk_vs: 'against', atk_bydodge: 'raised by the dodge',
+    atk_hit: 'Hit', atk_miss: 'Miss',
+    dod_do: 'Dodge', dod_skip: 'No dodge', dod_waiting: 'Waiting for the target ...', dmg_waiting: 'Waiting for the target to roll damage ...',
+    dod_log: '{who} dodges: {total}', dod_none: '{who} does not dodge',
+    dod_nostat: 'No sheet behind this token - without Dexterity or Dodge there is nothing to roll.',
+    dmg_do: '💥 Damage', dmg_result: 'Damage {dmg} against resistance {soak}',
+    dmg_log: '{who}: damage {dmg} against resistance {soak} -> {wound}',
+    dmg_nodmg: 'The catalogue carries no damage for this weapon.',
+    dmg_nosoak: 'No sheet behind this token - without Strength and armour there is no resistance to roll.',
+    dmg_phys: 'physical', dmg_energy: 'energy',
+    wnd_none: 'No effect', wnd_stunned: 'Stunned', wnd_wounded: 'Wounded',
+    wnd_incap: 'Incapacitated', wnd_mortally: 'Mortally Wounded', wnd_killed: 'Killed',
     rng_own_hint: 'Values kept at this token. They come before the sheet - handy for free tokens, and for sheets saved before 4.0.0.5 that carry no move yet.',
     rng_own_move: 'Move (m)', rng_own_wname: 'Weapon', rng_own_wrange: 'Range',
     rng_own_save: 'Save values',
@@ -661,6 +700,7 @@ function renderRanges() {
   box.innerHTML = stuecke.join('');
   box.classList.toggle('hidden', !stuecke.length);
   renderRangePanel();
+  renderAttack();
 }
 
 /* The panel under the map: who is selected, what is drawn, and for a free
@@ -741,6 +781,7 @@ let rangeBoostPicks = [];
 function selectToken(id) {
   const tok = (state && (state.tokens || []).find(x => x.id === id)) || null;
   /* Only pieces you may move - see the note at the top of this section. */
+  if (selTok !== id) { atkTargetId = 0; atkWeaponIdx = 0; }
   selTok = (tok && mayMove(tok)) ? id : 0;
   renderTokens();
   renderRanges();
@@ -839,7 +880,8 @@ function showNewRolls() {
   const log = (state && state.log) || [];
   const newest = log.length ? log[log.length - 1].id : 0;
   if (!lastRollShown) { lastRollShown = newest; return; }   // first load: no replay
-  log.filter(l => l.id > lastRollShown && l.kind === 'roll').forEach(showRoll);
+  log.filter(l => l.id > lastRollShown
+    && ['roll', 'attack', 'dodge', 'damage'].indexOf(l.kind) >= 0).forEach(showRoll);
   if (newest > lastRollShown) lastRollShown = newest;
 }
 
@@ -847,8 +889,19 @@ function renderLog() {
   const box = $('log');
   const log = (state && state.log) || [];
   if (!log.length) { box.innerHTML = '<p class="hint">' + esc(t('log_empty')) + '</p>'; return; }
-  box.innerHTML = log.map(l =>
-    '<div class="vtt-log-row"><b>' + esc(l.who || '?') + '</b> ' + esc(l.text) + '</div>').join('');
+  /* An attack is not one line but a little block: the shot, what the
+     defender did about it, and the damage - plus the one button whoever is
+     reading may press next. The dodge and damage rows are therefore not
+     listed again on their own; they are already inside that block. */
+  box.innerHTML = log.map(l => {
+    const d = logData(l);
+    if (d && d.ref) return '';
+    if (l.kind === 'attack' && d && d.atk) {
+      return '<div class="vtt-log-row atk-block"><b>' + esc(l.who || '?') + '</b>'
+           + attackRowHtml(l, d) + '</div>';
+    }
+    return '<div class="vtt-log-row"><b>' + esc(l.who || '?') + '</b> ' + esc(l.text) + '</div>';
+  }).join('');
   box.scrollTop = box.scrollHeight;
 }
 
@@ -1622,6 +1675,351 @@ async function doRoll() {
   catch (e) { alert(e.message); }
 }
 
+
+/* ===================== resolving a shot (4.0.0.5.4) =====================
+   4.0.0.5 drew the ranges; this works them out. The rules are the books',
+   and all three steps of a shot live in the round log as ordinary rows -
+   an attack, an optional dodge, and the damage - tied together by the
+   attack row's id. A fight is resolved and then over; it needs no table of
+   its own, and the log is where the table is already looking.
+
+   Why three steps and not one button: the defender has a say. A figure
+   that can dodge may spend its reaction on it, and only then is it known
+   what the shot had to beat. Rolling it all at once would take that
+   decision away from the player it belongs to. */
+
+/* Difficulty by range bracket, from the book. */
+const RANGE_DIFF = { pb: 5, short: 10, medium: 15, long: 20 };
+
+/* Damage minus what it had to get through. These are the rows the
+   character sheet already prints (app.js, woundRows); "killed" is the one
+   the sheet has no box for and the table still needs. */
+const WOUNDS = [
+  { min: 16, key: 'killed' },
+  { min: 13, key: 'mortally' },
+  { min: 9, key: 'incap' },
+  { min: 4, key: 'wounded' },
+  { min: 0, key: 'stunned' },
+];
+function woundFor(over) {
+  if (over < 0) return 'none';
+  const w = WOUNDS.find(x => over >= x.min);
+  return w ? w.key : 'none';
+}
+
+/* "5D+2" to pips - the catalogues write damage and dodge that way. */
+function dicePips(text) {
+  const m = String(text || '').match(/(\d+)\s*D\s*(?:\+\s*(\d))?/i);
+  return m ? (+m[1]) * 3 + (+(m[2] || 0)) : 0;
+}
+
+/* The other way round from metersToFraction(). */
+function fractionToMeters(fr) {
+  const map = activeMap();
+  if (!map || !fr) return 0;
+  if (+map.widthM > 0) return fr * +map.widthM;
+  if (!map.grid || map.grid <= 0 || !map.w) return 0;
+  const scale = +map.scaleM > 0 ? +map.scaleM : 2;
+  return fr * map.w * scale / map.grid;
+}
+
+/* How far apart two figures stand, in metres. Token coordinates are
+   fractions of the map's width and of its height, and those are not the
+   same length on the ground - so the vertical part is converted into
+   width units first, exactly as ringHtml() stretches a circle to keep it
+   a circle. */
+function tokenDistanceM(a, b) {
+  const map = activeMap();
+  if (!a || !b || !map || !map.w) return 0;
+  const dx = (+b.x || 0) - (+a.x || 0);
+  const dy = ((+b.y || 0) - (+a.y || 0)) * ((map.h || map.w) / map.w);
+  return fractionToMeters(Math.sqrt(dx * dx + dy * dy));
+}
+
+/* Which bracket a distance falls in. Null means out of range: the books
+   give no difficulty for that, the shot is simply not available. */
+function rangeBracket(rangeText, meters) {
+  const r = parseRange(rangeText);
+  if (!r) return null;
+  const stufen = [['pb', r.pb], ['short', r.short], ['medium', r.medium], ['long', r.long]];
+  for (let i = 0; i < stufen.length; i++) {
+    if (stufen[i][1] > 0 && meters <= stufen[i][1]) {
+      return { key: stufen[i][0], diff: RANGE_DIFF[stufen[i][0]], max: stufen[i][1] };
+    }
+  }
+  return null;
+}
+
+/* Blasters and lasers are stopped by the energy figure, a slugthrower or a
+   vibroblade by the physical one. The books put the type on the weapon;
+   our catalogues do not, so the name decides - and the log says which was
+   used, so a table that disagrees can see it and say so. */
+function damageKind(name) {
+  return /blaster|laser|ion|disrupt|plasma|stun|bowcaster|flame|energ/i.test(String(name || ''))
+    ? 'energy' : 'phys';
+}
+
+let atkTargetId = 0;
+let atkWeaponIdx = 0;
+
+/* Everything the panel needs about the shot it is about to make. */
+function attackSetup() {
+  const from = selectedToken();
+  if (!from) return null;
+  const reach = tokenReach(from);
+  if (!reach.weapons.length) return null;
+  const others = ((state && state.tokens) || []).filter(x => x.id !== from.id);
+  const weapon = reach.weapons[Math.min(atkWeaponIdx, reach.weapons.length - 1)];
+  const target = others.find(x => x.id === atkTargetId) || null;
+  const dist = target ? tokenDistanceM(from, target) : 0;
+  return {
+    from: from, weapons: reach.weapons, weapon: weapon, targets: others,
+    target: target, dist: dist,
+    bracket: target ? rangeBracket(weapon && weapon.range, dist) : null,
+  };
+}
+
+function attackDiff(s) {
+  if (!s || !s.bracket) return 0;
+  const gm = +($('atkGmMod') || {}).value || 0;
+  return Math.max(1, s.bracket.diff + gm);
+}
+
+function renderAttack() {
+  const box = $('atkBox');
+  if (!box) return;
+  const s = attackSetup();
+  box.classList.toggle('hidden', !s);
+  if (!s) return;
+
+  const tsel = $('atkTarget');
+  tsel.innerHTML = '<option value="0">' + esc(t('atk_notarget')) + '</option>'
+    + s.targets.map(x => '<option value="' + x.id + '">' + esc(x.label || '?')
+        + ' · ' + Math.round(tokenDistanceM(s.from, x)) + ' m</option>').join('');
+  tsel.value = String(atkTargetId);
+
+  const wsel = $('atkWeapon');
+  wsel.innerHTML = s.weapons.map((w, i) =>
+    '<option value="' + i + '">' + esc(w.name || '?')
+    + (w.dmg ? ' · ' + esc(w.dmg) : '') + (w.range ? ' · ' + esc(w.range) : '')
+    + '</option>').join('');
+  wsel.value = String(Math.min(atkWeaponIdx, s.weapons.length - 1));
+
+  const info = $('atkInfo');
+  const btn = $('btnAttack');
+  if (!s.target) {
+    info.textContent = t('atk_pick');
+    btn.classList.add('hidden');
+    return;
+  }
+  if (!s.bracket) {
+    info.innerHTML = '<b>' + esc(t('atk_outofrange')) + '</b> · ' + Math.round(s.dist) + ' m · '
+      + esc(t('atk_weaponreach')) + ' ' + esc(s.weapon.range || '?');
+    btn.classList.add('hidden');
+    return;
+  }
+  const gm = +$('atkGmMod').value || 0;
+  info.innerHTML = Math.round(s.dist) + ' m · <b>' + esc(t('rng_' + s.bracket.key)) + '</b> · '
+    + esc(t('atk_diff')) + ' <b>' + attackDiff(s) + '</b>'
+    + (gm ? ' <span class="hint">(' + s.bracket.diff + ' ' + (gm > 0 ? '+' : '−')
+            + ' ' + Math.abs(gm) + ')</span>' : '');
+  btn.classList.remove('hidden');
+}
+
+/* The shot. The pool is whatever the dice panel is set to - the player
+   picks the weapon's skill there like any other roll, so a called shot or
+   a second-action penalty is typed into the modifier the usual way and
+   nothing here has to know about it. */
+async function doAttack() {
+  const s = attackSetup();
+  if (!s || !s.target || !s.bracket) return;
+  const n = Math.max(0, +$('rollDice').value || 0);
+  const p = Math.max(0, Math.min(2, +$('rollPips').value || 0));
+  const mod = +$('rollMod').value || 0;
+  const diff = attackDiff(s);
+  const r = rollPool(n, p, $('rollWild').checked, mod);
+  const src = rollPoolPips();
+  const label = (src.from ? src.from + ' ' : '') + n + 'D' + (p ? '+' + p : '')
+              + (mod ? (mod > 0 ? ' +' + mod : ' ' + mod) : '');
+  const text = t('atk_log')
+    .replace('{who}', s.from.label || '?')
+    .replace('{weapon}', s.weapon.name || '?')
+    .replace('{target}', s.target.label || '?')
+    .replace('{m}', String(Math.round(s.dist)))
+    .replace('{total}', String(r.total))
+    .replace('{diff}', String(diff));
+  const data = JSON.stringify({
+    label: label, regs: r.regs, wild: r.wildVal, extra: r.extra, pips: p, mod: mod,
+    total: r.total, complication: r.complication,
+    atk: {
+      fromId: s.from.id, fromName: s.from.label || '?',
+      toId: s.target.id, toName: s.target.label || '?',
+      weapon: s.weapon.name || '?', dmg: s.weapon.dmg || '',
+      m: Math.round(s.dist), bracket: s.bracket.key,
+      base: s.bracket.diff, gm: +$('atkGmMod').value || 0, diff: diff,
+    },
+  });
+  try {
+    await api('vtt_log', { round: roundId, kind: 'attack', text: text, data: data });
+    await refresh(true);
+  } catch (e) { alert(e.message); }
+}
+
+/* Reading the chain back out of the log. */
+function logData(l) {
+  try { return JSON.parse((l && l.data) || 'null'); } catch (e) { return null; }
+}
+function chainFor(rowId) {
+  const out = { dodge: null, damage: null };
+  ((state && state.log) || []).forEach(l => {
+    const d = logData(l);
+    if (!d || d.ref !== rowId) return;
+    if (l.kind === 'dodge') out.dodge = { row: l, d: d };
+    if (l.kind === 'damage') out.damage = { row: l, d: d };
+  });
+  return out;
+}
+/* What the shot finally had to beat, and whether it got there. A dodge
+   only ever raises the bar - a bad dodge roll does not make the shot
+   easier than the range already made it. */
+function attackResult(d, chain) {
+  const base = d.atk.diff;
+  const dodged = chain.dodge && chain.dodge.d.used ? chain.dodge.d.total : 0;
+  const diff = Math.max(base, dodged);
+  return { diff: diff, hit: d.total >= diff, dodged: dodged };
+}
+
+function tokenById(id) {
+  return ((state && state.tokens) || []).find(x => x.id === id) || null;
+}
+/* Who may answer for the figure being shot at: whoever may move it. The
+   game master may always step in - the same rule the map already uses. */
+function mayAnswerFor(tokId) {
+  const tok = tokenById(tokId);
+  if (!tok) return !!(state && state.isGm);
+  return mayMove(tok);
+}
+
+/* The defender's dodge, or their declining it. */
+async function doDodge(row, use) {
+  const d = logData(row);
+  if (!d || !d.atk) return;
+  let total = 0, r = null, label = '';
+  if (use) {
+    const tok = tokenById(d.atk.toId);
+    /* Fetched and waited for, not taken from the cache: the first time a
+       figure is shot at its sheet has never been asked for, and
+       tokenSheet() would answer null while the request is still in the
+       air - which would read as "no sheet" and refuse the roll. */
+    const sheet = tok && tok.charId ? await loadRollProfile(tok.charId) : null;
+    const entries = (sheet && sheet.entries) || [];
+    const skill = entries.find(x => /^(dodge|ausweichen)$/i.test(x.label));
+    /* Not trained: the books let the governing attribute stand in, and for
+       dodge that is Dexterity. */
+    const attr = entries.find(x => /^(dexterity|geschicklichkeit)$/i.test(x.label));
+    const pips = (skill && skill.pips) || (attr && attr.pips) || 0;
+    if (!pips) { alert(t('dod_nostat')); return; }
+    label = (skill || attr).label + ' ' + pipsToDice(pips);
+    r = rollPool(Math.floor(pips / 3), pips % 3, true, 0);
+    total = r.total;
+  }
+  const text = use
+    ? t('dod_log').replace('{who}', d.atk.toName).replace('{total}', String(total))
+    : t('dod_none').replace('{who}', d.atk.toName);
+  const data = JSON.stringify({
+    ref: row.id, used: !!use, total: total, label: label,
+    regs: r ? r.regs : [], wild: r ? r.wildVal : null, extra: r ? r.extra : [],
+    complication: r ? r.complication : false,
+  });
+  try {
+    await api('vtt_log', { round: roundId, kind: 'dodge', text: text, data: data });
+    await refresh(true);
+  } catch (e) { alert(e.message); }
+}
+
+/* The damage, once it is settled that the shot landed: the weapon's dice
+   against Strength and armour, read off the table the sheet prints. */
+async function doDamage(row) {
+  const d = logData(row);
+  if (!d || !d.atk) return;
+  const dmgPips = dicePips(d.atk.dmg);
+  if (!dmgPips) { alert(t('dmg_nodmg')); return; }
+  const tok = tokenById(d.atk.toId);
+  const sheet = tok && tok.charId ? await loadRollProfile(tok.charId) : null;
+  const kind = damageKind(d.atk.weapon);
+  const soakPips = (sheet && sheet.soak && +sheet.soak[kind]) || 0;
+  if (!soakPips) { alert(t('dmg_nosoak')); return; }
+  const dmg = rollPool(Math.floor(dmgPips / 3), dmgPips % 3, true, 0);
+  const soak = rollPool(Math.floor(soakPips / 3), soakPips % 3, true, 0);
+  const over = dmg.total - soak.total;
+  const wound = woundFor(over);
+  const text = t('dmg_log')
+    .replace('{who}', d.atk.toName)
+    .replace('{dmg}', String(dmg.total))
+    .replace('{soak}', String(soak.total))
+    .replace('{wound}', t('wnd_' + wound));
+  const data = JSON.stringify({
+    ref: row.id, dmg: dmg.total, soak: soak.total, over: over, wound: wound,
+    kind: kind, dmgDice: d.atk.dmg, soakDice: pipsToDice(soakPips),
+    regs: dmg.regs, wild: dmg.wildVal, extra: dmg.extra, complication: dmg.complication,
+  });
+  try {
+    await api('vtt_log', { round: roundId, kind: 'damage', text: text, data: data });
+    await refresh(true);
+  } catch (e) { alert(e.message); }
+}
+
+/* One attack as it appears in the log: what happened, and the one button
+   whoever is reading can press next. */
+function attackRowHtml(l, d) {
+  const chain = chainFor(l.id);
+  const res = attackResult(d, chain);
+  const a = d.atk;
+  const teile = [];
+  teile.push('<div><b>' + esc(a.fromName) + '</b> → <b>' + esc(a.toName) + '</b> · '
+    + esc(a.weapon) + ' · ' + a.m + ' m · ' + esc(t('rng_' + a.bracket)) + '</div>');
+  teile.push('<div>' + esc(t('atk_roll')) + ' <b>' + d.total + '</b> ' + esc(t('atk_vs'))
+    + ' <b>' + res.diff + '</b>'
+    + (res.dodged ? ' <span class="hint">(' + esc(t('atk_bydodge')) + ')</span>' : '') + '</div>');
+
+  if (!chain.dodge) {
+    if (mayAnswerFor(a.toId)) {
+      teile.push('<div class="atk-acts">'
+        + '<button class="mini" data-atk="dodge" data-row="' + l.id + '">' + esc(t('dod_do')) + '</button> '
+        + '<button class="mini" data-atk="nododge" data-row="' + l.id + '">' + esc(t('dod_skip')) + '</button>'
+        + '</div>');
+    } else {
+      teile.push('<div class="hint">' + esc(t('dod_waiting')) + '</div>');
+    }
+    return teile.join('');
+  }
+
+  teile.push('<div>' + (res.hit
+    ? '<b class="atk-hit">' + esc(t('atk_hit')) + '</b>'
+    : '<b class="atk-miss">' + esc(t('atk_miss')) + '</b>') + '</div>');
+  if (!res.hit) return teile.join('');
+
+  if (!chain.damage) {
+    /* The resistance comes off the target's sheet, and only the side that
+       may move that figure is allowed to read it - so the damage is rolled
+       there, not by the shooter. At the table that is the game master for
+       anything hostile, which is where it belongs anyway. */
+    if (mayAnswerFor(a.toId)) {
+      teile.push('<div class="atk-acts"><button class="mini accent" data-atk="damage" data-row="'
+        + l.id + '">' + esc(t('dmg_do')) + ' ' + esc(a.dmg || '') + '</button></div>');
+    } else {
+      teile.push('<div class="hint">' + esc(t('dmg_waiting')) + '</div>');
+    }
+    return teile.join('');
+  }
+  const dd = chain.damage.d;
+  teile.push('<div>' + esc(t('dmg_result')
+      .replace('{dmg}', String(dd.dmg)).replace('{soak}', String(dd.soak)))
+    + ' <span class="hint">(' + esc(t('dmg_' + dd.kind)) + ')</span></div>');
+  teile.push('<div><b class="wnd-' + dd.wound + '">' + esc(t('wnd_' + dd.wound)) + '</b></div>');
+  return teile.join('');
+}
+
 /* ---------------- voice and video ----------------
    A mesh: everyone holds a connection to everyone else, and the media
    never touches our server - it only passes the introductions along. That
@@ -2290,6 +2688,24 @@ document.addEventListener('DOMContentLoaded', function () {
   $('btnTokDoc').addEventListener('click', addDocToken);
   $('btnTokFree').addEventListener('click', addFreeTokens);
   $('btnRoll').addEventListener('click', doRoll);
+
+  /* ---- the attack panel ---- */
+  $('atkTarget').addEventListener('change', function () { atkTargetId = +this.value || 0; renderAttack(); });
+  $('atkWeapon').addEventListener('change', function () { atkWeaponIdx = +this.value || 0; renderAttack(); });
+  $('atkGmMod').addEventListener('input', renderAttack);
+  $('btnAttack').addEventListener('click', doAttack);
+  /* The buttons inside the log are redrawn on every refresh, so they are
+     caught on the box instead of being bound to each one. */
+  $('log').addEventListener('click', ev => {
+    const b = ev.target.closest('[data-atk]');
+    if (!b) return;
+    const row = ((state && state.log) || []).find(l => l.id === +b.dataset.row);
+    if (!row) return;
+    b.disabled = true;                       // a double click must not roll twice
+    if (b.dataset.atk === 'dodge') doDodge(row, true);
+    if (b.dataset.atk === 'nododge') doDodge(row, false);
+    if (b.dataset.atk === 'damage') doDamage(row);
+  });
 
   /* Nothing can be seeked before the browser knows how long the track is.
      With preload="none" that only happens once playback has begun, so the

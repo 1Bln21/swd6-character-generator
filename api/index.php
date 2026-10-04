@@ -3157,8 +3157,13 @@ case 'vtt_log': {
   if (!round_is_member($id, $user['id'])) fail('Not a member of this round', 403);
   $text = mb_substr(trim((string)inp('text', '')), 0, 300);
   if ($text === '') fail('Nothing to log');
+  /* 'attack', 'dodge' and 'damage' are the three steps of a shot at the
+     table (4.0.0.5.4). They are ordinary log rows - what makes them a
+     chain is the attack's row id, which the two later rows carry in their
+     data. Nothing about the fight lives in a table of its own: a round is
+     resolved and over, and the log is where the table looks anyway. */
   $kind = (string)inp('kind', 'roll');
-  if (!in_array($kind, ['roll', 'note'], true)) $kind = 'note';
+  if (!in_array($kind, ['roll', 'note', 'attack', 'dodge', 'damage'], true)) $kind = 'note';
   /* The single dice, so every client can show the roll on the map instead
      of only a line of text. Passed through as the client sent it and
      capped in size - it is read back by the same code that wrote it, and
@@ -3168,6 +3173,9 @@ case 'vtt_log': {
   $db->prepare('INSERT INTO round_log (round_id, user_id, kind, text, data, created)
                 VALUES (?, ?, ?, ?, ?, ?)')
      ->execute([$id, $user['id'], $kind, $text, $data, time()]);
+  /* The id goes back to the caller: a shot is answered by a dodge and by a
+     damage roll, and both have to say which shot they belong to. */
+  $logId = (int)$db->lastInsertId();
   /* Keep the log from growing without end: a long campaign would otherwise
      carry thousands of rows nobody ever scrolls back to. Strictly LESS
      THAN the oldest row worth keeping - with "<=" this deletes the very
@@ -3178,7 +3186,7 @@ case 'vtt_log': {
                                        ORDER BY id DESC LIMIT 200) keep)')
      ->execute([$id, $id]);
   vtt_touch($id);
-  json_out(['ok' => true]);
+  json_out(['ok' => true, 'id' => $logId]);
 }
 
 /* ===================== support / ticket system ===================== */

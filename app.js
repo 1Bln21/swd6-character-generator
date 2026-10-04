@@ -926,7 +926,15 @@ function buildRollProfile() {
     (C.powers || []).forEach(p => {
       if (/speed|burst|jump|leap/i.test(p)) boosts.push({ label: p, m: move, sure: false });
     });
-    C._roll = { entries: entries, gear: gear, move: move, weapons: weapons, boosts: boosts };
+    /* What a hit has to get through, in pips: Strength plus the armour
+       actually worn, physical and energy kept apart because the books do.
+       The table top needs it to work a shot out to the end, and it has no
+       character data of its own - the same reason move and weapons ride
+       along since 4.0.0.5. */
+    const at = armorTotals();
+    const soak = { phys: at.physTotal, energy: at.enerTotal };
+    C._roll = { entries: entries, gear: gear, move: move, weapons: weapons,
+                boosts: boosts, soak: soak };
     localStorage.setItem('swd6_roll_char', JSON.stringify({ name: (C.info && C.info.name) || '', entries, gear }));
   } catch (e) {}
 }

@@ -10,8 +10,8 @@
      attributes scattered through the generated markup do. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; script-src 'self' https://www.youtube.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-src https://www.youtube.com https://www.youtube-nocookie.com">
 <title>Star Wars D6 – Table</title>
-<link rel="stylesheet" href="style.css?v=4.0.0.5.3">
-<script src="theme.js?v=4.0.0.5.3"></script>
+<link rel="stylesheet" href="style.css?v=4.0.0.5.4">
+<script src="theme.js?v=4.0.0.5.4"></script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗺️</text></svg>">
 </head>
 <body>
@@ -227,6 +227,27 @@
             <input type="checkbox" id="rollWild" checked> <span data-i18n="wild_die">Wild Die</span>
           </label></p>
           <p><button id="btnRoll" class="accent" data-i18n="roll">🎲 Würfeln</button></p>
+
+          <div id="atkBox" class="hidden">
+            <h3 data-i18n="atk_title">Angriff</h3>
+            <div class="formgrid">
+              <div>
+                <label data-i18n="atk_target">Ziel</label>
+                <select id="atkTarget"></select>
+              </div>
+              <div>
+                <label data-i18n="atk_weapon">Waffe</label>
+                <select id="atkWeapon"></select>
+              </div>
+              <div>
+                <label data-i18n="atk_gmmod">Bonus der Spielleitung</label>
+                <input type="number" id="atkGmMod" value="0">
+              </div>
+            </div>
+            <p class="hint" data-i18n="atk_gmmod_hint">Negativ macht den Schuss leichter, positiv schwerer.</p>
+            <p id="atkInfo" class="hint"></p>
+            <p><button id="btnAttack" class="accent hidden" data-i18n="atk_do">🎯 Angriff würfeln</button></p>
+          </div>
         </div>
 
         <div class="card">
@@ -325,12 +346,12 @@
   <span>Star Wars: The Roleplaying Game, 2nd Edition – West End Games D6-System</span><span id="legalLinks"></span>
 </footer>
 
-<script src="config.js?v=4.0.0.5.3"></script>
-<script src="vtt.js?v=4.0.0.5.3"></script>
-<script src="online.js?v=4.0.0.5.3"></script>
-<script src="help.js?v=4.0.0.5.3"></script>
-<script src="credits.js?v=4.0.0.5.3"></script>
-<script src="report.js?v=4.0.0.5.3"></script>
-<script src="legal.js?v=4.0.0.5.3"></script>
+<script src="config.js?v=4.0.0.5.4"></script>
+<script src="vtt.js?v=4.0.0.5.4"></script>
+<script src="online.js?v=4.0.0.5.4"></script>
+<script src="help.js?v=4.0.0.5.4"></script>
+<script src="credits.js?v=4.0.0.5.4"></script>
+<script src="report.js?v=4.0.0.5.4"></script>
+<script src="legal.js?v=4.0.0.5.4"></script>
 </body>
 </html>
