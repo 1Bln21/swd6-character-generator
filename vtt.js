@@ -72,17 +72,18 @@ const T = {
     atk_hit: 'Treffer', atk_miss: 'Daneben',
     dod_do: 'Ausweichen', dod_skip: 'Kein Ausweichen', dod_waiting: 'Wartet auf das Ziel …', dmg_waiting: 'Wartet auf den Schadenswurf des Ziels …',
     dod_log: '{who} weicht aus: {total}', dod_none: '{who} weicht nicht aus',
-    dod_nostat: 'Für diese Marke ist kein Bogen hinterlegt – ohne Geschicklichkeit oder Ausweichen lässt sich nichts würfeln.',
+    dod_nostat: 'Diese Marke kann nicht ausweichen. Trag ein Ausweichen bei den Werten der Marke ein (z. B. 3D+2) – oder leg einen Bogen dahinter.',
     dmg_do: '💥 Schaden', dmg_result: 'Schaden {dmg} gegen Widerstand {soak}',
     dmg_log: '{who}: Schaden {dmg} gegen Widerstand {soak} → {wound}',
     dmg_nodmg: 'Zu dieser Waffe steht kein Schaden im Katalog.',
-    dmg_nosoak: 'Für diese Marke ist kein Bogen hinterlegt – ohne Stärke und Rüstung lässt sich der Widerstand nicht würfeln.',
+    dmg_nosoak: 'Diese Marke hat keinen Widerstand. Trag ihn unter „Reichweiten“ bei den Werten der Marke ein (z. B. 4D) – oder leg einen Bogen dahinter.',
     dmg_phys: 'physisch', dmg_energy: 'energetisch',
     wnd_none: 'Keine Wirkung', wnd_stunned: 'Benommen (Stunned)',
     wnd_wounded: 'Verwundet (Wounded)', wnd_incap: 'Handlungsunfähig (Incapacitated)',
     wnd_mortally: 'Tödlich verwundet (Mortally Wounded)', wnd_killed: 'Getötet (Killed)',
-    rng_own_hint: 'Werte an dieser Marke. Sie gehen dem Bogen vor – praktisch für freie Marken und für Bögen, die vor 4.0.0.5 gespeichert wurden und noch keinen Move mitbringen.',
+    rng_own_hint: 'Werte an dieser Marke. Sie gehen dem Bogen vor – gedacht für freie Marken, die gar keinen Bogen haben, und für Bögen, die vor 4.0.0.5 gespeichert wurden. Schaden, Widerstand und Ausweichen trägst du als Würfel ein (5D+1), nicht als Zahl; ohne Widerstand lässt sich an dieser Marke kein Schaden ausrechnen.',
     rng_own_move: 'Move (m)', rng_own_wname: 'Waffe', rng_own_wrange: 'Reichweite',
+    rng_own_wdmg: 'Schaden', rng_own_soak: 'Widerstand', rng_own_dodge: 'Ausweichen',
     rng_own_save: 'Werte speichern',
     gm_dim_hint: 'Tag und Nacht auf derselben Karte. Verdunkelt die Szene für alle – auch schon erkundetes Gelände. Die Marken bleiben sichtbar. Nur die Spielleitung kann das stellen.',
     gm_upload: '＋ Karte hochladen', gm_delete: 'Karte löschen',
@@ -174,16 +175,17 @@ const T = {
     atk_hit: 'Hit', atk_miss: 'Miss',
     dod_do: 'Dodge', dod_skip: 'No dodge', dod_waiting: 'Waiting for the target ...', dmg_waiting: 'Waiting for the target to roll damage ...',
     dod_log: '{who} dodges: {total}', dod_none: '{who} does not dodge',
-    dod_nostat: 'No sheet behind this token - without Dexterity or Dodge there is nothing to roll.',
+    dod_nostat: 'This token cannot dodge. Put a dodge in at the values kept with the token (3D+2, say) - or give it a sheet.',
     dmg_do: '💥 Damage', dmg_result: 'Damage {dmg} against resistance {soak}',
     dmg_log: '{who}: damage {dmg} against resistance {soak} -> {wound}',
     dmg_nodmg: 'The catalogue carries no damage for this weapon.',
-    dmg_nosoak: 'No sheet behind this token - without Strength and armour there is no resistance to roll.',
+    dmg_nosoak: 'This token has no resistance. Put one in under "Ranges", at the values kept with the token (4D, say) - or give it a sheet.',
     dmg_phys: 'physical', dmg_energy: 'energy',
     wnd_none: 'No effect', wnd_stunned: 'Stunned', wnd_wounded: 'Wounded',
     wnd_incap: 'Incapacitated', wnd_mortally: 'Mortally Wounded', wnd_killed: 'Killed',
-    rng_own_hint: 'Values kept at this token. They come before the sheet - handy for free tokens, and for sheets saved before 4.0.0.5 that carry no move yet.',
+    rng_own_hint: 'Values kept at this token. They come before the sheet - meant for free tokens, which have no sheet at all, and for sheets saved before 4.0.0.5. Damage, resistance and dodge are typed as dice (5D+1), not as a number; without a resistance no damage can be worked out at this token.',
     rng_own_move: 'Move (m)', rng_own_wname: 'Weapon', rng_own_wrange: 'Range',
+    rng_own_wdmg: 'Damage', rng_own_soak: 'Resistance', rng_own_dodge: 'Dodge',
     rng_own_save: 'Save values',
     gm_dim_hint: 'Day and night on the same map. Darkens the scene for everyone, explored ground included. The tokens stay visible. Only the GM can set this.',
     gm_upload: '＋ Upload map', gm_delete: 'Delete map',
@@ -633,7 +635,8 @@ function tokenReach(tok) {
      fills in where nothing is. */
   const move = +tok.move || (sheet && +sheet.move) || 0;
   const weapons = [];
-  if (tok.wrange) weapons.push({ name: tok.wname || t('rng_weapon'), range: tok.wrange });
+  if (tok.wrange || tok.wdmg) weapons.push({ name: tok.wname || t('rng_weapon'),
+    range: tok.wrange, dmg: tok.wdmg ? pipsToDice(tok.wdmg) : '' });
   ((sheet && sheet.weapons) || []).forEach(w => weapons.push(w));
   return { move: move, weapons: weapons, fromSheet: !!sheet };
 }
@@ -770,10 +773,19 @@ function renderRangePanel() {
      is the way to give the figure one without opening the generator. */
   const eigene = mayMove(tok);
   $('rngOwn').classList.toggle('hidden', !eigene);
-  if (eigene && document.activeElement !== $('rngOwnMove')) {
+  /* Not while somebody is typing in one of them - a refresh arrives every
+     few seconds and would wipe the field mid-word. */
+  const tippt = ['rngOwnMove', 'rngOwnWname', 'rngOwnWrange', 'rngOwnWdmg',
+                 'rngOwnSoak', 'rngOwnDodge'].some(id => document.activeElement === $(id));
+  if (eigene && !tippt) {
     $('rngOwnMove').value = String(tok.move || 0);
     $('rngOwnWname').value = tok.wname || '';
     $('rngOwnWrange').value = tok.wrange || '';
+    /* Stored as pips, shown and typed as dice - nobody at a table thinks
+       in pips. */
+    $('rngOwnWdmg').value = tok.wdmg ? pipsToDice(tok.wdmg) : '';
+    $('rngOwnSoak').value = tok.soak ? pipsToDice(tok.soak) : '';
+    $('rngOwnDodge').value = tok.dodge ? pipsToDice(tok.dodge) : '';
   }
 }
 let rangeBoostPicks = [];
@@ -1794,7 +1806,7 @@ function renderAttack() {
 
   const tsel = $('atkTarget');
   tsel.innerHTML = '<option value="0">' + esc(t('atk_notarget')) + '</option>'
-    + s.targets.map(x => '<option value="' + x.id + '">' + esc(x.label || '?')
+    + s.targets.map(x => '<option value="' + x.id + '">' + esc(tokenName(x))
         + ' · ' + Math.round(tokenDistanceM(s.from, x)) + ' m</option>').join('');
   tsel.value = String(atkTargetId);
 
@@ -1842,9 +1854,9 @@ async function doAttack() {
   const label = (src.from ? src.from + ' ' : '') + n + 'D' + (p ? '+' + p : '')
               + (mod ? (mod > 0 ? ' +' + mod : ' ' + mod) : '');
   const text = t('atk_log')
-    .replace('{who}', s.from.label || '?')
+    .replace('{who}', tokenName(s.from))
     .replace('{weapon}', s.weapon.name || '?')
-    .replace('{target}', s.target.label || '?')
+    .replace('{target}', tokenName(s.target))
     .replace('{m}', String(Math.round(s.dist)))
     .replace('{total}', String(r.total))
     .replace('{diff}', String(diff));
@@ -1852,8 +1864,8 @@ async function doAttack() {
     label: label, regs: r.regs, wild: r.wildVal, extra: r.extra, pips: p, mod: mod,
     total: r.total, complication: r.complication,
     atk: {
-      fromId: s.from.id, fromName: s.from.label || '?',
-      toId: s.target.id, toName: s.target.label || '?',
+      fromId: s.from.id, fromName: tokenName(s.from),
+      toId: s.target.id, toName: tokenName(s.target),
       weapon: s.weapon.name || '?', dmg: s.weapon.dmg || '',
       m: Math.round(s.dist), bracket: s.bracket.key,
       base: s.bracket.diff, gm: +$('atkGmMod').value || 0, diff: diff,
@@ -1889,6 +1901,13 @@ function attackResult(d, chain) {
   return { diff: diff, hit: d.total >= diff, dodged: dodged };
 }
 
+/* A token the game master dropped on the map may carry no label at all.
+   "?" told the table nothing; its number at least tells two of them apart. */
+function tokenName(tok) {
+  if (!tok) return '?';
+  return tok.label || ('#' + tok.id);
+}
+
 function tokenById(id) {
   return ((state && state.tokens) || []).find(x => x.id === id) || null;
 }
@@ -1907,19 +1926,27 @@ async function doDodge(row, use) {
   let total = 0, r = null, label = '';
   if (use) {
     const tok = tokenById(d.atk.toId);
-    /* Fetched and waited for, not taken from the cache: the first time a
-       figure is shot at its sheet has never been asked for, and
-       tokenSheet() would answer null while the request is still in the
-       air - which would read as "no sheet" and refuse the roll. */
-    const sheet = tok && tok.charId ? await loadRollProfile(tok.charId) : null;
-    const entries = (sheet && sheet.entries) || [];
-    const skill = entries.find(x => /^(dodge|ausweichen)$/i.test(x.label));
-    /* Not trained: the books let the governing attribute stand in, and for
-       dodge that is Dexterity. */
-    const attr = entries.find(x => /^(dexterity|geschicklichkeit)$/i.test(x.label));
-    const pips = (skill && skill.pips) || (attr && attr.pips) || 0;
+    /* The figure's own value first, the same as for move, range and
+       resistance - that is what makes a token the game master simply put
+       on the map able to answer at all. */
+    let pips = tok ? (+tok.dodge || 0) : 0;
+    let name = t('dod_do');
+    if (!pips) {
+      /* Fetched and waited for, not taken from the cache: the first time a
+         figure is shot at its sheet has never been asked for, and
+         tokenSheet() would answer null while the request is still in the
+         air - which would read as "no sheet" and refuse the roll. */
+      const sheet = tok && tok.charId ? await loadRollProfile(tok.charId) : null;
+      const entries = (sheet && sheet.entries) || [];
+      const skill = entries.find(x => /^(dodge|ausweichen)$/i.test(x.label));
+      /* Not trained: the books let the governing attribute stand in, and
+         for dodge that is Dexterity. */
+      const attr = entries.find(x => /^(dexterity|geschicklichkeit)$/i.test(x.label));
+      pips = (skill && skill.pips) || (attr && attr.pips) || 0;
+      if (skill || attr) name = (skill || attr).label;
+    }
     if (!pips) { alert(t('dod_nostat')); return; }
-    label = (skill || attr).label + ' ' + pipsToDice(pips);
+    label = name + ' ' + pipsToDice(pips);
     r = rollPool(Math.floor(pips / 3), pips % 3, true, 0);
     total = r.total;
   }
@@ -1945,9 +1972,15 @@ async function doDamage(row) {
   const dmgPips = dicePips(d.atk.dmg);
   if (!dmgPips) { alert(t('dmg_nodmg')); return; }
   const tok = tokenById(d.atk.toId);
-  const sheet = tok && tok.charId ? await loadRollProfile(tok.charId) : null;
   const kind = damageKind(d.atk.weapon);
-  const soakPips = (sheet && sheet.soak && +sheet.soak[kind]) || 0;
+  /* What is written at the figure comes first, exactly as it does for move
+     and range: a creature the game master put on the map has no sheet, and
+     one that does may still be meant to soak differently tonight. */
+  let soakPips = tok ? (+tok.soak || 0) : 0;
+  if (!soakPips) {
+    const sheet = tok && tok.charId ? await loadRollProfile(tok.charId) : null;
+    soakPips = (sheet && sheet.soak && +sheet.soak[kind]) || 0;
+  }
   if (!soakPips) { alert(t('dmg_nosoak')); return; }
   const dmg = rollPool(Math.floor(dmgPips / 3), dmgPips % 3, true, 0);
   const soak = rollPool(Math.floor(soakPips / 3), soakPips % 3, true, 0);
@@ -2545,8 +2578,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const move = Math.max(0, +$('rngOwnMove').value || 0);
     const wname = $('rngOwnWname').value.trim();
     const wrange = $('rngOwnWrange').value.trim();
+    const wdmg = dicePips($('rngOwnWdmg').value);
+    const soak = dicePips($('rngOwnSoak').value);
+    const dodge = dicePips($('rngOwnDodge').value);
     try {
-      await api('token_stats', { round: roundId, token: tok.id, move: move, wname: wname, wrange: wrange });
+      await api('token_stats', { round: roundId, token: tok.id, move: move, wname: wname,
+                                 wrange: wrange, wdmg: wdmg, soak: soak, dodge: dodge });
       await refresh(true);
     } catch (e) { alert(e.message); }
   });

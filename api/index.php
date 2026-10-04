@@ -733,7 +733,14 @@ foreach (['round_maps' => $rmCols, 'round_audio' => $raCols] as $tab => $cols) {
    move and the weapon range with the range rings of 4.0.0.5 */
 $rtCols = table_columns('round_tokens');
 $rtAdd = ['facing' => 'facing REAL DEFAULT -1', 'move' => 'move INT DEFAULT 0',
-          'wname' => "wname $STR DEFAULT ''", 'wrange' => "wrange VARCHAR(64) DEFAULT ''"];
+          'wname' => "wname $STR DEFAULT ''", 'wrange' => "wrange VARCHAR(64) DEFAULT ''",
+          /* 4.0.0.5.5: a figure the GM simply put on the map has no sheet
+             behind it, so the damage step had nothing to roll against and
+             nothing to roll with. Both now live at the token, the way its
+             move and its range already do. Stored as pips - "5D+1" is 16 -
+             because that is what the dice roller works in. */
+          'wdmg' => 'wdmg INT DEFAULT 0', 'soak' => 'soak INT DEFAULT 0',
+          'dodge' => 'dodge INT DEFAULT 0'];
 foreach ($rtAdd as $col => $colDef) {
   if (!$rtCols || in_array($col, $rtCols, true)) continue;
   try { $db->exec("ALTER TABLE round_tokens ADD COLUMN $colDef"); }
@@ -2598,6 +2605,9 @@ case 'vtt_state': {
                    'move' => ($isGm || $mine) && isset($t['move']) ? (int)$t['move'] : 0,
                    'wname' => ($isGm || $mine) && isset($t['wname']) ? (string)$t['wname'] : '',
                    'wrange' => ($isGm || $mine) && isset($t['wrange']) ? (string)$t['wrange'] : '',
+                   'wdmg' => ($isGm || $mine) && isset($t['wdmg']) ? (int)$t['wdmg'] : 0,
+                   'soak' => ($isGm || $mine) && isset($t['soak']) ? (int)$t['soak'] : 0,
+                   'dodge' => ($isGm || $mine) && isset($t['dodge']) ? (int)$t['dodge'] : 0,
                    'owner' => (string)$t['owner'], 'ownerId' => (int)$t['owner_id']];
     }
   }
@@ -2764,8 +2774,14 @@ case 'token_stats': {
   if ($wrange !== '' && !preg_match('#^[0-9 ,./-]{1,40}$#', $wrange)) {
     fail('That does not look like a range (for example 3-10/30/120)');
   }
-  $db->prepare('UPDATE round_tokens SET move = ?, wname = ?, wrange = ? WHERE id = ?')
-     ->execute([$move, $wname, $wrange, $tokenId]);
+  /* Damage and resistance in pips: 30D is far past anything the books
+     print and still leaves room for a walker. */
+  $wdmg = max(0, min(90, (int)inp('wdmg', 0)));
+  $soak = max(0, min(90, (int)inp('soak', 0)));
+  $dodge = max(0, min(90, (int)inp('dodge', 0)));
+  $db->prepare('UPDATE round_tokens SET move = ?, wname = ?, wrange = ?, wdmg = ?, soak = ?, dodge = ?
+                WHERE id = ?')
+     ->execute([$move, $wname, $wrange, $wdmg, $soak, $dodge, $tokenId]);
   vtt_touch($id);
   json_out(['ok' => true, 'move' => $move, 'wname' => $wname, 'wrange' => $wrange]);
 }
