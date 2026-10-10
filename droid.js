@@ -552,7 +552,7 @@ function poolBanner() {
 }
 
 /* ---------------- templates and extended catalogues (PDF) ---------------- */
-let tplFilter = '', tplMsg = '', tplDegree = '';
+let tplFilter = '', tplMsg = '', tplDegree = '', tplEra = '';
 
 /* In the Droid Compendium the degree is not in the statblock but in the
    chapter heading ("1st Degree Droids" ...) - so 267 of the 350 catalogue
@@ -601,6 +601,7 @@ function templateCard() {
   const hits = src.map((x, n) => [x, n])
     .filter(([x]) => catMatch(x, f, ['name', 'type']))
     .filter(([x]) => !tplDegree || droidFunctionOf(x) === tplDegree)
+    .filter(([x]) => !tplEra || x.era === tplEra)
     .sort((a, b) => {
       /* by function group, alphabetically within it - that way similar
          droids sit together instead of in source-book order */
@@ -620,6 +621,8 @@ function templateCard() {
           ${['d1', 'd2', 'd3', 'd4', 'd5', 'other'].map(k =>
             `<option value="${k}" ${tplDegree === k ? 'selected' : ''}>${t('dr_deg_' + k)}</option>`).join('')}
         </select></div>
+      <div style="flex:0 0 190px"><label>${t('era_label')}</label>
+        <select id="tplEra">${eraOptions(tplEra)}</select></div>
       <div style="flex:1; min-width:240px"><label>${t('dr_template_pick')}</label>
         <select id="tplSelect">${hits.map(([x, n]) =>
           `<option value="${n}">${esc(x.name)} — ${t('dr_deg_' + droidFunctionOf(x))}${
@@ -1414,6 +1417,10 @@ function pageAction(el) {
   }
 }
 function pageChange(el) {
+  if (el.id === 'tplEra') {
+    tplEra = el.value; tplMsg = ''; update('model');
+    return true;
+  }
   if (el.id === 'tplDegree') {
     tplDegree = el.value; tplMsg = ''; update('model');
     return true;
