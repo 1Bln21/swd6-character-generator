@@ -39,6 +39,7 @@ de: {
   name: 'Name', cost: 'Preis', avail: 'Verf.', qty: 'Anzahl', sum: 'Summe',
   /* catalogue eras - the keys live in PDF_ERAS (pdfdata-*.js) */
   era_label: 'Ära', era_all: 'Alle Ären', era_universal: 'zeitlos',
+  scale_label: 'Skala', scale_all: 'Alle Skalen',
   era_old_republic: 'Alte Republik', era_rise_empire: 'Aufstieg des Imperiums',
   era_rebellion: 'Rebellion', era_new_republic: 'Neue Republik / Legacy',
   note: 'Notiz', notes: 'Notizen', add_entry: '+ Eintrag', item: 'Gegenstand',
@@ -80,6 +81,7 @@ en: {
   name: 'Name', cost: 'Cost', avail: 'Avail.', qty: 'Qty', sum: 'Total',
   /* Catalog eras – the keys live in PDF_ERAS (pdfdata-*.js) */
   era_label: 'Era', era_all: 'All eras', era_universal: 'timeless',
+  scale_label: 'Scale', scale_all: 'All scales',
   era_old_republic: 'Old Republic', era_rise_empire: 'Rise of the Empire',
   era_rebellion: 'Rebellion', era_new_republic: 'New Republic / Legacy',
   note: 'Note', notes: 'Notes', add_entry: '+ Add entry', item: 'Item',

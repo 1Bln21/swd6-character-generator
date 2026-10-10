@@ -4685,10 +4685,10 @@ const PDF_SHIPS = [
   "source": "",
   "notes": "",
   "sensors": {
-   "Passive": "",
-   "Scan": "",
-   "Search": "",
-   "Focus": ""
+   "Passive": "40/1D",
+   "Scan": "70/2D",
+   "Search": "100/3D",
+   "Focus": "4/3D+2"
   },
   "weapons": [
    {
@@ -10257,10 +10257,10 @@ const PDF_SHIPS = [
   "source": "",
   "notes": "",
   "sensors": {
-   "Passive": "",
-   "Scan": "",
-   "Search": "",
-   "Focus": ""
+   "Passive": "40/1D",
+   "Scan": "70/2D",
+   "Search": "100/3D",
+   "Focus": "4/3D+2"
   },
   "weapons": [
    {
@@ -20012,10 +20012,10 @@ const PDF_SHIPS = [
   "source": "",
   "notes": "",
   "sensors": {
-   "Passive": "",
-   "Scan": "",
-   "Search": "",
-   "Focus": ""
+   "Passive": "20/1D",
+   "Scan": "50/2D",
+   "Search": "80/3D",
+   "Focus": "4/3D+2"
   },
   "weapons": [
    {
@@ -20310,10 +20310,10 @@ const PDF_SHIPS = [
   "source": "",
   "notes": "",
   "sensors": {
-   "Passive": "",
-   "Scan": "",
-   "Search": "",
-   "Focus": ""
+   "Passive": "30/0D",
+   "Scan": "50/1D",
+   "Search": "100/2D",
+   "Focus": "3/3D"
   },
   "weapons": [
    {
@@ -44647,10 +44647,10 @@ const PDF_SHIPS = [
   "source": "",
   "notes": "",
   "sensors": {
-   "Passive": "",
-   "Scan": "",
-   "Search": "",
-   "Focus": ""
+   "Passive": "30/1D+1",
+   "Scan": "80/2D+2",
+   "Search": "130/4D",
+   "Focus": "10/4D+2"
   },
   "weapons": [
    {
@@ -46319,28 +46319,39 @@ const PDF_SHIPS = [
   "space": "6",
   "atmosphere": "330; 950 kmh",
   "hull": "4D+2",
-  "shields": "",
+  "shields": "2D",
   "move": "",
   "cover": "",
   "affiliation": "Empire",
   "source": "The Jedi Academy Sourcebook (pages 128-130), Starships of the Galaxy (page 73)",
   "notes": "",
   "sensors": {
-   "Passive": "",
-   "Scan": "",
-   "Search": "",
-   "Focus": ""
+   "Passive": "30/0D",
+   "Scan": "45/1D",
+   "Search": "80/2D",
+   "Focus": "4/2D+2"
   },
   "weapons": [
    {
-    "name": "One-Shot Proton Charge",
-    "arc": "Front",
+    "name": "2 Double Blaster Cannons",
+    "arc": "1 front, 1 back",
     "skill": "Starship gunnery",
-    "crew": "1 (co-pilot)",
-    "fireControl": "0D",
-    "spaceRange": "",
-    "atmRange": "",
-    "damage": "Penetrates hull and shielding",
+    "crew": "1",
+    "fireControl": "2D",
+    "spaceRange": "1-3/12/28",
+    "atmRange": "100-300/1.2/2.8 km",
+    "damage": "5D",
+    "scale": ""
+   },
+   {
+    "name": "2 Double Laser Cannons (fire-linked)",
+    "arc": "Back",
+    "skill": "Starship gunnery",
+    "crew": "2",
+    "fireControl": "3D",
+    "spaceRange": "1-8/14/30",
+    "atmRange": "100-800/1.4/30 km",
+    "damage": "4D+1",
     "scale": ""
    }
   ],
@@ -47054,17 +47065,6 @@ const PDF_SHIPS = [
     "spaceRange": "Unknown",
     "atmRange": "",
     "damage": "10D or more",
-    "scale": ""
-   },
-   {
-    "name": "3 Quad Turbolaser Batteries",
-    "arc": "1 left, 2 right",
-    "skill": "Capital ship gunnery",
-    "crew": "5",
-    "fireControl": "4D",
-    "spaceRange": "3-15/35/75",
-    "atmRange": "",
-    "damage": "",
     "scale": ""
    }
   ],
@@ -49459,10 +49459,10 @@ const PDF_SHIPS = [
   "source": "",
   "notes": "",
   "sensors": {
-   "Passive": "",
-   "Scan": "",
-   "Search": "",
-   "Focus": ""
+   "Passive": "30/1D",
+   "Scan": "50/2D",
+   "Search": "70/3D",
+   "Focus": "4/4D"
   },
   "weapons": [
    {
@@ -51972,10 +51972,10 @@ const PDF_SHIPS = [
   "source": "Wizards Website",
   "notes": "",
   "sensors": {
-   "Passive": "",
-   "Scan": "",
-   "Search": "",
-   "Focus": ""
+   "Passive": "40/1D",
+   "Scan": "70/2D",
+   "Search": "150/3D",
+   "Focus": "4/3D+2"
   },
   "weapons": [
    {
@@ -52410,10 +52410,10 @@ const PDF_SHIPS = [
   "source": "Imperial Sourcebook (pages 59-60), The Star Wars Sourcebook (pages 32-34), Han Solo and the Corporate Sector Sourcebook (pages 91-92), Dark Force Rising Sourcebook (pages 141-142), The Thrawn Trilogy Sourcebook (page 223), Starships of the Galaxy (page 103), The Essential Guide to Vehicles and Vessels (pages 188-189)",
   "notes": "",
   "sensors": {
-   "Passive": "",
-   "Scan": "",
-   "Search": "",
-   "Focus": ""
+   "Passive": "40/1D",
+   "Scan": "70/2D",
+   "Search": "150/3D",
+   "Focus": "4/3D+2"
   },
   "weapons": [
    {
@@ -56810,30 +56810,30 @@ const PDF_SHIPS = [
   "nav": "Yes",
   "maneuver": "1D+2",
   "space": "6",
-  "atmosphere": "330; 950 kmh YT-1930",
+  "atmosphere": "330; 950 kmh",
   "hull": "4D",
-  "shields": "",
+  "shields": "2D",
   "move": "",
   "cover": "",
   "affiliation": "General",
   "source": "Wretched Hives of Scum and Villainy (page 98), Starships of the Galaxy Web Enhancement (page 3)",
   "notes": "",
   "sensors": {
-   "Passive": "",
-   "Scan": "",
-   "Search": "",
-   "Focus": ""
+   "Passive": "10/0D",
+   "Scan": "25/1D",
+   "Search": "40/2D",
+   "Focus": "2/3D"
   },
   "weapons": [
    {
-    "name": "Quad Laser Cannon",
-    "arc": "Dorsal turret (Turret may be fixed to forward to be fired by the Pilot at only 1D Fire Control)",
+    "name": "Twin Heavy Laser Cannon",
+    "arc": "Turret",
     "skill": "Starship gunnery",
-    "crew": "1 or pilot",
-    "fireControl": "3D",
-    "spaceRange": "1-5/10/17",
-    "atmRange": "100-500/1/1.7 km",
-    "damage": "5D",
+    "crew": "1 (co-pilot)",
+    "fireControl": "2D",
+    "spaceRange": "1-3/12/25",
+    "atmRange": "100-300/1.2/2.5 km",
+    "damage": "4D",
     "scale": ""
    }
   ],

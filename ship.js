@@ -807,6 +807,7 @@ function selOpts(list, sel, noneLabel) {
 /* ---------------- templates from the rulebook PDFs ---------------- */
 let tplFilter = '';
 let tplEra = '';
+let tplScale = '';
 
 /* Era picker. The generated catalogue file supplies the keys, so dropdown
    and data cannot drift apart. */
@@ -814,6 +815,22 @@ function eraOptions(selected) {
   const list = (typeof PDF_ERAS !== 'undefined') ? PDF_ERAS : [];
   return [`<option value="">${t('era_all')}</option>`].concat(
     list.map(e => `<option ${selected === e ? 'selected' : ''} value="${e}">${t('era_' + e.replace('-', '_'))}</option>`)
+  ).join('');
+}
+/* The scales the catalogue actually holds, in the order the books use
+   them - built from the stock rather than written down, so a scale that
+   only one entry carries still turns up and one that nobody carries does
+   not stand empty in the list. */
+const SCALE_ORDER = ['Character', 'Speeder', 'Walker', 'Starfighter', 'Capital', 'Death Star'];
+function scaleOptions(selected) {
+  const ships = (typeof PDF_SHIPS !== 'undefined') ? PDF_SHIPS : [];
+  const vehicles = (typeof PDF_VEHICLES !== 'undefined') ? PDF_VEHICLES : [];
+  const da = {};
+  ships.concat(vehicles).forEach(x => { const s = String(x.scale || '').trim(); if (s) da[s] = 1; });
+  const liste = SCALE_ORDER.filter(s => da[s])
+    .concat(Object.keys(da).filter(s => SCALE_ORDER.indexOf(s) < 0).sort());
+  return [`<option value="">${t('scale_all')}</option>`].concat(
+    liste.map(s => `<option ${selected === s ? 'selected' : ''} value="${esc(s)}">${esc(s)}</option>`)
   ).join('');
 }
 function templates() {
@@ -829,7 +846,9 @@ function templateCard() {
      types "Buuper Torsckil Abbey Devices Porax-38 Starfighter". So a
      name like "Porax-38" is found under "P-38" too, and a hand-kept
      'alias' catches the nicknames no rule reaches. See search.js. */
-  const match = x => catMatch(x, f, ['name', 'craft']) && (!tplEra || x.era === tplEra);
+  const match = x => catMatch(x, f, ['name', 'craft'])
+                  && (!tplEra || x.era === tplEra)
+                  && (!tplScale || String(x.scale || '').trim() === tplScale);
   const opt = (x, idx, kind) => `<option value="${kind}:${idx}">${esc(x.name)}${x.scale ? ' · ' + esc(x.scale) : ''}${x.book ? ' · ' + esc(x.book) : ''}</option>`;
   /* Ceiling per group. It dates from a time when the list was thought to
      be a bottleneck; measured, the browser needs about three milliseconds
@@ -855,6 +874,10 @@ function templateCard() {
       <div style="flex:0 0 200px">
         <label>${t('era_label')}</label>
         <select id="tplEra">${eraOptions(tplEra)}</select>
+      </div>
+      <div style="flex:0 0 160px">
+        <label>${t('scale_label')}</label>
+        <select id="tplScale">${scaleOptions(tplScale)}</select>
       </div>
       <div style="flex:1; min-width:240px">
         <label>${t('sh_template_pick')}</label>
@@ -1701,6 +1724,12 @@ function pageChange(el) {
   }
   if (el.id === 'tplEra') {
     tplEra = el.value;
+    tplMsg = '';
+    update('ship');
+    return true;
+  }
+  if (el.id === 'tplScale') {
+    tplScale = el.value;
     tplMsg = '';
     update('ship');
     return true;
