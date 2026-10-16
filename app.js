@@ -140,6 +140,7 @@ de: {
   add_adv_skill: '+ Eigene fortgeschrittene Fertigkeit',
   adv_hint: 'Fortgeschrittene Fertigkeiten („Advanced Skills“) bauen nicht auf einem Attribut auf (Start 0D) und kosten bei CP-Steigerung das Doppelte.',
   specialization: '(Spezialisierung)', species_bonus: '(Spezies-Bonus)',
+  what_it_does: 'Was die Fertigkeit bzw. Kraft bewirkt',
   add_spec_title: 'Spezialisierung hinzufügen', remove: 'Entfernen',
   prompt_spec: 'Name der Spezialisierung (z. B. "Blaster: Heavy Blaster Pistol"):',
   prompt_skill: 'Name der neuen Fertigkeit:',
@@ -338,6 +339,7 @@ en: {
   add_adv_skill: '+ Custom Advanced Skill',
   adv_hint: 'Advanced skills do not build on an attribute (start at 0D) and cost double when raised with Character Points.',
   specialization: '(specialization)', species_bonus: '(species bonus)',
+  what_it_does: 'What the skill or power does',
   add_spec_title: 'Add specialization', remove: 'Remove',
   prompt_spec: 'Name of the specialization (e.g. "Blaster: Heavy Blaster Pistol"):',
   prompt_skill: 'Name of the new skill:',
@@ -1648,6 +1650,38 @@ function viewAttrs() {
   </div>`;
 }
 
+/* ---------------- what a skill or a power does ----------------
+   beschreibungen.js holds one sentence per skill and per Force power, in
+   both languages. It is a separate file and may be missing after an
+   incomplete upload - then there is simply no button and no line, rather
+   than a page that dies with a ReferenceError.
+
+   A specialization ("Blaster: hold-out blaster") has no entry of its own;
+   it falls back to the skill in front of the colon, which is what it is a
+   specialization OF. */
+const offeneInfos = {};
+
+/* infoText() lives in beschreibungen.js, so the NPC generator can use
+   it as well. Missing file, missing function: then there is no button
+   and no line, rather than a page that dies on the first render. */
+if (typeof infoText !== 'function') { window.infoText = function () { return ''; }; }
+
+/* The button, and the line it opens. `id` must be unique on the page -
+   for skills that is attribute plus name, for powers the name. */
+function infoKnopf(art, id, name) {
+  if (!infoText(art, name)) return '';
+  const auf = !!offeneInfos[id];
+  return `<button class="mini info-btn${auf ? ' on' : ''}" data-act="toggleInfo"
+    data-info="${esc(id)}" title="${esc(t('what_it_does'))}"
+    aria-expanded="${auf}">?</button>`;
+}
+
+function infoZeile(art, id, name) {
+  if (!offeneInfos[id]) return '';
+  const txt = infoText(art, name);
+  return txt ? `<div class="info-line">${esc(txt)}</div>` : '';
+}
+
 /* ---------------- tab: skills ---------------- */
 const collapsedSecs = {};
 function viewSkills() {
@@ -1660,9 +1694,10 @@ function viewSkills() {
       const canPlus = left > 0 && e.c < 6;
       const extraIdx = C.extraSkills.findIndex(x => x.attr === a.key && x.name === r.name && !x.adv);
       return `<div class="skill-row ${r.spec ? 'spec' : ''} ${isImproved(r.name) ? 'improved' : ''}">
-        <span class="sname">${r.spec ? '↳ ' : ''}${esc(skillName(r.name))}
+        <span class="sname" title="${esc(infoText('skill', r.name))}">${r.spec ? '↳ ' : ''}${esc(skillName(r.name))}
           ${r.spec ? `<span class="tag">${t('specialization')}</span>` : ''}
           ${r.sb ? `<span class="tag">${t('species_bonus')}</span>` : ''}
+          ${infoKnopf('skill', key, r.name)}
         </span>
         ${stepper('skill', `data-key="${esc(key)}"`, e.c > 0, canPlus)}
         <span class="dice ${total > attrTotal(a.key) ? '' : 'plain'}">${fmtD(total)}</span>
@@ -1671,6 +1706,7 @@ function viewSkills() {
         ${e.cp ? `<span class="badge">+${e.cp} ${t('pips_bought')} · ${skillCpSpent(key)} CP</span>` : ''}
         ${r.std ? `<button class="mini" data-act="addSpec" data-attr="${a.key}" data-parent="${esc(r.name)}" title="${t('add_spec_title')}">S+</button>` : ''}
         ${(!r.std) ? `<button class="mini danger" data-act="delExtra" data-idx="${extraIdx}" title="${t('remove')}">×</button>` : ''}
+        ${infoZeile('skill', key, r.name)}
       </div>`;
     }).join('');
     const spentHere = skillsFor(a.key).reduce((tt, r) => {
@@ -1702,14 +1738,16 @@ function viewSkills() {
       const reqOk = advReqMet(sk.req);
       const extraIdx = C.extraSkills.findIndex(x => x.adv && x.name === sk.name);
       return `<div class="skill-row">
-        <span class="sname">${esc(skillName(sk.name))} <span class="tag">${t('requirement')}: ${esc(sk.req || '–')}</span>
-          ${!reqOk ? `<span class="warn"> ${t('req_missing')}</span>` : ''}</span>
+        <span class="sname" title="${esc(infoText('skill', sk.name))}">${esc(skillName(sk.name))} <span class="tag">${t('requirement')}: ${esc(sk.req || '–')}</span>
+          ${!reqOk ? `<span class="warn"> ${t('req_missing')}</span>` : ''}
+          ${infoKnopf('skill', key, sk.name)}</span>
         ${stepper('skill', `data-key="${esc(key)}"`, e.c > 0, left > 0 && e.c < 6)}
         <span class="dice plain">${fmtD(total)}</span>
         <span class="cost-hint">CP (${skillCpCost(key)}):</span>
         ${stepper('skillCP', `data-key="${esc(key)}"`, e.cp > 0, true)}
         ${e.cp ? `<span class="badge">+${e.cp} ${t('pips_bought')} · ${skillCpSpent(key)} CP</span>` : ''}
         ${sk.custom ? `<button class="mini danger" data-act="delExtra" data-idx="${extraIdx}">×</button>` : ''}
+        ${infoZeile('skill', key, sk.name)}
       </div>`;
     }).join('');
 
@@ -1803,11 +1841,13 @@ function viewForce() {
       return `<div class="power-row ${has ? 'learned' : ''} ${has && missing ? 'prereq-missing' : ''}" data-power-row="${esc(p.name)}">
         <input type="checkbox" data-act="powerToggle" data-power="${esc(p.name)}" ${has ? 'checked' : ''}>
         <div>
-          <div class="pname">${esc(p.name)} ${p.dark === 'Yes' ? `<span class="dark" title="${t('dark_side_title')}">☠</span>` : ''}</div>
+          <div class="pname">${esc(p.name)} ${p.dark === 'Yes' ? `<span class="dark" title="${t('dark_side_title')}">☠</span>` : ''}
+            ${infoKnopf('power', 'p:' + p.name, p.name)}</div>
           <div class="pmeta">
             ${t('difficulty')}: ${esc(p.diff || '–')} · ${t('keep_up')}: ${p.kept === 'Yes' ? t('yes') : t('no')} · ${esc(p.page)}
             ${p.prereq && p.prereq !== 'No Prerequisite' ? `<br>${t('requirement')}: ${reqText} ${has && missing ? `<span class="warn">${t('maybe_missing')}</span>` : ''}` : ''}
           </div>
+          ${infoZeile('power', 'p:' + p.name, p.name)}
         </div>
       </div>`;
     }).join('');
@@ -2636,6 +2676,14 @@ content.addEventListener('click', e => {
     case 'toggleSec': {
       const k = el.dataset.sec;
       collapsedSecs[k] = !collapsedSecs[k];
+      update(); break;
+    }
+    case 'toggleInfo': {
+      /* What the skill or power does. Open rows stay open across a
+         rerender - otherwise the line would vanish the moment you raise
+         the die you just read about. */
+      const k = el.dataset.info;
+      if (offeneInfos[k]) delete offeneInfos[k]; else offeneInfos[k] = 1;
       update(); break;
     }
     case 'addSpec': {

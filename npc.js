@@ -663,7 +663,13 @@ function attrChips(npc) {
     `<span class="npc-attr"><b>${a.name.slice(0, 3).toUpperCase()}</b> ${fmtD(npc.attrs[AI[a.key]])}</span>`).join('');
 }
 function skillsText(npc) {
-  return npc.skills.map(sk => `${esc(skillName(sk.name))} ${fmtD(sk.pips)}`).join(' · ');
+  /* Each skill carries its one-sentence explanation as a tooltip
+     (beschreibungen.js). The NPC card has no room for a line of its
+     own, and at the table a hover is enough. */
+  const was = n => (typeof infoText === 'function' ? infoText('skill', n) : '');
+  return npc.skills.map(sk =>
+    `<span title="${esc(was(sk.name))}">${esc(skillName(sk.name))} ${fmtD(sk.pips)}</span>`
+  ).join(' · ');
 }
 function weaponText(npc) {
   const w = npc.weapon;

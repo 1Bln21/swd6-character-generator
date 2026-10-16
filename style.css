@@ -292,6 +292,22 @@ main { padding: 18px var(--page-pad) 60px; max-width: 1500px; margin: 0 auto; }
 .skill-row.improved .sname::after { content: " ★"; color: var(--accent); }
 .cost-hint { font-size: 11.5px; color: var(--muted); min-width: 72px; }
 
+/* ---------- What a skill or power does ----------
+   The question mark sits quietly beside the name and only speaks when
+   asked; the line it opens takes the full width of the row so a long
+   sentence does not push the dice around. */
+button.mini.info-btn {
+  padding: 0 7px; font-size: 12px; line-height: 1.6; font-weight: 700;
+  color: var(--muted); background: transparent; border-color: #2c3366;
+}
+button.mini.info-btn:hover { color: var(--fg); border-color: var(--blue); }
+button.mini.info-btn.on { color: var(--blue); border-color: var(--blue); }
+.info-line {
+  flex: 1 0 100%; margin: 4px 0 1px; padding: 6px 10px;
+  font-size: 13px; line-height: 1.45; color: var(--fg);
+  background: var(--rowhover); border-left: 3px solid var(--blue); border-radius: 0 4px 4px 0;
+}
+
 /* ---------- Tables ---------- */
 table.list { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 table.list th {
